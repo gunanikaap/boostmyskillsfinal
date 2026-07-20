@@ -17,9 +17,9 @@ PostgreSQL). Test files are cited per row.
 
 | ID | Story | Implementation | Test | Status | Notes / blocker |
 |----|-------|----------------|------|--------|-----------------|
-| US-L-01 | Registration | `app/sign-up`, `middleware.ts`, `lib/auth/*`, webhook `app/api/webhooks/clerk` | `tests/db/access.test.ts` (sync/role) | PARTIAL | Real Clerk sign-up flow needs UAT Clerk keys (B-CLERK). App-user sync + default-learner role tested. |
-| US-L-02 | Email verification | Clerk-hosted | — | BLOCKED | Clerk instance + email delivery (B-CLERK, B-EMAIL). |
-| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard` | `access.test.ts` | PARTIAL | Dashboard queries tested; login handoff needs Clerk keys. |
+| US-L-01 | Registration | `app/sign-up`, `middleware.ts`, `components/AuthControls.tsx`, `lib/auth/*`, webhook `app/api/webhooks/clerk` | `tests/db/access.test.ts` (sync/role) | PARTIAL | Clerk **dev instance integrated** (keys in `.env.local`); sign-up page + header controls render; app-user sync + default-learner role tested. Remaining: a real browser sign-up (user action). |
+| US-L-02 | Email verification | Clerk-hosted | — | PARTIAL | Clerk dev instance live; email verification is exercised by completing a real sign-up. Deployed delivery still B-EMAIL. |
+| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard`, `middleware.ts` | `access.test.ts` | PARTIAL | Clerk sign-in renders; protected `/dashboard` redirects to `/sign-in` (verified via dev server). Dashboard queries tested. |
 | US-L-04 | Historical learner migration | `lib/migration/service.ts`, `scripts/migration/dry-run.mts` | `tests/db/migration.test.ts` | BLOCKED | No source export + no Clerk mapping strategy (B-MIGRATE, B-CLERK). Dry-run + idempotent upsert implemented and tested; never fabricates. |
 | US-L-05 | Password reset | Clerk-hosted | — | BLOCKED | Clerk keys (B-CLERK). |
 | US-L-06 | Profile editing | Clerk profile + `syncAppUser` | `access.test.ts` | PARTIAL | Sync path tested; Clerk profile UI needs keys. |

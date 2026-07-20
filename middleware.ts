@@ -17,7 +17,13 @@ const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 const handler = clerkConfigured
   ? clerkMiddleware(async (auth, req) => {
       if (isProtected(req)) {
-        await auth.protect();
+        const { userId, redirectToSignIn } = await auth();
+        // Unauthenticated users get a friendly redirect to sign-in (with a safe
+        // return URL) rather than an obscuring 404. Server-side requireAdmin()/
+        // requireAuthenticatedUser() remain the authoritative checks.
+        if (!userId) {
+          return redirectToSignIn({ returnBackUrl: req.url });
+        }
       }
     })
   : (_req: NextRequest) => NextResponse.next();
@@ -29,5 +35,7 @@ export const config = {
     // Skip Next internals and static files; run on everything else + API routes.
     "/((?!_next|.*\\..*).*)",
     "/(api|trpc)(.*)",
+    // Clerk auto-proxy path (must run through the middleware).
+    "/__clerk/:path*",
   ],
 };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AuthControls from "@/components/AuthControls";
 
 export default function SiteHeader() {
   return (
@@ -23,6 +24,7 @@ export default function SiteHeader() {
           <Link href="/programs">Micro-programmes</Link>
           <Link href="/about">About</Link>
           <Link href="/dashboard">Dashboard</Link>
+          <AuthControls />
         </nav>
       </div>
     </header>
