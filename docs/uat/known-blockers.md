@@ -28,3 +28,13 @@ decisions. Everything not blocked has been implemented and tested locally.
 
 A local adapter/test proves **implementation readiness**, not external acceptance.
 None of the blocked items above are reported as deployed, integrated, or migrated.
+
+## Resolved this phase (not a blocker)
+
+- **Framework RSC advisories**: `next` upgraded `15.2.3 → 15.5.20` (minor, not
+  Next 16), `react`/`react-dom` pinned exact `19.2.7`, `postcss` overridden
+  `>=8.5.10`. Production `npm audit --omit=dev`: **0 critical / 0 high** (was 1
+  critical + multiple high). One documented, non-exploitable moderate remains
+  (`fast-xml-parser` XMLBuilder — XMLBuilder is not used). Release gate:
+  `npm run security:audit`. See `docs/security/security-review.md` and
+  `docs/uat/framework-security-and-auth-completion-report.md`.
