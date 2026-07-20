@@ -236,3 +236,12 @@ end-to-end against the real Clerk dev instance and local storage.
   The promoted account's `role=admin` is a verified DB fact and `requireAdmin`
   admits admins (test-proven); the live in-browser view is the final confirmation
   and does not affect merged code correctness. Services were left running for it.
+
+## Addendum — framework security patch (later phase)
+
+After this report, a dependency security review upgraded `next` 15.2.3 → 15.5.20
+(minor; not Next 16), pinned `react`/`react-dom` 19.2.7 exact, and added a
+`postcss >=8.5.10` override. Production audit went from 1 critical + multiple high
+to **0 critical / 0 high** (one documented non-exploitable moderate). All 124
+Vitest + 7 Playwright tests still pass; build green. Details:
+`docs/uat/framework-security-and-auth-completion-report.md`.
