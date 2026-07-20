@@ -22,7 +22,8 @@ import {
   unhideProgramme,
 } from "@/lib/programmes/service";
 import { setMaintenance } from "@/lib/settings/maintenance";
-import { ContentValidationError } from "@/lib/content/validate";
+import { ContentValidationError, validateDraftForPublish } from "@/lib/content/validate";
+import { db } from "@/lib/db/pool";
 
 export interface ActionResult {
   ok: boolean;
@@ -99,10 +100,18 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
   }
 }
 
-/** Save the draft content/grading/rule from JSON authoring input. */
+/** Save the draft content/grading/rule + meta from the visual builder (or JSON). */
 export async function saveDraftContentAction(
   credentialId: string,
-  payload: { content?: unknown; grading?: unknown; certificationRule?: unknown; title?: string },
+  payload: {
+    content?: unknown;
+    grading?: unknown;
+    certificationRule?: unknown;
+    title?: string;
+    authorName?: string;
+    shortDescription?: string;
+    aboutHtml?: string;
+  },
 ): Promise<ActionResult> {
   try {
     await requireAdmin();
@@ -111,6 +120,38 @@ export async function saveDraftContentAction(
     return { ok: true, message: "Draft saved." };
   } catch (err) {
     return fail(err);
+  }
+}
+
+/**
+ * Validation summary for the current draft — runs the SAME publish-time
+ * validation service (no duplicated rules) and returns the issues without
+ * publishing, so the builder can show a readable readiness summary.
+ */
+export async function validateDraftAction(
+  credentialId: string,
+): Promise<{ ok: boolean; issues: string[] }> {
+  try {
+    await requireAdmin();
+    const { rows } = await db.query(
+      `SELECT content_document, grading_document, certification_rule
+       FROM credential_versions WHERE credential_id = $1 AND status = 'draft'`,
+      [credentialId],
+    );
+    const draft = rows[0] as
+      | { content_document: unknown; grading_document: unknown; certification_rule: unknown }
+      | undefined;
+    if (!draft) return { ok: false, issues: ["No editable draft revision exists."] };
+    validateDraftForPublish({
+      content: draft.content_document,
+      grading: draft.grading_document,
+      certificationRule: draft.certification_rule,
+    });
+    return { ok: true, issues: [] };
+  } catch (err) {
+    if (err instanceof ContentValidationError) return { ok: false, issues: err.issues };
+    if (err instanceof AccessError) return { ok: false, issues: ["Not authorised."] };
+    return { ok: false, issues: [(err as Error).message ?? "Validation failed."] };
   }
 }
 
