@@ -25,7 +25,8 @@
     "test": "vitest run --no-file-parallelism",
     "verify": "node --experimental-strip-types scripts/verify.mts",
     "db:backup": "node --experimental-strip-types scripts/db/backup.mts",
-    "db:restore:verify": "node --experimental-strip-types scripts/db/restore-verify.mts"
+    "db:restore:verify": "node --experimental-strip-types scripts/db/restore-verify.mts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.9.6",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.5",
     "@types/pg": "^8.11.10",
     "@types/react": "^19.0.2",
