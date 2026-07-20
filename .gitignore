@@ -25,8 +25,9 @@ next-env.d.ts
 /test-results
 /playwright-report
 
-# local storage / scratch
+# local storage / scratch / backups (never commit object data or dumps)
 /.local-storage
+/.data
 /tmp
 *.log
 npm-debug.log*

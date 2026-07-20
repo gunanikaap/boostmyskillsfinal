@@ -9,6 +9,8 @@ import type { ContentDocument, GradingDocument } from "@/lib/content/schema";
 import { type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { createCredentialWithDraft, saveDraft } from "@/lib/credentials/service";
+import { getStorage } from "@/lib/storage/factory";
+import { olxArchiveKey } from "@/lib/storage/keys";
 
 export interface ParsedCourse {
   content: ContentDocument;
@@ -200,6 +202,7 @@ export interface ImportResult {
   archiveSha256: string;
   source: string;
   unsupportedBlocks: string[];
+  archiveObjectKey: string;
 }
 
 /**
@@ -244,6 +247,16 @@ export async function importOlxToDraft(
       },
       tx,
     );
+
+    // Persist the original OLX archive privately through the storage provider
+    // (server-generated key; never a filesystem path). If storage fails, the
+    // whole transaction rolls back — no orphan draft is created.
+    const archiveObjectKey = input.archiveObjectKey ?? olxArchiveKey(credentialId);
+    await getStorage().putObject(archiveObjectKey, input.gz, {
+      contentType: "application/gzip",
+      maxBytes: limits.maxCompressedBytes,
+    });
+
     // Record source metadata on the draft revision.
     await tx.query(
       `UPDATE credential_versions SET source_metadata = $2::jsonb
@@ -253,7 +266,7 @@ export async function importOlxToDraft(
         JSON.stringify({
           sourceType: "olx",
           originalFilename: input.originalFilename,
-          archiveObjectKey: input.archiveObjectKey ?? null,
+          archiveObjectKey,
           archiveSha256,
           importedAt: new Date().toISOString(),
           unsupportedBlocks: parsed.unsupportedBlocks,
@@ -266,6 +279,7 @@ export async function importOlxToDraft(
       archiveSha256,
       source: parsed.source,
       unsupportedBlocks: parsed.unsupportedBlocks,
+      archiveObjectKey,
     };
   };
   return conn ? run(conn) : withTransaction(run);

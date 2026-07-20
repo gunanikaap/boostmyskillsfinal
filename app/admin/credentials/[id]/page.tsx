@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { adminGetCredential } from "@/lib/admin/queries";
 import { CredentialActions } from "./CredentialActions";
+import { BannerUpload } from "./BannerUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +27,16 @@ export default async function AdminCredentialDetail({
           Status: <strong>{cred.status}</strong> · Draft: {draft ? "yes" : "no"} · Published:{" "}
           {published ? "yes" : "no"}
         </p>
-        <a className="btn" href={`/admin/credentials/${id}/export`}>
-          Export OLX (.tar.gz)
-        </a>
+        <div style={{ display: "flex", gap: 10 }}>
+          <a className="btn" href={`/admin/credentials/${id}/export`}>
+            Export OLX (.tar.gz)
+          </a>
+          <a className="btn" href={`/admin/credentials/${id}/olx-archive`}>
+            Download source archive
+          </a>
+        </div>
       </div>
+      <BannerUpload credentialId={id} />
       <CredentialActions
         credentialId={id}
         status={cred.status}
