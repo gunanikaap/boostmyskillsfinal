@@ -160,3 +160,9 @@ secret, not pasteable), Backblaze B2, AWS RDS/RDS Proxy, Amplify, US-L-04, US-A-
 Real webhook delivery stays **PARTIAL** — not blocking local functional UAT
 because lazy sync is proven with the real user, signed fixtures pass, and role
 preservation is proven. Not claimed PASS. No signing secret was requested.
+
+## Close
+
+- Final `main` HEAD: `036979f633e766ae4fbf9cbdb361871fd1fc1f83` (this docs commit).
+- Security-patch merge: `784ceaa`; dependency patch `9421e95`; security docs `cf4e711`.
+- `npm run verify` PASS · `npm run security:audit` exit 0 · secret scan clean · working tree clean.
