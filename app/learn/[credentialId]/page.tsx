@@ -5,6 +5,7 @@ import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { getLearnerContent } from "@/lib/player/service";
 import { getEnrollmentUnitState } from "@/lib/learner/queries";
 import { AccessError } from "@/lib/access/errors";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { UnitView } from "./UnitView";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function PlayerPage({
 }: {
   params: Promise<{ credentialId: string }>;
 }) {
+  await enforceMaintenanceForPage();
   const { credentialId } = await params;
   const user = await getCurrentAppUser();
   if (!user) {

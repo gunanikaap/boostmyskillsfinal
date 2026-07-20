@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { getPublishedCredentialBySlug } from "@/lib/catalogue/queries";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { EnrolButton } from "./EnrolButton";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export default async function CredentialDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await enforceMaintenanceForPage();
   const { slug } = await params;
   const detail = await getPublishedCredentialBySlug(slug);
   if (!detail) notFound(); // draft/hidden are indistinguishable from missing

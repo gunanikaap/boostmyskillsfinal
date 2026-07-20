@@ -1,11 +1,13 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { listPublishedProgrammes } from "@/lib/catalogue/queries";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Micro-programmes" };
 
 export default async function ProgramsPage() {
+  await enforceMaintenanceForPage();
   const programmes = await listPublishedProgrammes();
   return (
     <>

@@ -2,11 +2,13 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { listMyLearning } from "@/lib/learner/queries";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
+  await enforceMaintenanceForPage();
   const user = await getCurrentAppUser();
   if (!user) {
     return (

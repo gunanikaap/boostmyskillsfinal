@@ -3,6 +3,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getPublishedProgrammeBySlug } from "@/lib/programmes/queries";
 import { RegisterButton } from "./RegisterButton";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function ProgrammeDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await enforceMaintenanceForPage();
   const { slug } = await params;
   const detail = await getPublishedProgrammeBySlug(slug);
   if (!detail) notFound();

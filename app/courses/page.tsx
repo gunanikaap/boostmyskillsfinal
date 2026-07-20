@@ -1,11 +1,13 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { listPublishedCredentials } from "@/lib/catalogue/queries";
+import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Micro-credentials" };
 
 export default async function CoursesPage() {
+  await enforceMaintenanceForPage();
   const credentials = await listPublishedCredentials();
   return (
     <>
