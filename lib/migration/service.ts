@@ -53,10 +53,12 @@ export async function upsertUsers(
       continue;
     }
     const u = parsed.data;
+    // Normalize email to satisfy the app_users normalization CHECK + CI uniqueness.
+    const email = u.email.trim().toLowerCase();
 
     const existing = await conn.query(
-      `SELECT id, clerk_user_id FROM app_users WHERE external_ref = $1 OR email = $2 LIMIT 1`,
-      [u.externalRef, u.email],
+      `SELECT id, clerk_user_id FROM app_users WHERE external_ref = $1 OR lower(email) = $2 LIMIT 1`,
+      [u.externalRef, email],
     );
 
     if (existing.rows[0]) {
@@ -92,7 +94,7 @@ export async function upsertUsers(
         `INSERT INTO app_users (clerk_user_id, email, first_name, last_name, role, external_ref)
          VALUES ($1,$2,$3,$4,'learner',$5)
          ON CONFLICT (clerk_user_id) DO NOTHING`,
-        [u.clerkUserId, u.email, u.firstName ?? null, u.lastName ?? null, u.externalRef],
+        [u.clerkUserId, email, u.firstName ?? null, u.lastName ?? null, u.externalRef],
       );
     }
     report.inserted += 1;

@@ -42,6 +42,7 @@ describe("requireAdmin / requireAuthenticatedUser", () => {
     setTestActor({
       clerkUserId: "clerk_new_1",
       email: "new1@example.com",
+      username: null,
       firstName: null,
       lastName: null,
     });
@@ -123,6 +124,7 @@ describe("maintenance gate", () => {
       role: "admin" as const,
       clerkUserId: "",
       email: "",
+      username: null,
       firstName: null,
       lastName: null,
     };
