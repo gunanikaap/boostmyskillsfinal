@@ -36,8 +36,9 @@ async function newCredential(slug = "mc-pub") {
 describe("publication visibility", () => {
   it("draft is invisible; published is visible; hidden is invisible", async () => {
     const { admin, credentialId } = await newCredential();
-    const slug = (await getPool().query(`SELECT slug FROM micro_credentials WHERE id=$1`, [credentialId]))
-      .rows[0]!.slug as string;
+    const slug = (
+      await getPool().query(`SELECT slug FROM micro_credentials WHERE id=$1`, [credentialId])
+    ).rows[0]!.slug as string;
 
     // draft → not in catalogue, detail null
     expect((await listPublishedCredentials()).find((c) => c.id === credentialId)).toBeUndefined();
@@ -66,12 +67,22 @@ describe("publish validation", () => {
     const { credentialId } = await newCredential("mc-bad");
     const s = sampleContent();
     s.grading.units[0]!.questions[0]!.correctOptionIds = ["nope"];
-    await saveDraft({ credentialId, content: s.content, grading: s.grading, certificationRule: s.certificationRule });
+    await saveDraft({
+      credentialId,
+      content: s.content,
+      grading: s.grading,
+      certificationRule: s.certificationRule,
+    });
     await expect(publishCredential(credentialId)).rejects.toBeInstanceOf(ContentValidationError);
     // nothing changed: still draft, credential still draft
-    const v = await getPool().query(`SELECT status FROM credential_versions WHERE credential_id=$1`, [credentialId]);
+    const v = await getPool().query(
+      `SELECT status FROM credential_versions WHERE credential_id=$1`,
+      [credentialId],
+    );
     expect(v.rows[0]!.status).toBe("draft");
-    const c = await getPool().query(`SELECT status FROM micro_credentials WHERE id=$1`, [credentialId]);
+    const c = await getPool().query(`SELECT status FROM micro_credentials WHERE id=$1`, [
+      credentialId,
+    ]);
     expect(c.rows[0]!.status).toBe("draft");
   });
 
@@ -79,7 +90,12 @@ describe("publish validation", () => {
     const { credentialId } = await newCredential("mc-dup");
     const s = sampleContent();
     s.content.sections[0]!.subsections[0]!.id = s.content.sections[0]!.id; // duplicate
-    await saveDraft({ credentialId, content: s.content, grading: s.grading, certificationRule: s.certificationRule });
+    await saveDraft({
+      credentialId,
+      content: s.content,
+      grading: s.grading,
+      certificationRule: s.certificationRule,
+    });
     await expect(publishCredential(credentialId)).rejects.toBeInstanceOf(ContentValidationError);
   });
 });
@@ -114,8 +130,14 @@ describe("revisions and learner binding", () => {
       [learnerB, credentialId, v2],
     );
 
-    const a = await getPool().query(`SELECT credential_version_id FROM enrollments WHERE user_id=$1`, [learnerA]);
-    const b = await getPool().query(`SELECT credential_version_id FROM enrollments WHERE user_id=$1`, [learnerB]);
+    const a = await getPool().query(
+      `SELECT credential_version_id FROM enrollments WHERE user_id=$1`,
+      [learnerA],
+    );
+    const b = await getPool().query(
+      `SELECT credential_version_id FROM enrollments WHERE user_id=$1`,
+      [learnerB],
+    );
     expect(a.rows[0]!.credential_version_id).toBe(v1); // unchanged
     expect(b.rows[0]!.credential_version_id).toBe(v2);
 
@@ -124,7 +146,9 @@ describe("revisions and learner binding", () => {
       `SELECT status, count(*)::int FROM credential_versions WHERE credential_id=$1 GROUP BY status`,
       [credentialId],
     );
-    const map = Object.fromEntries((counts.rows as { status: string; count: number }[]).map((r) => [r.status, r.count]));
+    const map = Object.fromEntries(
+      (counts.rows as { status: string; count: number }[]).map((r) => [r.status, r.count]),
+    );
     expect(map.published).toBe(1);
     expect(map.retired).toBe(1);
   });
@@ -134,6 +158,8 @@ describe("revisions and learner binding", () => {
     await saveDraft({ credentialId, ...sampleContentPayload() });
     await publishCredential(credentialId);
     // no draft now → saveDraft must refuse
-    await expect(saveDraft({ credentialId, title: "hack" })).rejects.toMatchObject({ code: "no_draft" });
+    await expect(saveDraft({ credentialId, title: "hack" })).rejects.toMatchObject({
+      code: "no_draft",
+    });
   });
 });

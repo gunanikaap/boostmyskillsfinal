@@ -24,7 +24,12 @@ async function publishedCredential(projectId: string, admin: string) {
     createdBy: admin,
   });
   const s = sampleContent();
-  await saveDraft({ credentialId, content: s.content, grading: s.grading, certificationRule: s.certificationRule });
+  await saveDraft({
+    credentialId,
+    content: s.content,
+    grading: s.grading,
+    certificationRule: s.certificationRule,
+  });
   await publishCredential(credentialId);
   return credentialId;
 }
@@ -34,7 +39,12 @@ describe("programme membership validation", () => {
     const admin = await makeUser("admin");
     const project = await makeProject();
     const c1 = await publishedCredential(project, admin);
-    const prog = await createProgramme({ projectId: project, slug: `p-${Date.now()}`, title: "P", createdBy: admin });
+    const prog = await createProgramme({
+      projectId: project,
+      slug: `p-${Date.now()}`,
+      title: "P",
+      createdBy: admin,
+    });
     await expect(
       setProgrammeCredentials(prog, [
         { credentialId: c1, position: 0 },
@@ -48,7 +58,12 @@ describe("programme membership validation", () => {
     const projectA = await makeProject();
     const projectB = await makeProject();
     const cB = await makeCredential(projectB, "published");
-    const prog = await createProgramme({ projectId: projectA, slug: `p-${Date.now()}`, title: "P", createdBy: admin });
+    const prog = await createProgramme({
+      projectId: projectA,
+      slug: `p-${Date.now()}`,
+      title: "P",
+      createdBy: admin,
+    });
     await expect(
       setProgrammeCredentials(prog, [{ credentialId: cB, position: 0 }]),
     ).rejects.toMatchObject({ code: "project_mismatch" });
@@ -58,12 +73,20 @@ describe("programme membership validation", () => {
     const admin = await makeUser("admin");
     const project = await makeProject();
     const c1 = await publishedCredential(project, admin);
-    const prog = await createProgramme({ projectId: project, slug: `p-${Date.now()}`, title: "P", createdBy: admin });
+    const prog = await createProgramme({
+      projectId: project,
+      slug: `p-${Date.now()}`,
+      title: "P",
+      createdBy: admin,
+    });
     await setProgrammeCredentials(prog, [{ credentialId: c1, position: 0 }]);
     await publishProgramme(prog);
     // a learner registers
     const learner = await makeUser("learner");
-    await getPool().query(`INSERT INTO enrollments (user_id, programme_id) VALUES ($1,$2)`, [learner, prog]);
+    await getPool().query(`INSERT INTO enrollments (user_id, programme_id) VALUES ($1,$2)`, [
+      learner,
+      prog,
+    ]);
     await expect(
       setProgrammeCredentials(prog, [{ credentialId: c1, position: 0 }]),
     ).rejects.toMatchObject({ code: "membership_locked" });
@@ -74,7 +97,12 @@ describe("programme publish/hide visibility", () => {
   it("only publishes with publishable members and appears in catalogue; hidden disappears", async () => {
     const admin = await makeUser("admin");
     const project = await makeProject();
-    const prog = await createProgramme({ projectId: project, slug: `p-${Date.now()}`, title: "Prog", createdBy: admin });
+    const prog = await createProgramme({
+      projectId: project,
+      slug: `p-${Date.now()}`,
+      title: "Prog",
+      createdBy: admin,
+    });
 
     // a draft credential member cannot be published in a programme
     const draftCred = await makeCredential(project, "draft");
