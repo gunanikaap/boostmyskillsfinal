@@ -223,3 +223,16 @@ credential (author a small MCQ) → publish → upload a banner → then in a se
 learner account enrol, complete the MCQ, and download the certificate PDF. This
 exercises the full local vertical (auth → storage → publish → learn → certify)
 end-to-end against the real Clerk dev instance and local storage.
+
+## Close
+
+- Merged to `main` via `--no-ff` merge commit `7749e84`.
+- `npm run verify` re-run on `main` after merge: exit 0 (format · lint · typecheck ·
+  124 tests · build). Playwright 7/7 (unchanged code).
+- Post-merge secret rescan of tracked files: no `sk_/pk_live/whsec_/AKIA` values;
+  `.env.local` and `.data/` gitignored; personal email redacted in all docs.
+- Pushed `main` to `boostmyskillsfinal` (origin == local); reference remote never pushed.
+- **One remaining live acceptance:** the authenticated-admin `/admin` page view.
+  The promoted account's `role=admin` is a verified DB fact and `requireAdmin`
+  admits admins (test-proven); the live in-browser view is the final confirmation
+  and does not affect merged code correctness. Services were left running for it.
