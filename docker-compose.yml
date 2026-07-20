@@ -1,0 +1,23 @@
+# Local development / test PostgreSQL only. NEVER used for UAT or Production.
+# UAT/Production use AWS RDS PostgreSQL through RDS Proxy (see docs/operations/uat-deployment.md).
+# Host port 5433 is used deliberately: a native PostgreSQL commonly occupies 5432 on dev machines.
+services:
+  db:
+    image: postgres:16
+    container_name: bms_final_db
+    environment:
+      POSTGRES_USER: bms
+      POSTGRES_PASSWORD: bms_local_dev_only
+      POSTGRES_DB: bms
+    ports:
+      - "5433:5432"
+    volumes:
+      - bms_final_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bms -d bms"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  bms_final_pgdata:

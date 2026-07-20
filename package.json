@@ -1,0 +1,49 @@
+{
+  "name": "boostmyskills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BoostMySkills micro-credential LMS (UAT build) — Next.js + TypeScript, SQL-first, Clerk, Backblaze B2, AWS Amplify Gen 2.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "format:check": "prettier --check \"{app,components,lib,scripts,tests}/**/*.{ts,tsx,mjs,mts,css,md}\"",
+    "format:write": "prettier --write \"{app,components,lib,scripts,tests}/**/*.{ts,tsx,mjs,mts,css,md}\"",
+    "typecheck": "tsc --noEmit",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:migrate": "node --experimental-strip-types scripts/db/migrate.mts",
+    "db:seed": "node --experimental-strip-types scripts/db/seed.mts",
+    "db:reset": "node --experimental-strip-types scripts/db/reset.mts",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:db": "vitest run --dir tests/db --no-file-parallelism",
+    "test": "vitest run --no-file-parallelism",
+    "verify": "node --experimental-strip-types scripts/verify.mts"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.9.6",
+    "next": "15.2.3",
+    "pg": "^8.13.1",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@eslint/eslintrc": "^3.2.0",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.2.3",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

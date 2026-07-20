@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# secrets / env — NEVER commit real values
+.env
+.env.local
+.env.*.local
+.env.development
+.env.uat
+.env.production
+!.env.example
+
+# testing
+/coverage
+/test-results
+/playwright-report
+
+# local storage / scratch
+/.local-storage
+/tmp
+*.log
+npm-debug.log*
+
+# typescript
+*.tsbuildinfo
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
