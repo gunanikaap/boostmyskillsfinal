@@ -1,21 +1,17 @@
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
-import { databaseSsl, databaseUrl } from "@/lib/env";
+import { databaseUrl } from "@/lib/env";
+import { poolConfig } from "@/lib/db/config";
 
 /**
  * Single shared connection pool. In UAT/Production DATABASE_URL points at the
  * RDS Proxy endpoint, so the application never opens direct connections to RDS.
+ * Pool size + TLS come from the shared lib/db/config helper (validated).
  */
 let pool: Pool | undefined;
 
 export function getPool(): Pool {
   if (!pool) {
-    pool = new Pool({
-      connectionString: databaseUrl(),
-      ssl: databaseSsl() ? { rejectUnauthorized: true } : undefined,
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
+    pool = new Pool(poolConfig(databaseUrl()));
   }
   return pool;
 }

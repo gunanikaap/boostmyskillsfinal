@@ -1,6 +1,7 @@
 import { Client } from "pg";
 import { loadEnv } from "../_loadEnv.mts";
 import { runMigrations } from "./migrate.mts";
+import { clientConfig } from "../../lib/db/config.ts";
 
 /**
  * DEV/TEST ONLY: drop the public schema, re-create it, and re-run migrations.
@@ -11,7 +12,7 @@ async function reset(connectionString: string): Promise<void> {
   if (env === "uat" || env === "production") {
     throw new Error(`Refusing to reset database in APP_ENV=${env}`);
   }
-  const client = new Client({ connectionString });
+  const client = new Client(clientConfig(connectionString));
   await client.connect();
   try {
     await client.query("DROP SCHEMA public CASCADE");

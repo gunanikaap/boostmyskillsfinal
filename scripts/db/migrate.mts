@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Client } from "pg";
 import { loadEnv } from "../_loadEnv.mts";
+import { clientConfig } from "../../lib/db/config.ts";
 
 /**
  * Idempotent forward-only migration runner.
@@ -21,7 +22,7 @@ export async function runMigrations(connectionString: string): Promise<string[]>
     .filter((f) => f.endsWith(".sql"))
     .sort();
 
-  const client = new Client({ connectionString });
+  const client = new Client(clientConfig(connectionString));
   await client.connect();
   const applied: string[] = [];
   try {

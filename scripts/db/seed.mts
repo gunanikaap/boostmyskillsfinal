@@ -1,5 +1,6 @@
 import { Client } from "pg";
 import { loadEnv } from "../_loadEnv.mts";
+import { clientConfig } from "../../lib/db/config.ts";
 
 /**
  * Idempotent seed. Deliberately minimal: it guarantees the platform_settings
@@ -7,7 +8,7 @@ import { loadEnv } from "../_loadEnv.mts";
  * synthetic users — admin promotion is a controlled server-side/migration action.
  */
 async function seed(connectionString: string): Promise<void> {
-  const client = new Client({ connectionString });
+  const client = new Client(clientConfig(connectionString));
   await client.connect();
   try {
     await client.query(
