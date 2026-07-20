@@ -14,6 +14,7 @@ export async function actAs(
   const identity: ExternalIdentity = {
     clerkUserId: `clerk_actor_${suffix}`,
     email: `actor_${suffix}@example.com`,
+    username: null,
     firstName: "Test",
     lastName: "Actor",
   };

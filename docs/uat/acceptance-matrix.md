@@ -17,12 +17,12 @@ PostgreSQL). Test files are cited per row.
 
 | ID | Story | Implementation | Test | Status | Notes / blocker |
 |----|-------|----------------|------|--------|-----------------|
-| US-L-01 | Registration | `app/sign-up`, `middleware.ts`, `components/AuthControls.tsx`, `lib/auth/*`, webhook `app/api/webhooks/clerk` | `tests/db/access.test.ts` (sync/role) | PARTIAL | Clerk **dev instance integrated** (keys in `.env.local`); sign-up page + header controls render; app-user sync + default-learner role tested. Remaining: a real browser sign-up (user action). |
-| US-L-02 | Email verification | Clerk-hosted | — | PARTIAL | Clerk dev instance live; email verification is exercised by completing a real sign-up. Deployed delivery still B-EMAIL. |
-| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard`, `middleware.ts` | `access.test.ts` | PARTIAL | Clerk sign-in renders; protected `/dashboard` redirects to `/sign-in` (verified via dev server). Dashboard queries tested. |
+| US-L-01 | Registration | `app/sign-up`, `middleware.ts`, `components/AuthControls.tsx`, `lib/auth/*`, migration 003 | `sync.test.ts` (10), `webhook.test.ts` (6), E2E | PASS (local) | REAL Clerk dev sign-up completed (email + **username** + password). Lazy sync created exactly ONE `app_users` row: email normalized, username stored, `clerk_user_id` present, `role=learner`. |
+| US-L-02 | Email verification | Clerk-hosted (email_code, verify-at-sign-up) | instance config | PASS (dev) | REAL email-code verification completed during the sign-up (Clerk **Development** email). Production email delivery remains B-EMAIL. |
+| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard`, `middleware.ts` | `access.test.ts`, E2E `auth-journeys.spec.ts` | PASS (local) | REAL Clerk dev signup completed → reached `/dashboard`; anonymous `/dashboard` 307→`/sign-in` verified in-browser. |
 | US-L-04 | Historical learner migration | `lib/migration/service.ts`, `scripts/migration/dry-run.mts` | `tests/db/migration.test.ts` | BLOCKED | No source export + no Clerk mapping strategy (B-MIGRATE, B-CLERK). Dry-run + idempotent upsert implemented and tested; never fabricates. |
-| US-L-05 | Password reset | Clerk-hosted | — | BLOCKED | Clerk keys (B-CLERK). |
-| US-L-06 | Profile editing | Clerk profile + `syncAppUser` | `access.test.ts` | PARTIAL | Sync path tested; Clerk profile UI needs keys. |
+| US-L-05 | Password reset | Clerk-hosted (email_code recovery verified in instance config) | — | PARTIAL | Recovery is enabled on the dev instance (`clerk config pull`); the reset flow itself was not exercised in a browser this phase. Production email still B-EMAIL. |
+| US-L-06 | Profile editing | Clerk profile + `syncAppUser` (username/email/name) | `sync.test.ts` (10) | PARTIAL | Sync normalization + role preservation proven on the REAL user row; a real Clerk profile edit was not exercised. |
 | US-L-07 | Published catalogue detail | `app/courses`, `app/programs`, `lib/catalogue/queries.ts` | `publication.test.ts`, `programmes.test.ts` | PASS | Published-only reads verified. |
 | US-L-08 | Draft invisibility | `lib/catalogue/queries.ts`, page `notFound()` | `publication.test.ts`, `hidden-state.test.ts` | PASS | Draft/hidden absent from list/detail/sitemap. |
 | US-L-09 | Credential enrolment | `lib/enrolments/service.ts`, `app/courses/[slug]` | `publication.test.ts`, `hidden-state.test.ts` | PARTIAL | Idempotent enrol service tested; UI enrol needs auth (Clerk). |
@@ -32,7 +32,7 @@ PostgreSQL). Test files are cited per row.
 | US-L-13 | Credential progress | `recordUnitProgress`, `lib/learner/queries.ts` | `assessment.test.ts`, `hidden-state.test.ts` | PASS | Validated unit progress. |
 | US-L-14 | Programme aggregate progress | registration snapshot in `metadata` | `programmes.test.ts` | PARTIAL | Snapshot stored; aggregate roll-up UI is basic. |
 | US-L-15 | Automatic certificate issuance | `issueCertificateIfEligible` in submit tx | `certificates.test.ts`, `hidden-state.test.ts` | PASS | Idempotent, threshold-gated, server-side. |
-| US-L-16 | PDF certificate download | `lib/certificates/pdf.ts`, `app/account/certificates/[code]/download` | `certificates.test.ts` (PDF render) | PARTIAL | PDF renderer tested; owner-guarded route needs auth session to exercise E2E. |
+| US-L-16 | PDF certificate download | `lib/certificates/pdf.ts`, `app/account/certificates/[code]/download` | `certificates.test.ts` (PDF render + owner SQL) | PASS (local) | On-demand PDF generation proven (valid `%PDF-`); download route is owner-guarded (ownership checked in SQL, not the URL); public verification never exposes the PDF route. Permanent storage not required. |
 
 ## Admin stories
 
@@ -40,7 +40,7 @@ PostgreSQL). Test files are cited per row.
 |----|-------|----------------|------|--------|-----------------|
 | US-A-01 | Create credential draft | `createCredentialWithDraft`, `app/admin/credentials` | `publication.test.ts` | PASS | |
 | US-A-02 | Inline project creation | `createCredentialAction` (tx), `CredentialForm` | build + service | PARTIAL | Inline-project path implemented; UI not E2E-driven. |
-| US-A-03 | Banner upload/display | `banner_object_key` fields, B2 adapter pending | — | PARTIAL | Schema + keys present; real B2 upload BLOCKED (B-B2). |
+| US-A-03 | Banner upload/display | `lib/storage/*`, `app/admin/credentials/[id]/banner`, `app/media/[...key]`, course detail `<img>` | `storage.test.ts` (16), `storage-integration.test.ts` | PASS (local) | Local provider: admin banner upload (MIME+signature+size validated), controlled `/media` serve (published=public, draft/hidden=admin), detail renders banner. Provider-neutral key. Real B2 still B-B2. |
 | US-A-04 | About/context | `saveDraft` (sanitised), detail render | `content.test.ts` (sanitiser) | PASS | |
 | US-A-05 | Hierarchy authoring | JSON draft editor + Zod validation | `content.test.ts`, `publication.test.ts` | PARTIAL | Integrity fully enforced; rich drag/drop builder is a UAT cut (§17). |
 | US-A-06 | Reorder without regenerating IDs | stable-ID model; publish preserves IDs | `publication.test.ts` (revision binding) | PARTIAL | IDs stable in model; visual reorder UI cut. |
@@ -51,10 +51,10 @@ PostgreSQL). Test files are cited per row.
 | US-A-11 | Programme creation | `lib/programmes/service.ts`, `app/admin/programmes` | `programmes.test.ts` | PASS | Membership editor UI is minimal (service tested). |
 | US-A-12 | Publishing | `publishCredential`, `publishProgramme` | `publication.test.ts`, `programmes.test.ts` | PASS | Atomic, validated, immutable revisions. |
 | US-A-13 | Hide / unhide | hide/unhide services | `hidden-state.test.ts` | PASS | Full 20-step lifecycle. |
-| US-A-14 | OLX import → draft review | `lib/olx/importer.ts`, `app/admin/imports` | `olx.test.ts`, `olx-archive.test.ts` | PARTIAL | Import→draft + safety tested; full Open edX XBlock fidelity NOT claimed. |
+| US-A-14 | OLX import → draft review + archive storage | `lib/olx/importer.ts`, `lib/storage/*`, `app/admin/imports`, `app/admin/credentials/[id]/olx-archive` | `olx.test.ts`, `olx-archive.test.ts`, `storage-integration.test.ts` | PARTIAL | Import→draft + archive-safety tested; **original archive now persisted privately via the storage provider** (admin-only download, denied anon/learner). Full Open edX XBlock fidelity NOT claimed. |
 | US-A-15 | Unsafe archive rejection | `lib/olx/archiveSafety.ts` | `olx-archive.test.ts` (14) | PASS | Traversal/symlink/hardlink/device/size-bomb/etc. |
 | US-A-16 | UAT→Prod OLX promotion | export + import round trip | `olx.test.ts` | PARTIAL | Round-trip proven locally; real cross-env promotion BLOCKED (B-DEPLOY). |
-| US-A-17 | Server-side admin denial | `requireAdmin` on layout + every action/route | `access.test.ts` | PASS | Anonymous/learner denied; role-from-browser ignored. |
+| US-A-17 | Server-side admin denial | `requireAdmin` on layout + every action/route | `access.test.ts` (8), real HTTP | PASS | REAL user promoted to admin via `promote.mts` (exactly 1 row); anonymous `/admin`, CSV export, OLX import/download all 307/401/403; browser-supplied `role='learner'` ignored on the REAL row (stayed admin); role-from-browser has no channel. |
 | US-A-18 | Maintenance mode | `platform_settings`, guard + `/maintenance` page | `access.test.ts` (gate) | PASS | Server-side; singleton; no redeploy. |
 | US-A-19 | Enrolment analytics | `lib/admin/analytics.ts`, `app/admin/analytics` | `analytics.test.ts` | PASS | |
 | US-A-20 | Learner activity | analytics rows (last access, progress) | `analytics.test.ts` | PASS | |

@@ -4,6 +4,7 @@ import { testAuthEnabled, isTestEnv } from "@/lib/env";
 export interface ExternalIdentity {
   clerkUserId: string;
   email: string;
+  username: string | null;
   firstName: string | null;
   lastName: string | null;
 }
@@ -43,6 +44,7 @@ export async function resolveExternalIdentity(): Promise<ExternalIdentity | null
   return {
     clerkUserId: userId,
     email,
+    username: user?.username ?? null,
     firstName: user?.firstName ?? null,
     lastName: user?.lastName ?? null,
   };
