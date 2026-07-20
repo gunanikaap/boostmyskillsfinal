@@ -26,6 +26,9 @@ export default async function AdminCredentialDetail({
           Status: <strong>{cred.status}</strong> · Draft: {draft ? "yes" : "no"} · Published:{" "}
           {published ? "yes" : "no"}
         </p>
+        <a className="btn" href={`/admin/credentials/${id}/export`}>
+          Export OLX (.tar.gz)
+        </a>
       </div>
       <CredentialActions
         credentialId={id}

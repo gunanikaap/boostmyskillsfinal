@@ -50,6 +50,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/programmes" style={{ color: "#fff" }}>
               Programmes
             </Link>
+            <Link href="/admin/imports" style={{ color: "#fff" }}>
+              Imports
+            </Link>
             <Link href="/admin/analytics" style={{ color: "#fff" }}>
               Analytics
             </Link>

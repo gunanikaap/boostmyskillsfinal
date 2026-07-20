@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "description": "Machine-readable legacy → new redirect map. Real historical course/programme mappings are added here once the legacy URL inventory is available (see docs/migration). Entries are validated by lib/redirects/redirects.ts and tests.",
+  "authRedirects": [
+    { "from": "/login", "to": "/sign-in", "status": 308 },
+    { "from": "/register", "to": "/sign-up", "status": 308 },
+    { "from": "/signup", "to": "/sign-up", "status": 308 },
+    { "from": "/signin", "to": "/sign-in", "status": 308 },
+    { "from": "/logout", "to": "/", "status": 307 }
+  ],
+  "legacyRedirects": []
+}
