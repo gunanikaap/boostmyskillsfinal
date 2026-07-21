@@ -332,6 +332,113 @@ a {
   align-items: center;
 }
 
+/* ---- Catalogue pages -------------------------------------------------- */
+.page-head {
+  padding: 40px 0 8px;
+}
+.crumb {
+  color: var(--bms-muted);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.crumb a {
+  color: var(--bms-muted);
+}
+.page-head h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  letter-spacing: -1px;
+  margin: 0;
+  font-weight: 800;
+}
+.catalogue-toolbar {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 22px 0 8px;
+}
+.search {
+  position: relative;
+  flex: 1 1 320px;
+  max-width: 480px;
+}
+.search input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border: 1px solid var(--bms-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  background: #fff;
+}
+.search input:focus {
+  outline: 2px solid var(--bms-green);
+  outline-offset: 1px;
+  border-color: var(--bms-green);
+}
+.search svg {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--bms-muted);
+}
+.result-count {
+  color: var(--bms-muted);
+  font-size: 14px;
+}
+.catalogue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 22px;
+  margin: 20px 0 48px;
+}
+.pcard__code {
+  color: var(--bms-green);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+.pcard__desc {
+  color: var(--bms-muted);
+  font-size: 14px;
+  margin: 2px 0 0;
+}
+.pcard__members {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+.pcard__members li {
+  font-size: 13px;
+  color: var(--bms-ink);
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.pcard__members li::before {
+  content: "•";
+  color: var(--bms-green);
+  font-weight: 800;
+}
+.members-label {
+  font-size: 12px;
+  color: var(--bms-muted);
+  margin: 10px 0 0;
+  font-weight: 600;
+}
+.empty-state {
+  border: 1px dashed var(--bms-border);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  color: var(--bms-muted);
+  margin: 20px 0;
+}
+
 /* ---- Generic sections ------------------------------------------------- */
 .section {
   padding: 40px 0;

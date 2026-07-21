@@ -1,6 +1,8 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import { listPublishedProgrammes } from "@/lib/catalogue/queries";
+import SiteFooter from "@/components/SiteFooter";
+import { ProgrammeCard } from "@/components/CatalogueCards";
+import { listPublishedProgrammesWithMembers } from "@/lib/catalogue/queries";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
@@ -8,56 +10,35 @@ export const metadata = { title: "Micro-programmes" };
 
 export default async function ProgramsPage() {
   await enforceMaintenanceForPage();
-  const programmes = await listPublishedProgrammes();
+  const programmes = await listPublishedProgrammesWithMembers();
   return (
     <>
       <SiteHeader />
-      <main className="container" style={{ paddingTop: 32, paddingBottom: 48 }}>
-        <h1>Micro-programmes</h1>
-        {programmes.length === 0 ? (
-          <p style={{ color: "var(--bms-muted)" }}>No published micro-programmes yet.</p>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: 16,
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              marginTop: 20,
-            }}
-          >
-            {programmes.map((p) => (
-              <Link
-                key={p.id}
-                href={`/programs/${p.slug}`}
-                className="card"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                {p.bannerObjectKey && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={`/media/${p.bannerObjectKey}`}
-                    alt={`${p.title} banner`}
-                    style={{
-                      width: "100%",
-                      aspectRatio: "16 / 9",
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      marginBottom: 8,
-                    }}
-                  />
-                )}
-                <p style={{ fontSize: 12, color: "var(--bms-green)", fontWeight: 700 }}>
-                  {p.organisationName}
-                </p>
-                <h3 style={{ margin: "6px 0" }}>{p.title}</h3>
-                <p style={{ color: "var(--bms-muted)", fontSize: 14 }}>
-                  {p.shortDescription ?? ""}
-                </p>
-              </Link>
-            ))}
-          </div>
-        )}
+      <main>
+        <div className="container page-head">
+          <p className="crumb">
+            <Link href="/">Home</Link> / Micro-programmes
+          </p>
+          <h1>Micro-programmes</h1>
+        </div>
+        <div className="container">
+          {programmes.length === 0 ? (
+            <div className="empty-state">No published micro-programmes yet.</div>
+          ) : (
+            <>
+              <p className="result-count" style={{ marginTop: 8 }}>
+                {programmes.length} {programmes.length === 1 ? "programme" : "programmes"}
+              </p>
+              <div className="catalogue-grid">
+                {programmes.map((p, i) => (
+                  <ProgrammeCard key={p.id} p={p} i={i} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </main>
+      <SiteFooter />
     </>
   );
 }

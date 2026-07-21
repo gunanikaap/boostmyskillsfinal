@@ -108,6 +108,41 @@ export interface CatalogueProgramme {
   organisationName: string;
 }
 
+export interface CatalogueProgrammeWithMembers extends CatalogueProgramme {
+  memberTitles: string[];
+}
+
+/** Published programmes plus their published member-credential titles, in order. */
+export async function listPublishedProgrammesWithMembers(
+  conn: Queryable = db,
+): Promise<CatalogueProgrammeWithMembers[]> {
+  const { rows } = await conn.query(
+    `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.banner_object_key,
+            p.organisation_name,
+            COALESCE(
+              (SELECT array_agg(cv.title ORDER BY pc.position)
+               FROM programme_credentials pc
+               JOIN micro_credentials mc ON mc.id = pc.credential_id AND mc.status = 'published'
+               JOIN credential_versions cv ON cv.credential_id = mc.id AND cv.status = 'published'
+               WHERE pc.programme_id = mp.id),
+              ARRAY[]::text[]
+            ) AS member_titles
+     FROM micro_programmes mp
+     JOIN projects p ON p.id = mp.project_id
+     WHERE mp.status = 'published'
+     ORDER BY mp.title`,
+  );
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    slug: r.slug as string,
+    title: r.title as string,
+    shortDescription: (r.short_description as string) ?? null,
+    bannerObjectKey: (r.banner_object_key as string) ?? null,
+    organisationName: r.organisation_name as string,
+    memberTitles: (r.member_titles as string[]) ?? [],
+  }));
+}
+
 export async function listPublishedProgrammes(conn: Queryable = db): Promise<CatalogueProgramme[]> {
   const { rows } = await conn.query(
     `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.banner_object_key,
