@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 test("public home renders", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("h1")).toContainText(/micro-credentials/i);
+  await expect(page.locator("h1")).toContainText(/become a leader in sustainability/i);
 });
 
 test("public catalogue is accessible", async ({ page }) => {
