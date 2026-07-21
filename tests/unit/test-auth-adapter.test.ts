@@ -68,6 +68,45 @@ describe("parseTestActorHeader (secret gate)", () => {
       lastName: null,
     });
   });
+
+  it("rejects an empty/whitespace Clerk id or an email without '@'", () => {
+    expect(
+      parseTestActorHeader(SECRET, JSON.stringify({ clerkUserId: "", email: "a@b.c" }), SECRET),
+    ).toBeNull();
+    expect(
+      parseTestActorHeader(SECRET, JSON.stringify({ clerkUserId: "   ", email: "a@b.c" }), SECRET),
+    ).toBeNull();
+    expect(
+      parseTestActorHeader(
+        SECRET,
+        JSON.stringify({ clerkUserId: "u", email: "not-an-email" }),
+        SECRET,
+      ),
+    ).toBeNull();
+    expect(
+      parseTestActorHeader(SECRET, JSON.stringify({ clerkUserId: "u", email: "" }), SECRET),
+    ).toBeNull();
+  });
+
+  it("rejects an unsupported caller-supplied role, and never returns a role field", () => {
+    // Unknown role → rejected outright (defence in depth).
+    expect(
+      parseTestActorHeader(
+        SECRET,
+        JSON.stringify({ clerkUserId: "u", email: "a@b.c", role: "superadmin" }),
+        SECRET,
+      ),
+    ).toBeNull();
+    // A known role is accepted structurally but NEVER carried into the identity —
+    // authorization role comes only from the app_users row via syncAppUser.
+    const id = parseTestActorHeader(
+      SECRET,
+      JSON.stringify({ clerkUserId: "u", email: "a@b.c", role: "admin" }),
+      SECRET,
+    );
+    expect(id).not.toBeNull();
+    expect(id).not.toHaveProperty("role");
+  });
 });
 
 describe("APP_ENV gate around the whole adapter", () => {

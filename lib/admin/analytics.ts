@@ -70,10 +70,13 @@ export async function adminEnrolmentAnalytics(
     credentialTitle: r.credential_title as string,
     progressPercent: Number(r.progress_percent ?? 0),
     completed: Boolean(r.completed),
-    lastAccess: (r.last_accessed_at as string) ?? null,
+    // pg returns timestamptz as a JS Date; normalise to an ISO string so both the
+    // CSV and the analytics page (which slices the date) get a real string.
+    lastAccess:
+      r.last_accessed_at == null ? null : new Date(r.last_accessed_at as string).toISOString(),
     finalPercentage: r.final_percentage === null ? null : Number(r.final_percentage),
     passed: r.passed === null ? null : Boolean(r.passed),
-    enrolledAt: r.enrolled_at as string,
+    enrolledAt: new Date(r.enrolled_at as string).toISOString(),
   }));
 }
 

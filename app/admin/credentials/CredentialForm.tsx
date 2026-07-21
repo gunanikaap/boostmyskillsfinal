@@ -28,6 +28,9 @@ export function CredentialForm({ projects }: { projects: { id: string; name: str
           <input name="newProjectName" placeholder="New project name" required />
           <input name="newProjectSlug" placeholder="New project slug" required />
           <input name="newProjectOrg" placeholder="Organisation name" required />
+          <input name="issuerName" placeholder="Certificate issuer name (optional)" />
+          <input name="signatoryName" placeholder="Certificate signatory name (optional)" />
+          <input name="signatoryRole" placeholder="Certificate signatory role (optional)" />
         </>
       ) : (
         <select name="projectId" required defaultValue="">
@@ -46,6 +49,7 @@ export function CredentialForm({ projects }: { projects: { id: string; name: str
       <input name="title" placeholder="Title" required />
       <input name="authorName" placeholder="Author name" required />
       <input name="shortDescription" placeholder="Short description (optional)" />
+      <textarea name="aboutHtml" rows={3} placeholder="About / context (optional, sanitised)" />
       <button className="btn" disabled={pending}>
         {pending ? "Creating…" : "Create draft"}
       </button>
