@@ -1337,28 +1337,66 @@ a {
   justify-self: end;
 }
 .auth__toggle {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
   border: 1px solid var(--bms-green);
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 26px;
+  isolation: isolate;
+}
+/* Sliding indicator that animates under the active tab */
+.auth__toggle-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: var(--bms-green);
+  border-radius: 999px;
+  z-index: -1;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.auth__toggle-pill--signin {
+  transform: translateX(100%);
 }
 .auth__tab {
+  appearance: none;
+  border: none;
+  cursor: pointer;
   text-align: center;
   padding: 12px;
+  font: inherit;
   font-weight: 700;
   font-size: 15px;
   text-decoration: none;
+  background: transparent;
   color: var(--bms-green-dark);
-  background: #fff;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
+  transition: color 0.28s ease;
 }
 .auth__tab--active {
-  background: var(--bms-green);
   color: #fff;
+}
+.auth__fade {
+  animation: authFade 0.28s ease;
+}
+@keyframes authFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth__toggle-pill,
+  .auth__fade {
+    transition: none;
+    animation: none;
+  }
 }
 @media (max-width: 820px) {
   .auth__inner {

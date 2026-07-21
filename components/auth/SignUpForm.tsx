@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
-import { EyeButton, clerkErrorMessage, safeNext } from "../../sign-in/[[...sign-in]]/authHelpers";
+import { EyeButton, clerkErrorMessage, safeNext } from "./authHelpers";
 import { COUNTRIES } from "@/lib/geo/countries";
 
 const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
@@ -47,7 +47,7 @@ export default function SignUpForm() {
         firstName: firstName || undefined,
         lastName: lastName || undefined,
         // Country + gender aren't standard Clerk fields, so we persist them on the
-        // Clerk user's metadata (readable/updatable later, e.g. via the webhook).
+        // Clerk user's metadata (synced into app_users by syncAppUser).
         unsafeMetadata: { country, gender },
       });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });

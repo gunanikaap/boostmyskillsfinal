@@ -3,16 +3,10 @@ import Image from "next/image";
 
 /**
  * Two-panel authentication layout mirroring apps.boostmyskills.eu: a soft-green
- * page with brand messaging on the left and a white card (Register / Sign in
- * toggle + the embedded Clerk form) on the right.
+ * page with brand messaging on the left and a white card on the right. The card
+ * holds the Register / Sign in toggle + form (AuthPanel), passed as children.
  */
-export default function AuthShell({
-  active,
-  children,
-}: {
-  active: "register" | "signin";
-  children: React.ReactNode;
-}) {
+export default function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth">
       <div className="auth__inner">
@@ -30,25 +24,7 @@ export default function AuthShell({
           <p>100% free. No credit card needed.</p>
         </div>
 
-        <div className="auth__card">
-          <div className="auth__toggle">
-            <Link
-              href="/sign-up"
-              className={`auth__tab${active === "register" ? " auth__tab--active" : ""}`}
-              aria-current={active === "register" ? "page" : undefined}
-            >
-              Register
-            </Link>
-            <Link
-              href="/sign-in"
-              className={`auth__tab${active === "signin" ? " auth__tab--active" : ""}`}
-              aria-current={active === "signin" ? "page" : undefined}
-            >
-              Sign in
-            </Link>
-          </div>
-          {children}
-        </div>
+        <div className="auth__card">{children}</div>
       </div>
     </div>
   );
