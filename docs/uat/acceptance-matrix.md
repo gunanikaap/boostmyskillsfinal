@@ -10,10 +10,13 @@ not yet verified), **BLOCKED** (needs an external credential/data/decision),
 > migration, real email delivery, real UAT→Prod OLX promotion, real UAT cloud
 > deployment, real Clerk integration, real B2 integration, real RDS/RDS-Proxy.
 
-Automated evidence lives in `tests/` and runs via `npm test` (**157 Vitest tests**,
+Automated evidence lives in `tests/` and runs via `npm test` (**159 Vitest tests**,
 real PostgreSQL) + `npm run test:e2e` (**7 Playwright** auth-agnostic smokes, real
-dev server + Clerk dev keys) + `npm run test:e2e:auth` (**6 Playwright**
-authorization tests, **test-auth-backed — see below**). Test files are cited per row.
+dev server + Clerk dev keys) + `npm run test:e2e:auth` (**24 Playwright**,
+**test-auth-backed — see below**: 6 authorization + **18 actual product-vertical**
+tests driving the real admin→learner credential-to-certificate journey through the
+browser with DB verification — see `docs/uat/actual-product-vertical-report.md`).
+Test files are cited per row.
 
 > **"PASS (local)" evidence basis:** the UI is implemented and build-verified, AND
 > the underlying workflow is proven by service/integration tests against real
@@ -43,12 +46,12 @@ authorization tests, **test-auth-backed — see below**). Test files are cited p
 | US-L-06 | Profile editing | Clerk profile + `syncAppUser` (username/email/name) | `sync.test.ts` (10), live browser + DB | PASS (local) | REAL Clerk profile name edit → loading an authenticated page lazily synced `app_users` (first/last name now populated, `updated_at > created_at`); **same Clerk ID + same `app_users.id`** (single row updated in place); **role stayed admin**. |
 | US-L-07 | Published catalogue detail (banner/title/organisation/About) | `app/courses`, `app/programs`, `app/programs/[slug]`, `lib/catalogue/queries.ts`, `lib/programmes/queries.ts` | `publication.test.ts`, `programmes.test.ts`, `programme-media.test.ts` (7) | PASS (local) | Published-only reads verified; programme detail + catalogue card expose banner, title, organisation and sanitised About/context (draft/hidden never public). |
 | US-L-08 | Draft invisibility | `lib/catalogue/queries.ts`, page `notFound()` | `publication.test.ts`, `hidden-state.test.ts` | PASS | Draft/hidden absent from list/detail/sitemap. |
-| US-L-09 | Credential enrolment | `lib/enrolments/service.ts`, `app/courses/[slug]` | `publication.test.ts`, `hidden-state.test.ts` | PARTIAL | Idempotent enrol service tested; **browser enrol evidence pending — actual product vertical (this phase)**. |
-| US-L-10 | Programme registration | `lib/enrolments/service.ts` `registerForProgramme` | `programme-registration.test.ts` (5) | PARTIAL | Transactional fan-out proven at the service layer (one programme enrolment + one credential enrolment per member, snapshot of versions + enrolment ids, reuse of a prior direct enrolment, idempotent re-registration). UI register button wired; **browser Programme-registration evidence pending — product vertical (this phase)** before PASS (local) per §20. |
-| US-L-11 | Unit access by type | `app/learn/[credentialId]`, `lib/player/service.ts` | `assessment.test.ts`, `hidden-state.test.ts` | PARTIAL | Content access + hidden enforcement tested; **browser player evidence (Reading/Video/MCQ render) pending — product vertical (this phase)**. |
+| US-L-09 | Credential enrolment | `lib/enrolments/service.ts`, `app/courses/[slug]` | `publication.test.ts`, `hidden-state.test.ts`, `tests/e2e-auth/product-vertical.spec.ts` (browser) | PASS (local) | Idempotent enrol service tested; **browser (test-auth):** learner enrols via the Enrol button ("Enrolled successfully."), gains player access, re-enrol returns "You are already enrolled." — DB shows exactly one enrolment bound to the published revision. |
+| US-L-10 | Programme registration | `lib/enrolments/service.ts` `registerForProgramme` | `programme-registration.test.ts` (5), `tests/e2e-auth/product-vertical.spec.ts` (browser) | PASS (local) | **Browser (test-auth):** learner registers via the programme page; DB shows one programme enrolment, the prior direct Credential-A enrolment reused (no duplicate), a new Credential-B enrolment, snapshot carrying both credential IDs + enrolment IDs; repeat registration idempotent. |
+| US-L-11 | Unit access by type | `app/learn/[credentialId]`, `lib/player/service.ts` | `assessment.test.ts`, `hidden-state.test.ts`, `tests/e2e-auth/product-vertical.spec.ts` (browser) | PASS (local) | Content access + hidden enforcement tested; **browser (test-auth):** the player renders Reading, Video (iframe) and MCQ unit types; Mark-complete persists across reload; MCQ passes 100% and locks after one attempt. |
 | US-L-12 | MCQ score / pass | `lib/player/grade.ts`, `submitMcqAttempt` | `assessment.test.ts` | PASS | Server-side scoring, one-attempt, idempotent double-submit. |
 | US-L-13 | Credential progress | `recordUnitProgress`, `lib/learner/queries.ts` | `assessment.test.ts`, `hidden-state.test.ts` | PASS | Validated unit progress. |
-| US-L-14 | Programme aggregate progress | registration snapshot in `metadata` | `programmes.test.ts` | PARTIAL | Snapshot stored; **browser aggregate-progress evidence pending — product vertical (this phase)**. |
+| US-L-14 | Programme aggregate progress | registration snapshot in `metadata` | `programmes.test.ts` | PARTIAL | Snapshot stored; the dashboard shows each member credential's own progress (browser-verified), but **a single aggregate programme-progress widget is not implemented** — stays PARTIAL (documented UI gap, not a data gap). |
 | US-L-15 | Automatic certificate issuance | `issueCertificateIfEligible` in submit tx | `certificates.test.ts`, `hidden-state.test.ts` | PASS | Idempotent, threshold-gated, server-side. |
 | US-L-16 | PDF certificate download | `lib/certificates/pdf.ts`, `app/account/certificates/[code]/download` | `certificates.test.ts` (PDF render + owner SQL) | PASS (local) | On-demand PDF generation proven (valid `%PDF-`); download route is owner-guarded (ownership checked in SQL, not the URL); public verification never exposes the PDF route. Permanent storage not required. |
 
