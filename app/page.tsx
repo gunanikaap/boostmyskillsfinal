@@ -30,20 +30,21 @@ export default function HomePage() {
       <main>
         {/* ---- Hero ---- */}
         <section className="container hero">
-          <div>
+          <div className="hero__text">
             <p className="eyebrow">FREE fully funded courses</p>
             <h1>Become a leader in sustainability</h1>
             <p className="lead">
-              Accelerate and future-proof your career in sustainability — or gain the skills to
-              advance your organisation&rsquo;s sustainability initiatives — through verifiable
-              micro-credentials and micro-programmes.
+              Accelerate and future-proof your career in sustainability, or gain the skills to
+              advance your organisation&rsquo;s sustainability initiatives, through courses
+              developed with pan-European and international university partners — co-funded by the
+              EU and supported by the United Nations Institute for Training &amp; Research (UNITAR).
             </p>
             <div className="hero__cta">
               <Link href="/programs" className="btn btn-lg">
-                Explore micro-programmes <ArrowRight />
+                Explore Micro-programmes <ArrowRight />
               </Link>
               <Link href="/courses" className="btn btn-outline btn-lg">
-                Explore micro-credentials <ArrowRight />
+                Explore Micro-credentials <ArrowRight />
               </Link>
             </div>
           </div>
@@ -51,10 +52,10 @@ export default function HomePage() {
             <Image
               src="/brand/landing_img.png"
               alt="Learn sustainability online — aligned with the UN SDGs and UNITAR, with partner universities"
-              width={460}
-              height={567}
+              width={520}
+              height={641}
               priority
-              style={{ width: "100%", height: "auto", maxWidth: 460 }}
+              style={{ width: "100%", height: "auto", maxWidth: 520 }}
             />
           </div>
         </section>

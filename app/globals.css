@@ -199,10 +199,13 @@ a {
 /* ---- Hero ------------------------------------------------------------- */
 .hero {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 40px;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
   align-items: center;
-  padding: 64px 0 48px;
+  padding: 40px 0 48px;
+}
+.hero__text {
+  align-self: center;
 }
 .eyebrow {
   color: var(--bms-green);
@@ -231,6 +234,11 @@ a {
 .hero__art {
   display: flex;
   justify-content: center;
+}
+.hero__art img {
+  width: 100%;
+  height: auto;
+  max-width: 520px;
 }
 .partners {
   margin-top: 26px;

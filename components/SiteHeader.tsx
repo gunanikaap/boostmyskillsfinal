@@ -12,7 +12,7 @@ function Brand() {
         width={112}
         height={54}
         priority
-        style={{ height: 40, width: "auto" }}
+        style={{ height: 54, width: "auto" }}
       />
     </Link>
   );
@@ -50,9 +50,6 @@ export default function SiteHeader() {
               <Link href="/courses">Micro-credentials</Link>
             </div>
           </details>
-          <Link href="/about" style={{ padding: "8px 12px", color: "var(--bms-ink)" }}>
-            About
-          </Link>
         </nav>
         <div className="nav-right">
           <AuthControls />

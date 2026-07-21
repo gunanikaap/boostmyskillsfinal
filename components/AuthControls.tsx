@@ -15,10 +15,10 @@ export default function AuthControls() {
   if (!clerkConfigured()) {
     return (
       <>
-        <Link href="/sign-up" className="btn btn-outline">
+        <Link href="/sign-up" className="btn btn-outline btn-lg">
           Register for free
         </Link>
-        <Link href="/sign-in" className="btn">
+        <Link href="/sign-in" className="btn btn-lg">
           Sign in
         </Link>
       </>
@@ -28,18 +28,18 @@ export default function AuthControls() {
     <>
       <SignedOut>
         <SignUpButton mode="modal">
-          <button className="btn btn-outline" type="button">
+          <button className="btn btn-outline btn-lg" type="button">
             Register for free
           </button>
         </SignUpButton>
         <SignInButton mode="modal">
-          <button className="btn" type="button">
+          <button className="btn btn-lg" type="button">
             Sign in
           </button>
         </SignInButton>
       </SignedOut>
       <SignedIn>
-        <Link href="/dashboard" className="btn btn-outline">
+        <Link href="/dashboard" className="btn btn-outline btn-lg">
           Dashboard
         </Link>
         <UserButton afterSignOutUrl="/" />
