@@ -453,6 +453,76 @@ a {
   gap: 22px;
   margin: 20px 0 48px;
 }
+
+/* Courses catalogue: results + filter sidebar (matches live /courses) */
+.catalogue-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 36px;
+  align-items: start;
+  margin-top: 24px;
+}
+.catalogue-count {
+  color: var(--bms-muted);
+  font-size: 15px;
+  margin: 0 0 18px;
+}
+.catalogue-grid--main {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  margin: 0 0 40px;
+}
+.catalogue-filters {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 18px;
+}
+.catalogue-filters .search {
+  flex: none;
+  max-width: none;
+}
+.filter-panel {
+  border: 1px solid var(--bms-border);
+  border-radius: 16px;
+  background: #fff;
+  padding: 22px;
+}
+.filter-panel h3 {
+  margin: 0 0 18px;
+  font-size: 19px;
+  font-weight: 800;
+}
+.filter-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.filter-field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bms-green-dark);
+}
+.filter-field select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--bms-border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+  color: var(--bms-ink);
+  cursor: pointer;
+}
+.filter-field select:focus {
+  outline: 2px solid var(--bms-green);
+  outline-offset: 0;
+  border-color: var(--bms-green);
+}
+.filter-panel .btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
 .pcard__code {
   color: var(--bms-muted);
   font-weight: 600;
@@ -964,6 +1034,13 @@ a {
   .contact {
     grid-template-columns: 1fr;
     padding-top: 32px;
+  }
+  .catalogue-layout {
+    grid-template-columns: 1fr;
+  }
+  .catalogue-filters {
+    position: static;
+    order: -1;
   }
   .hero__art {
     order: -1;
