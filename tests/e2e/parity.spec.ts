@@ -70,21 +70,26 @@ test("header logo and catalogue links work", async ({ page }) => {
   await expect(page).toHaveURL(/\/programs$/);
 });
 
-test("footer company/contact links work", async ({ page }) => {
+test("footer links work", async ({ page }) => {
   await page.goto("/");
-  const footer = page.getByRole("contentinfo");
-  await footer.getByRole("link", { name: "About us" }).click();
-  await expect(page).toHaveURL(/\/about$/);
+  await page
+    .getByRole("contentinfo")
+    .getByRole("link", { name: "Micro-credentials" })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/courses$/);
 });
 
-test("footer policy links resolve (including aliases)", async ({ page }) => {
+test("footer register/sign-in links reach the auth pages", async ({ page }) => {
+  // The footer exposes plain links (the header uses Clerk modal buttons when keys
+  // are configured), so these are robust regardless of Clerk configuration.
   await page.goto("/");
   const footer = page.getByRole("contentinfo");
-  await footer.getByRole("link", { name: "Cookie Policy" }).click();
-  await expect(page).toHaveURL(/\/cookie_policy$/);
+  await footer.getByRole("link", { name: "Register for free" }).click();
+  await expect(page).toHaveURL(/\/sign-up/);
   await page.goto("/");
-  await footer.getByRole("link", { name: "Terms and Conditions" }).click();
-  await expect(page).toHaveURL(/\/tos$/);
+  await footer.getByRole("link", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/sign-in/);
 });
 
 test("mobile menu opens, navigates and closes on Escape", async ({ page }) => {

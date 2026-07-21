@@ -281,11 +281,11 @@ export default function HomePage() {
           <div className="container benefits-layout">
             <div className="benefits-media">
               <Image
-                src="/brand/programs/mp4.jpg"
-                alt="People cycling and walking in a green, sustainable city powered by wind energy"
-                width={1000}
-                height={614}
-                style={{ width: "100%", height: "auto", borderRadius: 16 }}
+                src="/brand/benefits.png"
+                alt="A BoostMySkills micro-credential course page shown on a tablet"
+                width={866}
+                height={1281}
+                style={{ width: "100%", height: "auto", maxWidth: 460 }}
               />
             </div>
             <div>
