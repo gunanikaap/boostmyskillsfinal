@@ -21,6 +21,12 @@ process.env.APP_ENV = "test";
 process.env.TEST_AUTH_ENABLED = "true";
 // Ephemeral per-run secret — required by the adapter, never committed.
 process.env.TEST_AUTH_SECRET = randomBytes(24).toString("hex");
+// Unique per-run marker shared with global-setup + specs (isolates this run's
+// records for the product vertical so cleanup only ever touches its own rows).
+process.env.E2E_RUN_ID = `r${randomBytes(5).toString("hex")}`;
+// Isolate uploaded object data under an ignored test-only storage root.
+process.env.STORAGE_DRIVER = "local";
+process.env.LOCAL_STORAGE_ROOT = ".data/e2e-storage";
 // The application pool must talk to the test database, never dev/prod.
 if (process.env.TEST_DATABASE_URL) {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -33,9 +39,11 @@ if (process.env.TEST_DATABASE_URL) {
 process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "";
 process.env.CLERK_SECRET_KEY = "";
 
-const res = spawnSync("npx", ["playwright", "test", "--config", "playwright.e2e-auth.config.ts"], {
-  stdio: "inherit",
-  env: process.env,
-  shell: true,
-});
+// Forward any extra args (e.g. `-- --grep "product vertical"`) to Playwright.
+const extra = process.argv.slice(2);
+const res = spawnSync(
+  "npx",
+  ["playwright", "test", "--config", "playwright.e2e-auth.config.ts", ...extra],
+  { stdio: "inherit", env: process.env, shell: true },
+);
 process.exit(res.status ?? 1);
