@@ -1526,6 +1526,16 @@ a {
 .auth-forgot:hover {
   color: var(--bms-green-dark);
 }
+/* Link-styled button (Forgot password / Back to sign in) */
+.auth-link {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+}
 
 /* ---- Legal / static content ------------------------------------------- */
 .legal p.lead {
