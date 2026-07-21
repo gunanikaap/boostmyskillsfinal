@@ -68,35 +68,41 @@ export interface ProgrammeCardData {
 
 export function ProgrammeCard({ p, i = 0 }: { p: ProgrammeCardData; i?: number }) {
   const img = artFor(p.bannerObjectKey, i);
+  const href = `/programs/${p.slug}`;
+  const code = `MP${i + 1}`;
   return (
-    <Link href={`/programs/${p.slug}`} className="pcard">
+    <article className="pcard">
       <div className="pcard__art">
         <Image
           src={img}
           alt=""
           fill
-          sizes="360px"
+          sizes="380px"
           style={{ objectFit: "cover" }}
           unoptimized={img.startsWith("/media/")}
         />
       </div>
       <div className="pcard__body">
-        <p className="pcard__org">{p.organisationName}</p>
-        <h3 className="pcard__title">{p.title}</h3>
+        <h3 className="pcard__title">
+          <Link href={href}>{p.title}</Link>
+        </h3>
+        <p className="pcard__code">
+          {code} | {p.organisationName}
+        </p>
         {p.memberTitles.length > 0 && (
           <>
             <p className="members-label">Includes the following micro-credentials:</p>
             <ul className="pcard__members">
-              {p.memberTitles.slice(0, 4).map((t) => (
+              {p.memberTitles.map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>
           </>
         )}
-        <span className="pcard__cta">
-          View programme <Arrow />
-        </span>
+        <Link href={href} className="btn pcard__enrol">
+          Enrol
+        </Link>
       </div>
-    </Link>
+    </article>
   );
 }

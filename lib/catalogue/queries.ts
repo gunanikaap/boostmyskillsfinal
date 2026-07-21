@@ -130,7 +130,7 @@ export async function listPublishedProgrammesWithMembers(
      FROM micro_programmes mp
      JOIN projects p ON p.id = mp.project_id
      WHERE mp.status = 'published'
-     ORDER BY mp.title`,
+     ORDER BY mp.created_at, mp.title`,
   );
   return (rows as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,

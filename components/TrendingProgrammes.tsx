@@ -1,15 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
-import { listPublishedProgrammes, type CatalogueProgramme } from "@/lib/catalogue/queries";
-
-const ART = [
-  "/brand/programs/mp1.jpg",
-  "/brand/programs/mp2.jpg",
-  "/brand/programs/mp3.jpg",
-  "/brand/programs/mp4.jpg",
-  "/brand/programs/mp5.jpg",
-  "/brand/programs/mp6.jpg",
-];
+import {
+  listPublishedProgrammesWithMembers,
+  type CatalogueProgrammeWithMembers,
+} from "@/lib/catalogue/queries";
+import { ProgrammeCard } from "@/components/CatalogueCards";
 
 function Arrow() {
   return (
@@ -25,55 +19,20 @@ function Arrow() {
   );
 }
 
-interface Card {
-  key: string;
-  href: string;
-  img: string;
-  org: string;
-  title: string;
-  cta: string;
-}
-
 /**
  * "Our Trending Micro-programmes" — a horizontal carousel of the catalogue's
- * published programmes, styled to match boostmyskills.eu. Each card uses the
- * programme's banner when present, otherwise a themed sustainability illustration.
- * If the catalogue is empty (or unreachable) it degrades to a few browse tiles so
- * the section still renders.
+ * published programmes, styled to match boostmyskills.eu (banner, title,
+ * code | project, included micro-credentials list, Enrol). Empty catalogue → the
+ * section is hidden.
  */
 export default async function TrendingProgrammes() {
-  let programmes: CatalogueProgramme[] = [];
+  let programmes: CatalogueProgrammeWithMembers[] = [];
   try {
-    programmes = (await listPublishedProgrammes()).slice(0, 8);
+    programmes = (await listPublishedProgrammesWithMembers()).slice(0, 8);
   } catch {
     programmes = [];
   }
-
-  // Browse tiles shown only when the catalogue has no published programmes yet.
-  const BROWSE: { title: string; theme: string }[] = [
-    { title: "Sustainable cities & clean energy", theme: "Explore the catalogue" },
-    { title: "Low-carbon industry & emissions", theme: "Explore the catalogue" },
-    { title: "Circular & green economy", theme: "Explore the catalogue" },
-  ];
-
-  const cards: Card[] =
-    programmes.length > 0
-      ? programmes.map((p, i) => ({
-          key: p.id,
-          href: `/programs/${p.slug}`,
-          img: p.bannerObjectKey ? `/media/${p.bannerObjectKey}` : ART[i % ART.length]!,
-          org: p.organisationName,
-          title: p.title,
-          cta: "View programme",
-        }))
-      : BROWSE.map((b, i) => ({
-          key: `browse-${i}`,
-          href: "/programs",
-          img: ART[i % ART.length]!,
-          org: b.theme,
-          title: b.title,
-          cta: "Browse micro-programmes",
-        }));
+  if (programmes.length === 0) return null;
 
   return (
     <section className="container trending">
@@ -87,27 +46,14 @@ export default async function TrendingProgrammes() {
         </Link>
       </div>
       <div className="carousel">
-        {cards.map((c) => (
-          <Link key={c.key} href={c.href} className="pcard">
-            <div className="pcard__art">
-              <Image
-                src={c.img}
-                alt=""
-                fill
-                sizes="360px"
-                style={{ objectFit: "cover" }}
-                unoptimized={c.img.startsWith("/media/")}
-              />
-            </div>
-            <div className="pcard__body">
-              <p className="pcard__org">{c.org}</p>
-              <h3 className="pcard__title">{c.title}</h3>
-              <span className="pcard__cta">
-                {c.cta} <Arrow />
-              </span>
-            </div>
-          </Link>
+        {programmes.map((p, i) => (
+          <ProgrammeCard key={p.id} p={p} i={i} />
         ))}
+      </div>
+      <div style={{ marginTop: 18 }}>
+        <Link href="/programs" style={{ fontWeight: 600, display: "inline-flex", gap: 6 }}>
+          View all Micro-programmes <Arrow />
+        </Link>
       </div>
     </section>
   );
