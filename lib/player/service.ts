@@ -61,6 +61,15 @@ function collectUnit(content: ContentDocument, unitId: string) {
   return undefined;
 }
 
+/**
+ * Stamp the learner's last-access time on their own enrolment. Server-side now()
+ * only — never a client-supplied timestamp. Runs only after access has already
+ * been authorised (so hidden/not-enrolled never update it).
+ */
+async function touchLastAccessed(enrollmentId: string, conn: Queryable): Promise<void> {
+  await conn.query(`UPDATE enrollments SET last_accessed_at = now() WHERE id = $1`, [enrollmentId]);
+}
+
 /** Learner-safe player content (NO grading document ever returned). */
 export async function getLearnerContent(
   userId: string,
@@ -68,6 +77,8 @@ export async function getLearnerContent(
   conn: Queryable = db,
 ): Promise<{ enrollmentId: string; content: ContentDocument }> {
   const assigned = await resolveAssigned(userId, credentialId, conn);
+  // Opening the assigned player records last access (after authorisation).
+  await touchLastAccessed(assigned.enrollmentId, conn);
   return { enrollmentId: assigned.enrollmentId, content: assigned.content };
 }
 
@@ -88,15 +99,28 @@ export async function recordUnitProgress(
     if (!collectUnit(assigned.content, input.unitId)) {
       throw new AccessError("not_found", "unknown unit");
     }
+    // Monotonic progress: a completed unit never regresses, progress never
+    // decreases (GREATEST), and completed_at keeps its original timestamp
+    // (COALESCE) — replayed/out-of-order requests cannot undo completion.
     await tx.query(
       `INSERT INTO unit_progress
          (enrollment_id, unit_id, status, progress_percent, state, started_at, completed_at)
        VALUES ($1,$2,$3,$4,$5, now(), CASE WHEN $3='completed' THEN now() ELSE NULL END)
        ON CONFLICT (enrollment_id, unit_id) DO UPDATE SET
-         status = EXCLUDED.status,
+         status = CASE
+                    WHEN unit_progress.status = 'completed' THEN 'completed'
+                    WHEN GREATEST(unit_progress.progress_percent, EXCLUDED.progress_percent) >= 100
+                      THEN 'completed'
+                    ELSE EXCLUDED.status
+                  END,
          progress_percent = GREATEST(unit_progress.progress_percent, EXCLUDED.progress_percent),
          state = unit_progress.state || EXCLUDED.state,
-         completed_at = COALESCE(unit_progress.completed_at, EXCLUDED.completed_at)`,
+         completed_at = COALESCE(
+           unit_progress.completed_at,
+           CASE WHEN EXCLUDED.status = 'completed'
+                  OR GREATEST(unit_progress.progress_percent, EXCLUDED.progress_percent) >= 100
+                THEN now() ELSE NULL END
+         )`,
       [
         assigned.enrollmentId,
         input.unitId,
@@ -105,6 +129,12 @@ export async function recordUnitProgress(
         JSON.stringify(input.state ?? {}),
       ],
     );
+    // Record last access, then attempt idempotent certificate issuance in the SAME
+    // transaction — so ordinary progress completion (not just an MCQ pass) issues a
+    // certificate when the certification rule is met (e.g. no-MCQ credentials, or
+    // completing the final required Reading after already passing the MCQ).
+    await touchLastAccessed(assigned.enrollmentId, tx);
+    await issueCertificateIfEligible(assigned.enrollmentId, tx);
   };
   return conn ? run(conn) : withTransaction(run);
 }
@@ -220,9 +250,10 @@ export async function submitMcqAttempt(
       [assigned.enrollmentId, input.unitId],
     );
 
-    // Automatic, idempotent certificate issuance when the learner becomes
-    // eligible (US-L-15). Runs in the same transaction so a pass and its
-    // certificate commit atomically.
+    // Record last access, then attempt automatic idempotent certificate issuance
+    // (US-L-15) in the same transaction so a pass and its certificate commit
+    // atomically.
+    await touchLastAccessed(assigned.enrollmentId, tx);
     await issueCertificateIfEligible(assigned.enrollmentId, tx);
 
     return { attemptNumber, result, reused: false };

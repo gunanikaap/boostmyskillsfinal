@@ -148,9 +148,14 @@ export function assembleDocuments(state: BuilderState): {
 }
 
 export function certificationRule(state: BuilderState): CertificationRule {
+  // Keep only required-unit ids that still exist in the content (a unit may have
+  // been removed after being ticked), so publish validation never sees a dangle.
+  const existing = new Set(
+    state.sections.flatMap((s) => s.subsections.flatMap((ss) => ss.units.map((u) => u.id))),
+  );
   return {
     thresholdPercent: state.certification.thresholdPercent,
-    requiredUnitIds: state.certification.requiredUnitIds,
+    requiredUnitIds: state.certification.requiredUnitIds.filter((id) => existing.has(id)),
   };
 }
 
