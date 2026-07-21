@@ -32,6 +32,20 @@ export default async function ProgramsPage() {
                 className="card"
                 style={{ textDecoration: "none", color: "inherit" }}
               >
+                {p.bannerObjectKey && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/media/${p.bannerObjectKey}`}
+                    alt={`${p.title} banner`}
+                    style={{
+                      width: "100%",
+                      aspectRatio: "16 / 9",
+                      objectFit: "cover",
+                      borderRadius: 8,
+                      marginBottom: 8,
+                    }}
+                  />
+                )}
                 <p style={{ fontSize: 12, color: "var(--bms-green)", fontWeight: 700 }}>
                   {p.organisationName}
                 </p>

@@ -6,6 +6,7 @@ export interface PublicProgrammeDetail {
   title: string;
   shortDescription: string | null;
   aboutContent: unknown;
+  bannerObjectKey: string | null;
   organisationName: string;
   credentials: { id: string; code: string; slug: string; title: string; position: number }[];
 }
@@ -16,7 +17,8 @@ export async function getPublishedProgrammeBySlug(
   conn: Queryable = db,
 ): Promise<PublicProgrammeDetail | null> {
   const { rows } = await conn.query(
-    `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.about_content, p.organisation_name
+    `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.about_content,
+            mp.banner_object_key, p.organisation_name
      FROM micro_programmes mp
      JOIN projects p ON p.id = mp.project_id
      WHERE mp.status = 'published' AND mp.slug = $1`,
@@ -41,6 +43,7 @@ export async function getPublishedProgrammeBySlug(
     title: r.title as string,
     shortDescription: (r.short_description as string) ?? null,
     aboutContent: r.about_content,
+    bannerObjectKey: (r.banner_object_key as string) ?? null,
     organisationName: r.organisation_name as string,
     credentials: (memRes.rows as Record<string, unknown>[]).map((m) => ({
       id: m.id as string,
