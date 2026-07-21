@@ -382,6 +382,118 @@ a {
   font-weight: 800;
 }
 
+/* ---- Certificate feature (two-column) --------------------------------- */
+.feature {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 48px;
+  align-items: center;
+  padding: 56px 0;
+}
+.feature__art img {
+  width: 100%;
+  height: auto;
+  max-width: 420px;
+}
+.feature h2 {
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -0.8px;
+  margin: 10px 0 16px;
+  font-weight: 800;
+}
+.feature ul.ticks {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.feature ul.ticks li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--bms-ink);
+}
+.tick {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--bms-green-soft);
+  color: var(--bms-green-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+/* ---- Benefits --------------------------------------------------------- */
+.benefit {
+  padding: 24px;
+}
+.benefit__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--bms-green-soft);
+  color: var(--bms-green-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.benefit h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.benefit p {
+  margin: 0;
+  color: var(--bms-muted);
+  font-size: 15px;
+}
+
+/* ---- Testimonials ----------------------------------------------------- */
+.tcard {
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tcard blockquote {
+  margin: 0;
+  font-size: 16px;
+  color: var(--bms-ink);
+  line-height: 1.6;
+}
+.tcard__who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tcard__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--bms-purple-soft, #efe9fb);
+  color: var(--bms-purple);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+/* ---- Partners --------------------------------------------------------- */
+.partners-strip {
+  text-align: center;
+  padding: 44px 0 8px;
+}
+.partners-strip img {
+  width: 100%;
+  height: auto;
+  max-width: 900px;
+  margin-top: 20px;
+}
+
 /* ---- Footer ----------------------------------------------------------- */
 .site-footer {
   background: var(--bms-ink);

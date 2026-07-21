@@ -27,6 +27,64 @@ function ArrowRight() {
   );
 }
 
+function Check() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M20 6L9 17l-5-5"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const BENEFITS = [
+  {
+    title: "Free & fully funded",
+    body: "All micro-credentials and micro-programmes are free to enrol and complete.",
+    icon: "M12 2v20M2 12h20",
+  },
+  {
+    title: "Learn at your own pace",
+    body: "Readings, videos and knowledge checks you can complete anytime, anywhere.",
+    icon: "M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z",
+  },
+  {
+    title: "Verifiable credentials",
+    body: "Earn certificates that anyone can verify online through a public link.",
+    icon: "M9 12l2 2 4-4M12 22a10 10 0 100-20 10 10 0 000 20z",
+  },
+  {
+    title: "Built with universities",
+    body: "Content developed with pan-European and international university partners.",
+    icon: "M12 3L2 9l10 6 10-6-10-6zM6 12v5l6 3 6-3v-5",
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    quote:
+      "The micro-programmes gave me practical, up-to-date sustainability skills I could apply at work straight away.",
+    name: "Learner",
+    role: "Sustainability micro-programme",
+  },
+  {
+    quote:
+      "Clear, focused courses and a certificate I can actually share. Exactly what I needed to upskill for the green transition.",
+    name: "Learner",
+    role: "Renewable energy micro-credential",
+  },
+  {
+    quote:
+      "Being able to learn at my own pace and earn a verifiable credential made all the difference for my career.",
+    name: "Learner",
+    role: "City decarbonisation micro-programme",
+  },
+];
+
 export default function HomePage() {
   return (
     <>
@@ -66,6 +124,54 @@ export default function HomePage() {
 
         {/* ---- Our Trending Micro-programmes ---- */}
         <TrendingProgrammes />
+
+        {/* ---- Earn a verifiable certificate ---- */}
+        <section className="section section--soft">
+          <div className="container feature">
+            <div className="feature__art">
+              <Image
+                src="/brand/certificate.png"
+                alt="A verifiable BoostMySkills micro-credential certificate"
+                width={420}
+                height={420}
+                style={{ width: "100%", height: "auto", maxWidth: 420 }}
+              />
+            </div>
+            <div>
+              <p className="eyebrow">Recognised & verifiable</p>
+              <h2>Earn a BoostMySkills certificate</h2>
+              <p style={{ color: "var(--bms-muted)", fontSize: 18, margin: 0 }}>
+                Complete a micro-credential to earn a certificate you can share and that anyone can
+                verify online — backed by a public verification link.
+              </p>
+              <ul className="ticks">
+                <li>
+                  <span className="tick" aria-hidden="true">
+                    <Check />
+                  </span>{" "}
+                  Assessed, evidence-based and issued automatically on completion.
+                </li>
+                <li>
+                  <span className="tick" aria-hidden="true">
+                    <Check />
+                  </span>{" "}
+                  Publicly verifiable — no login needed to confirm a certificate.
+                </li>
+                <li>
+                  <span className="tick" aria-hidden="true">
+                    <Check />
+                  </span>{" "}
+                  Bundle credentials into a micro-programme for a full learning path.
+                </li>
+              </ul>
+              <div style={{ marginTop: 24 }}>
+                <Link href="/courses" className="btn btn-lg">
+                  Start a micro-credential <ArrowRight />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* ---- Choose your option ---- */}
         <section className="section section--soft">
@@ -137,6 +243,77 @@ export default function HomePage() {
                 Register for free <ArrowRight />
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* ---- Benefits ---- */}
+        <section className="section section--soft">
+          <div className="container">
+            <h2>Benefits of BoostMySkills</h2>
+            <p className="sub">Why learners across Europe choose BoostMySkills.</p>
+            <div
+              className="grid-3"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}
+            >
+              {BENEFITS.map((b) => (
+                <div key={b.title} className="card benefit">
+                  <span className="benefit__icon" aria-hidden="true">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d={b.icon}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <h3>{b.title}</h3>
+                  <p>{b.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Testimonials ---- */}
+        <section className="section">
+          <div className="container">
+            <h2>What people are saying</h2>
+            <p className="sub">Learners on the BoostMySkills catalogue.</p>
+            <div className="grid-3">
+              {TESTIMONIALS.map((t, i) => (
+                <div key={i} className="card tcard">
+                  <blockquote>&ldquo;{t.quote}&rdquo;</blockquote>
+                  <div className="tcard__who">
+                    <span className="tcard__avatar" aria-hidden="true">
+                      {t.name.charAt(0)}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{t.name}</div>
+                      <div style={{ color: "var(--bms-muted)", fontSize: 13 }}>{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Partners ---- */}
+        <section className="section section--soft">
+          <div className="container partners-strip">
+            <h2>Our partners</h2>
+            <p className="sub" style={{ marginBottom: 0 }}>
+              Co-funded by the EU and delivered with our project and university partners.
+            </p>
+            <Image
+              src="/brand/partners.jpg"
+              alt="BoostMySkills partners and funders"
+              width={900}
+              height={220}
+              style={{ width: "100%", height: "auto", maxWidth: 900 }}
+            />
           </div>
         </section>
       </main>
