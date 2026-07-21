@@ -246,6 +246,92 @@ a {
   font-size: 13px;
 }
 
+/* ---- Trending programmes carousel ------------------------------------ */
+.trending {
+  padding: 48px 0 40px;
+}
+.trending__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+.trending__head .eyebrow {
+  margin-bottom: 6px;
+}
+.trending__head h2 {
+  font-size: clamp(30px, 5vw, 52px);
+  letter-spacing: -1px;
+  margin: 0;
+  font-weight: 800;
+}
+.carousel {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(300px, 360px);
+  gap: 22px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 14px;
+  scrollbar-width: thin;
+}
+.carousel > * {
+  scroll-snap-align: start;
+}
+.pcard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bms-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--bms-shadow);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.pcard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(18, 33, 26, 0.12);
+}
+.pcard__art {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--bms-green-soft);
+}
+.pcard__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px 18px;
+}
+.pcard__org {
+  color: var(--bms-green);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin: 0;
+}
+.pcard__title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.25;
+}
+.pcard__cta {
+  margin-top: 8px;
+  color: var(--bms-green-dark);
+  font-weight: 600;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
 /* ---- Generic sections ------------------------------------------------- */
 .section {
   padding: 40px 0;

@@ -2,6 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import TrendingProgrammes from "@/components/TrendingProgrammes";
+
+// Pulls published programmes for the trending carousel — render per request.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Become a leader in sustainability",
@@ -59,6 +63,9 @@ export default function HomePage() {
             />
           </div>
         </section>
+
+        {/* ---- Our Trending Micro-programmes ---- */}
+        <TrendingProgrammes />
 
         {/* ---- Choose your option ---- */}
         <section className="section section--soft">
