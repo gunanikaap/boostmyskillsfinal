@@ -25,7 +25,14 @@ function builtState(): BuilderState {
             sourceKey: null,
             title: "Sub A",
             units: [
-              { id: "u-r", sourceKey: null, type: "reading", title: "Read", required: true, data: { html: "<p>ok</p><script>bad()</script>" } },
+              {
+                id: "u-r",
+                sourceKey: null,
+                type: "reading",
+                title: "Read",
+                required: true,
+                data: { html: "<p>ok</p><script>bad()</script>" },
+              },
               {
                 id: "u-q",
                 sourceKey: null,
@@ -35,7 +42,15 @@ function builtState(): BuilderState {
                 data: {
                   passMark: 50,
                   questions: [
-                    { id: "q-a", text: "Pick", points: 1, options: [{ id: "o-x", text: "X", correct: true }, { id: "o-y", text: "Y", correct: false }] },
+                    {
+                      id: "q-a",
+                      text: "Pick",
+                      points: 1,
+                      options: [
+                        { id: "o-x", text: "X", correct: true },
+                        { id: "o-y", text: "Y", correct: false },
+                      ],
+                    },
                   ],
                 },
               },
@@ -62,10 +77,17 @@ describe("visual builder → real publish/learner pipeline", () => {
 
     const state = builtState();
     const { content, grading } = assembleDocuments(state);
-    await saveDraft({ credentialId, content, grading, certificationRule: certificationRule(state) });
+    await saveDraft({
+      credentialId,
+      content,
+      grading,
+      certificationRule: certificationRule(state),
+    });
     await publishCredential(credentialId);
 
-    const slug = (await getPool().query(`SELECT slug FROM micro_credentials WHERE id=$1`, [credentialId])).rows[0]!.slug as string;
+    const slug = (
+      await getPool().query(`SELECT slug FROM micro_credentials WHERE id=$1`, [credentialId])
+    ).rows[0]!.slug as string;
     const detail = await getPublishedCredentialBySlug(slug);
     expect(detail).not.toBeNull();
     // Reading HTML was sanitised on save (no script).
@@ -80,7 +102,12 @@ describe("visual builder → real publish/learner pipeline", () => {
     expect(JSON.stringify(learnerContent)).not.toMatch(/correct/i);
 
     // Grading still scores correctly server-side.
-    const outcome = await submitMcqAttempt({ userId: learner, credentialId, unitId: "u-q", answers: { "q-a": ["o-x"] } });
+    const outcome = await submitMcqAttempt({
+      userId: learner,
+      credentialId,
+      unitId: "u-q",
+      answers: { "q-a": ["o-x"] },
+    });
     expect(outcome.result.passed).toBe(true);
     expect(outcome.result.percentage).toBe(100);
   });
@@ -101,7 +128,12 @@ describe("visual builder → real publish/learner pipeline", () => {
     const mcq = state.sections[0]!.subsections[0]!.units[1]!;
     if (mcq.type === "mcq") mcq.data.questions[0]!.options.forEach((o) => (o.correct = false));
     const { content, grading } = assembleDocuments(state);
-    await saveDraft({ credentialId, content, grading, certificationRule: certificationRule(state) });
+    await saveDraft({
+      credentialId,
+      content,
+      grading,
+      certificationRule: certificationRule(state),
+    });
     await expect(publishCredential(credentialId)).rejects.toThrow();
   });
 });
