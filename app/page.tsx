@@ -278,20 +278,31 @@ export default function HomePage() {
 
         {/* ---- Benefits ---- */}
         <section className="section section--soft">
-          <div className="container">
-            <p className="eyebrow">Certifications to boost your skills and career prospects</p>
-            <h2>Benefits of BoostMySkills</h2>
-            <div className="benefits-grid">
-              {BENEFITS.map((b) => (
-                <div key={b.lead} className="benefit">
-                  <span className="benefit__icon" aria-hidden="true">
-                    <b.Icon />
-                  </span>
-                  <p>
-                    <strong>{b.lead}</strong> {b.body}
-                  </p>
-                </div>
-              ))}
+          <div className="container benefits-layout">
+            <div className="benefits-media">
+              <Image
+                src="/brand/programs/mp4.jpg"
+                alt="People cycling and walking in a green, sustainable city powered by wind energy"
+                width={1000}
+                height={614}
+                style={{ width: "100%", height: "auto", borderRadius: 16 }}
+              />
+            </div>
+            <div>
+              <p className="eyebrow">Certifications to boost your skills and career prospects</p>
+              <h2>Benefits of BoostMySkills</h2>
+              <div className="benefits-grid">
+                {BENEFITS.map((b) => (
+                  <div key={b.lead} className="benefit">
+                    <span className="benefit__icon" aria-hidden="true">
+                      <b.Icon />
+                    </span>
+                    <p>
+                      <strong>{b.lead}</strong> {b.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

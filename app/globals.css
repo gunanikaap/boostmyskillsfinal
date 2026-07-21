@@ -81,13 +81,15 @@ a {
 .btn:hover {
   background: var(--bms-green-dark);
   border-color: var(--bms-green-dark);
+  box-shadow: 0 6px 16px rgba(7, 152, 69, 0.28);
 }
 
 /* Outline / secondary pill */
 .btn-outline {
   background: #fff;
   color: var(--bms-ink);
-  border: 1px solid var(--bms-border);
+  border: 1.5px solid var(--bms-border);
+  box-shadow: none;
 }
 .btn-outline:hover {
   background: #fff;
@@ -96,8 +98,10 @@ a {
 }
 
 .btn-lg {
-  padding: 14px 26px;
-  font-size: 16px;
+  padding: 12px 26px;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 48px;
 }
 
 /* ---- Site header ------------------------------------------------------ */
@@ -522,6 +526,7 @@ a {
 .section h2 {
   font-size: clamp(26px, 3.5vw, 36px);
   letter-spacing: -0.5px;
+  line-height: 1.12;
   margin: 0 0 8px;
 }
 .section .sub {
@@ -581,6 +586,7 @@ a {
 .feature h2 {
   font-size: clamp(28px, 4vw, 44px);
   letter-spacing: -0.8px;
+  line-height: 1.08;
   margin: 10px 0 16px;
   font-weight: 800;
 }
@@ -627,6 +633,7 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: auto;
 }
 .tcard__avatar {
   width: 42px;
@@ -693,12 +700,13 @@ a {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
   gap: 56px;
-  align-items: start;
+  align-items: center;
   padding: 8px 0 8px;
 }
 .steps__title h2 {
   font-size: clamp(28px, 4vw, 44px);
   letter-spacing: -0.8px;
+  line-height: 1.08;
   margin: 8px 0 14px;
   font-weight: 800;
 }
@@ -732,12 +740,22 @@ a {
   color: var(--bms-muted);
 }
 
-/* ---- Benefits (2×2, iconography, no card borders) --------------------- */
+/* ---- Benefits (image + 2×2 iconography, no card borders) -------------- */
+.benefits-layout {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 48px;
+  align-items: center;
+}
+.benefits-media img {
+  display: block;
+  box-shadow: 0 10px 30px rgba(18, 33, 26, 0.1);
+}
 .benefits-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 34px 56px;
-  margin-top: 8px;
+  gap: 34px 48px;
+  margin-top: 24px;
 }
 .benefit__icon {
   display: inline-flex;
@@ -774,24 +792,54 @@ a {
 
 /* ---- Footer ----------------------------------------------------------- */
 .site-footer {
-  background: var(--bms-ink);
-  color: #cdd6d0;
-  padding: 40px 0;
+  background: #fff;
+  color: var(--bms-ink);
+  border-top: 1px solid var(--bms-border);
+  padding: 56px 0 44px;
   margin-top: 8px;
 }
-.site-footer a {
-  color: #cdd6d0;
-  text-decoration: none;
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 32px;
+  align-items: start;
 }
-.site-footer a:hover {
-  color: #fff;
+.footer-col {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.footer-col a,
+.footer-col span {
+  color: var(--bms-ink);
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 600;
+}
+.footer-col a:hover {
+  color: var(--bms-green-dark);
+}
+.footer-col__title {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--bms-ink);
+}
+.footer-linkedin {
+  display: inline-flex;
+  color: var(--bms-ink);
+  margin-top: 2px;
+}
+.footer-linkedin:hover {
+  color: var(--bms-green-dark);
 }
 
 /* ---- Responsive ------------------------------------------------------- */
 @media (max-width: 820px) {
   .hero,
   .feature,
-  .steps {
+  .steps,
+  .benefits-layout {
     grid-template-columns: 1fr;
     padding-top: 32px;
   }
@@ -802,6 +850,12 @@ a {
   .grid-3,
   .benefits-grid {
     grid-template-columns: 1fr;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-brand {
+    grid-column: 1 / -1;
   }
   .nav-links,
   .nav-right {
