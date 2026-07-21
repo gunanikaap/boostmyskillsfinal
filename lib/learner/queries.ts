@@ -1,4 +1,7 @@
 import { db, type Queryable } from "@/lib/db/pool";
+import type { ContentDocument } from "@/lib/content/schema";
+import { calculateCredentialProgress } from "@/lib/progress/calculate";
+import { unitProgressRowsByEnrolment } from "@/lib/progress/queries";
 
 export interface LearningItem {
   enrollmentId: string;
@@ -25,11 +28,7 @@ export async function listMyLearning(
   const { rows } = await conn.query(
     `SELECT e.id AS enrollment_id, e.status AS enrolment_status,
             mc.id AS credential_id, mc.slug, mc.code, mc.status,
-            cv.title,
-            COALESCE((
-              SELECT round(avg(up.progress_percent))
-              FROM unit_progress up WHERE up.enrollment_id = e.id
-            ), 0) AS progress_percent,
+            cv.title, cv.content_document,
             EXISTS(SELECT 1 FROM certificates c WHERE c.enrollment_id = e.id AND c.status='issued') AS has_certificate
      FROM enrollments e
      JOIN micro_credentials mc ON mc.id = e.credential_id
@@ -38,15 +37,27 @@ export async function listMyLearning(
      ORDER BY cv.title`,
     [userId],
   );
-  return (rows as Record<string, unknown>[]).map((r) => ({
-    enrollmentId: r.enrollment_id as string,
+  const enrolments = rows as (Record<string, unknown> & {
+    enrollment_id: string;
+    content_document: ContentDocument;
+  })[];
+  // Canonical progress: computed against every assigned unit (missing row = 0).
+  const rowsByEnrolment = await unitProgressRowsByEnrolment(
+    enrolments.map((e) => e.enrollment_id),
+    conn,
+  );
+  return enrolments.map((r) => ({
+    enrollmentId: r.enrollment_id,
     credentialId: r.credential_id as string,
     slug: r.slug as string,
     code: r.code as string,
     title: r.title as string,
     status: r.status as string,
     enrolmentStatus: r.enrolment_status as string,
-    progressPercent: Number(r.progress_percent ?? 0),
+    progressPercent: calculateCredentialProgress(
+      r.content_document,
+      rowsByEnrolment.get(r.enrollment_id) ?? [],
+    ).percent,
     hidden: (r.status as string) === "hidden",
     hasCertificate: Boolean(r.has_certificate),
   }));

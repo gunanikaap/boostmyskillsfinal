@@ -1,4 +1,7 @@
 import { db, type Queryable } from "@/lib/db/pool";
+import type { ContentDocument } from "@/lib/content/schema";
+import { calculateCredentialProgress } from "@/lib/progress/calculate";
+import { unitProgressRowsByEnrolment } from "@/lib/progress/queries";
 
 export interface AnalyticsFilter {
   projectId?: string;
@@ -47,10 +50,11 @@ export async function adminEnrolmentAnalytics(
 
   const { rows } = await conn.query(
     `SELECT
+       e.id AS enrollment_id,
        COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email) AS learner_name,
        mc.code AS credential_code,
        cv.title AS credential_title,
-       COALESCE((SELECT round(avg(up.progress_percent)) FROM unit_progress up WHERE up.enrollment_id = e.id), 0) AS progress_percent,
+       cv.content_document,
        (e.status = 'completed') AS completed,
        e.last_accessed_at,
        e.final_percentage,
@@ -64,11 +68,23 @@ export async function adminEnrolmentAnalytics(
      ORDER BY cv.title, learner_name`,
     params,
   );
-  return (rows as Record<string, unknown>[]).map((r) => ({
+  const enrolments = rows as (Record<string, unknown> & {
+    enrollment_id: string;
+    content_document: ContentDocument;
+  })[];
+  // Canonical progress against every assigned unit (not AVG over existing rows).
+  const rowsByEnrolment = await unitProgressRowsByEnrolment(
+    enrolments.map((r) => r.enrollment_id),
+    conn,
+  );
+  return enrolments.map((r) => ({
     learnerName: r.learner_name as string,
     credentialCode: r.credential_code as string,
     credentialTitle: r.credential_title as string,
-    progressPercent: Number(r.progress_percent ?? 0),
+    progressPercent: calculateCredentialProgress(
+      r.content_document,
+      rowsByEnrolment.get(r.enrollment_id) ?? [],
+    ).percent,
     completed: Boolean(r.completed),
     // pg returns timestamptz as a JS Date; normalise to an ISO string so both the
     // CSV and the analytics page (which slices the date) get a real string.
