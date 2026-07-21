@@ -1373,6 +1373,121 @@ a {
     justify-self: stretch;
   }
 }
+/* Custom Clerk-backed form */
+.auth-form {
+  display: grid;
+  gap: 18px;
+}
+.auth-form__hint {
+  color: var(--bms-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+.auth-field {
+  display: grid;
+  gap: 7px;
+}
+.auth-field > span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--bms-ink);
+}
+.auth-field__note {
+  color: var(--bms-muted);
+  font-size: 12px;
+}
+.auth-input {
+  width: 100%;
+  border: 1px solid var(--bms-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--bms-ink);
+  background: #fff;
+}
+.auth-input::placeholder {
+  color: #9aa39d;
+}
+.auth-input:focus {
+  outline: 2px solid var(--bms-green);
+  outline-offset: 0;
+  border-color: var(--bms-green);
+}
+.auth-select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23079845' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.auth-input-wrap .auth-input {
+  padding-right: 44px;
+}
+.auth-eye {
+  position: absolute;
+  right: 10px;
+  border: none;
+  background: none;
+  color: var(--bms-muted);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 4px;
+}
+.auth-eye:hover {
+  color: var(--bms-green-dark);
+}
+.auth-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: var(--bms-ink);
+}
+.auth-check input {
+  margin-top: 3px;
+  accent-color: var(--bms-green);
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.auth-check a {
+  color: var(--bms-green-dark);
+  font-weight: 600;
+}
+.auth-error {
+  color: #b3261e;
+  font-size: 14px;
+  margin: 0;
+}
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.auth-forgot {
+  text-align: center;
+  color: var(--bms-muted);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.auth-forgot:hover {
+  color: var(--bms-green-dark);
+}
 
 /* ---- Legal / static content ------------------------------------------- */
 .legal p.lead {

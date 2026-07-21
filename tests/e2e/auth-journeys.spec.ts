@@ -18,17 +18,19 @@ test("public catalogue is accessible", async ({ page }) => {
   await expect(page.locator("h1")).toContainText(/micro-credentials/i);
 });
 
-test("sign-in page renders Clerk", async ({ page }) => {
+test("sign-in page renders the Clerk-backed form", async ({ page }) => {
   await page.goto("/sign-in");
-  // Clerk's SignIn component renders its own UI (root box / sign-in text / inputs).
+  // Our custom Clerk form: the branded shell + a "Sign in" submit/toggle.
   await expect(page.locator("body")).toContainText(/sign in/i, { timeout: 15_000 });
+  await expect(page.getByLabel("Password")).toBeVisible();
 });
 
-test("sign-up page renders Clerk", async ({ page }) => {
+test("sign-up page renders the Clerk-backed register form", async ({ page }) => {
   await page.goto("/sign-up");
-  await expect(page.locator("body")).toContainText(/sign up|create your account/i, {
+  await expect(page.locator("body")).toContainText(/register|create an account/i, {
     timeout: 15_000,
   });
+  await expect(page.getByText("Country of residence")).toBeVisible();
 });
 
 test("anonymous /dashboard redirects to sign-in with a safe return URL", async ({ page }) => {
