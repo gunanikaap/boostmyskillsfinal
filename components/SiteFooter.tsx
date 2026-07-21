@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 // The official channel; swap in the exact company slug if it ever changes.
 const LINKEDIN_URL = "https://www.linkedin.com/company/boostmyskills";
@@ -19,11 +20,15 @@ export default function SiteFooter() {
         style={{ display: "flex", gap: 24, flexWrap: "wrap", justifyContent: "space-between" }}
       >
         <div style={{ maxWidth: 320 }}>
-          <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}>
-            <span style={{ color: "#fff" }}>boost</span>
-            <span style={{ color: "#b79be6" }}>my</span>
-            <span style={{ color: "var(--bms-green-bright)" }}>skills</span>
-          </div>
+          <Link href="/" aria-label="BoostMySkills" style={{ display: "inline-block" }}>
+            <Image
+              src="/brand/logo.png"
+              alt="BoostMySkills"
+              width={200}
+              height={102}
+              style={{ width: 168, height: "auto", marginBottom: 12 }}
+            />
+          </Link>
           <p style={{ margin: 0, fontSize: 14 }}>
             Free, fully funded micro-credentials and micro-programmes for sustainability skills.
           </p>
