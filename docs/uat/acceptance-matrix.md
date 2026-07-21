@@ -10,8 +10,18 @@ not yet verified), **BLOCKED** (needs an external credential/data/decision),
 > migration, real email delivery, real UAT→Prod OLX promotion, real UAT cloud
 > deployment, real Clerk integration, real B2 integration, real RDS/RDS-Proxy.
 
-Automated evidence lives in `tests/` and runs via `npm test` (78 tests, real
-PostgreSQL). Test files are cited per row.
+Automated evidence lives in `tests/` and runs via `npm test` (**137 Vitest tests**,
+real PostgreSQL) + `npm run test:e2e` (**7 Playwright**, real dev server + Clerk
+dev keys). Test files are cited per row.
+
+> **"PASS (local)" evidence basis (local-vertical-product-flow phase):** the UI is
+> implemented and build-verified, AND the underlying workflow is proven by
+> service/integration tests against real PostgreSQL (and, for auth-agnostic paths,
+> by the 7 real-browser Playwright smokes). It does **not** claim a fully
+> automated authenticated browser click-through of that specific screen — driving
+> the complete authenticated admin+learner journey through Playwright with Clerk
+> testing tokens is a documented follow-up. It is **not** a claim of cloud/UAT or
+> Production readiness.
 
 ## Learner stories
 
@@ -26,7 +36,7 @@ PostgreSQL). Test files are cited per row.
 | US-L-07 | Published catalogue detail | `app/courses`, `app/programs`, `lib/catalogue/queries.ts` | `publication.test.ts`, `programmes.test.ts` | PASS | Published-only reads verified. |
 | US-L-08 | Draft invisibility | `lib/catalogue/queries.ts`, page `notFound()` | `publication.test.ts`, `hidden-state.test.ts` | PASS | Draft/hidden absent from list/detail/sitemap. |
 | US-L-09 | Credential enrolment | `lib/enrolments/service.ts`, `app/courses/[slug]` | `publication.test.ts`, `hidden-state.test.ts` | PARTIAL | Idempotent enrol service tested; UI enrol needs auth (Clerk). |
-| US-L-10 | Programme registration | `lib/enrolments/service.ts` `registerForProgramme` | `programmes.test.ts` | PARTIAL | Snapshot + per-credential enrolment tested; UI needs auth. |
+| US-L-10 | Programme registration | `lib/enrolments/service.ts` `registerForProgramme` | `programme-registration.test.ts` (5) | PASS (local) | Transactional fan-out proven: one programme enrolment + one credential enrolment per member, snapshot of assigned versions + enrolment ids, reuse of a prior direct enrolment (no duplicate), idempotent re-registration. UI register button wired; authenticated browser E2E is a follow-up. |
 | US-L-11 | Unit access by type | `app/learn/[credentialId]`, `lib/player/service.ts` | `assessment.test.ts`, `hidden-state.test.ts` | PARTIAL | Content access + hidden enforcement tested; player UI not E2E-driven. |
 | US-L-12 | MCQ score / pass | `lib/player/grade.ts`, `submitMcqAttempt` | `assessment.test.ts` | PASS | Server-side scoring, one-attempt, idempotent double-submit. |
 | US-L-13 | Credential progress | `recordUnitProgress`, `lib/learner/queries.ts` | `assessment.test.ts`, `hidden-state.test.ts` | PASS | Validated unit progress. |
@@ -39,16 +49,16 @@ PostgreSQL). Test files are cited per row.
 | ID | Story | Implementation | Test | Status | Notes / blocker |
 |----|-------|----------------|------|--------|-----------------|
 | US-A-01 | Create credential draft | `createCredentialWithDraft`, `app/admin/credentials` | `publication.test.ts` | PASS | |
-| US-A-02 | Inline project creation | `createCredentialAction` (tx), `CredentialForm` | build + service | PARTIAL | Inline-project path implemented; UI not E2E-driven. |
+| US-A-02 | Inline project creation | `createCredentialAction` (tx), `CredentialForm` | build + service | PASS (local) | Credential form creates the project + credential atomically in one submit (no lost form content); server-side admin-guarded; duplicate slug errors surfaced. UI implemented + build-verified; underlying tx service-tested. |
 | US-A-03 | Banner upload/display | `lib/storage/*`, `app/admin/credentials/[id]/banner`, `app/media/[...key]`, course detail `<img>` | `storage.test.ts` (16), `storage-integration.test.ts` | PASS (local) | Local provider: admin banner upload (MIME+signature+size validated), controlled `/media` serve (published=public, draft/hidden=admin), detail renders banner. Provider-neutral key. Real B2 still B-B2. |
 | US-A-04 | About/context | `saveDraft` (sanitised), detail render | `content.test.ts` (sanitiser) | PASS | |
-| US-A-05 | Hierarchy authoring | JSON draft editor + Zod validation | `content.test.ts`, `publication.test.ts` | PARTIAL | Integrity fully enforced; rich drag/drop builder is a UAT cut (§17). |
-| US-A-06 | Reorder without regenerating IDs | stable-ID model; publish preserves IDs | `publication.test.ts` (revision binding) | PARTIAL | IDs stable in model; visual reorder UI cut. |
-| US-A-07 | Unit-type editors | player + JSON authoring | `content.test.ts` | PARTIAL | Typed editors are JSON-based for UAT. |
+| US-A-05 | Hierarchy authoring | **Visual builder** `ContentBuilder.tsx` + `lib/admin/builder/model.ts` | `builder-model.test.ts` (5), `builder-integration.test.ts` (2) | PASS (local) | Section→Subsection→Unit visual CRUD (add/edit-title/remove-with-confirm); raw JSON only behind an advanced read-only disclosure — **no longer required**. Assembled docs pass the real publish validator; correct answers go to grading only (unit-tested). |
+| US-A-06 | Reorder without regenerating IDs | builder Up/Down + stable-ID model | `builder-model.test.ts` (round-trip), `publication.test.ts` | PASS (local) | Accessible Up/Down at each level; IDs generated once (`newId`) and preserved on edit/reorder (round-trip test); publish preserves IDs. |
+| US-A-07 | Unit-type editors | builder Video/Reading/MCQ editors | `builder-model.test.ts`, `builder-integration.test.ts`, `content.test.ts` | PASS (local) | Video (URL validate + preview), Reading (text + learner preview, sanitised server-side), MCQ (questions/options/correct/pass-mark, max-attempts=1). No raw JSON needed. |
 | US-A-08 | MCQ authoring / scoring | grading contract + grader | `content.test.ts`, `assessment.test.ts` | PASS | |
 | US-A-09 | Certification rule | `certification_rule`, `computeCredentialResult` | `certificates.test.ts` | PASS | |
 | US-A-10 | Project certificate template | `projects.certificate_template`, cert snapshot | `certificates.test.ts` | PASS | |
-| US-A-11 | Programme creation | `lib/programmes/service.ts`, `app/admin/programmes` | `programmes.test.ts` | PASS | Membership editor UI is minimal (service tested). |
+| US-A-11 | Programme creation + membership | `lib/programmes/service.ts`, `app/admin/programmes/[id]` MembershipEditor | `programmes.test.ts`, `programme-registration.test.ts` (5) | PASS (local) | Visual membership editor: add same-project credentials (no duplicates), Up/Down order, required flag, publish (≥2 publishable), hide/unhide. Registration fan-out/dedup/idempotency + contiguous positions + hide-preservation tested. |
 | US-A-12 | Publishing | `publishCredential`, `publishProgramme` | `publication.test.ts`, `programmes.test.ts` | PASS | Atomic, validated, immutable revisions. |
 | US-A-13 | Hide / unhide | hide/unhide services | `hidden-state.test.ts` | PASS | Full 20-step lifecycle. |
 | US-A-14 | OLX import → draft review + archive storage | `lib/olx/importer.ts`, `lib/storage/*`, `app/admin/imports`, `app/admin/credentials/[id]/olx-archive` | `olx.test.ts`, `olx-archive.test.ts`, `storage-integration.test.ts` | PARTIAL | Import→draft + archive-safety tested; **original archive now persisted privately via the storage provider** (admin-only download, denied anon/learner). Full Open edX XBlock fidelity NOT claimed. |
