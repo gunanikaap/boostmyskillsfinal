@@ -50,11 +50,6 @@ export default async function TrendingProgrammes() {
           <ProgrammeCard key={p.id} p={p} i={i} />
         ))}
       </div>
-      <div style={{ marginTop: 18 }}>
-        <Link href="/programs" style={{ fontWeight: 600, display: "inline-flex", gap: 6 }}>
-          View all Micro-programmes <Arrow />
-        </Link>
-      </div>
     </section>
   );
 }

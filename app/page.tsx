@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { ComponentType } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import TrendingProgrammes from "@/components/TrendingProgrammes";
@@ -13,6 +14,7 @@ export const metadata = {
     "Free, fully funded micro-credentials and micro-programmes to future-proof your career in sustainability.",
 };
 
+// --- Icons -------------------------------------------------------------------
 function ArrowRight() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -26,63 +28,91 @@ function ArrowRight() {
     </svg>
   );
 }
-
-function Check() {
+function Shield() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M20 6L9 17l-5-5"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l8 3v6c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V5l8-3z" />
+    </svg>
+  );
+}
+function Heart() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 21S3 15 3 8.5A4.5 4.5 0 0112 6a4.5 4.5 0 019 2.5C21 15 12 21 12 21z" />
+    </svg>
+  );
+}
+function Bolt() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+    </svg>
+  );
+}
+function Star() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 8.9l6.9-.6z" />
+    </svg>
+  );
+}
+function Person() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm-7 8c0-3.9 3.1-6 7-6s7 2.1 7 6H5z" />
     </svg>
   );
 }
 
-const BENEFITS = [
+// --- Content -----------------------------------------------------------------
+const BENEFITS: { Icon: ComponentType; lead: string; body: string }[] = [
   {
-    title: "Free & fully funded",
-    body: "All micro-credentials and micro-programmes are free to enrol and complete.",
-    icon: "M12 2v20M2 12h20",
+    Icon: Star,
+    lead: "Upskill for a greener future.",
+    body: "Build in-demand sustainability expertise and grow into a leader in the green economy.",
   },
   {
-    title: "Learn at your own pace",
-    body: "Readings, videos and knowledge checks you can complete anytime, anywhere.",
-    icon: "M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z",
+    Icon: Shield,
+    lead: "Flexible learning.",
+    body: "Study at your own pace, anytime and anywhere, with fully online courses and resources.",
   },
   {
-    title: "Verifiable credentials",
-    body: "Earn certificates that anyone can verify online through a public link.",
-    icon: "M9 12l2 2 4-4M12 22a10 10 0 100-20 10 10 0 000 20z",
+    Icon: Bolt,
+    lead: "Practical skills.",
+    body: "Apply what you learn through real-world projects, case studies and assessments.",
   },
   {
-    title: "Built with universities",
-    body: "Content developed with pan-European and international university partners.",
-    icon: "M12 3L2 9l10 6 10-6-10-6zM6 12v5l6 3 6-3v-5",
+    Icon: Heart,
+    lead: "Positive impact.",
+    body: "Help build a sustainable future by developing solutions to real environmental challenges.",
   },
 ];
 
 const TESTIMONIALS = [
   {
     quote:
-      "The micro-programmes gave me practical, up-to-date sustainability skills I could apply at work straight away.",
-    name: "Learner",
-    role: "Sustainability micro-programme",
+      "The range of renewable-energy courses is genuinely impressive — I'd recommend BoostMySkills to anyone serious about a sustainable future.",
+    name: "Anya Petrova",
+    role: "Sustainability Consultant",
+  },
+  {
+    quote: "The practical skills I picked up went straight into my day-to-day work.",
+    name: "Maria Gonzalez",
+    role: "Renewable Energy Engineer",
   },
   {
     quote:
-      "Clear, focused courses and a certificate I can actually share. Exactly what I needed to upskill for the green transition.",
-    name: "Learner",
-    role: "Renewable energy micro-credential",
+      "BoostMySkills helped me find a clear direction in sustainability and see real career paths.",
+    name: "David Kim",
+    role: "Student",
   },
-  {
-    quote:
-      "Being able to learn at my own pace and earn a verifiable credential made all the difference for my career.",
-    name: "Learner",
-    role: "City decarbonisation micro-programme",
-  },
+];
+
+const PROJECTS = [
+  { src: "/brand/funding-res4city.png", alt: "RES4CITY — funded by the European Union" },
+  { src: "/brand/funding-sherlock.png", alt: "SHERLOCK — funded by the European Union" },
+  { src: "/brand/funding-resskill.png", alt: "RESSKILL — co-funded by the European Union" },
+  { src: "/brand/funding-streacs.png", alt: "STREACS — funded by the European Union" },
 ];
 
 export default function HomePage() {
@@ -125,123 +155,123 @@ export default function HomePage() {
         {/* ---- Our Trending Micro-programmes ---- */}
         <TrendingProgrammes />
 
-        {/* ---- Earn a verifiable certificate ---- */}
+        {/* ---- Certificates ---- */}
         <section className="section section--soft">
           <div className="container feature">
-            <div className="feature__art">
-              <Image
-                src="/brand/certificate.png"
-                alt="A verifiable BoostMySkills micro-credential certificate"
-                width={420}
-                height={420}
-                style={{ width: "100%", height: "auto", maxWidth: 420 }}
-              />
-            </div>
             <div>
-              <p className="eyebrow">Recognised & verifiable</p>
-              <h2>Earn a BoostMySkills certificate</h2>
-              <p style={{ color: "var(--bms-muted)", fontSize: 18, margin: 0 }}>
-                Complete a micro-credential to earn a certificate you can share and that anyone can
-                verify online — backed by a public verification link.
+              <p className="eyebrow">Earn BoostMySkills</p>
+              <h2>Micro-credential and Micro-programme Certificates</h2>
+              <p style={{ color: "var(--bms-muted)", fontSize: 18, margin: "0 0 8px" }}>
+                Develop and advance your expertise with our comprehensive micro-credential and
+                micro-programme courses. Gain practical knowledge and skills to drive energy
+                innovation and decarbonisation strategies.
               </p>
               <ul className="ticks">
                 <li>
-                  <span className="tick" aria-hidden="true">
-                    <Check />
+                  <span className="tick-plain" aria-hidden="true">
+                    <Shield />
                   </span>{" "}
-                  Assessed, evidence-based and issued automatically on completion.
-                </li>
-                <li>
-                  <span className="tick" aria-hidden="true">
-                    <Check />
-                  </span>{" "}
-                  Publicly verifiable — no login needed to confirm a certificate.
-                </li>
-                <li>
-                  <span className="tick" aria-hidden="true">
-                    <Check />
-                  </span>{" "}
-                  Bundle credentials into a micro-programme for a full learning path.
+                  <span style={{ fontWeight: 600 }}>
+                    Developed by pan-European and international universities, co-funded by the EU,
+                    Swiss Confederation and a consortium of South Korean universities (COSS) — and
+                    supported by the United Nations Institute for Training &amp; Research (UNITAR).
+                  </span>
                 </li>
               </ul>
-              <div style={{ marginTop: 24 }}>
-                <Link href="/courses" className="btn btn-lg">
-                  Start a micro-credential <ArrowRight />
-                </Link>
-              </div>
+            </div>
+            <div className="feature__art">
+              <Image
+                src="/brand/certificate.png"
+                alt="A verifiable BoostMySkills certificate of completion"
+                width={460}
+                height={460}
+                style={{ width: "100%", height: "auto", maxWidth: 460 }}
+              />
             </div>
           </div>
         </section>
 
         {/* ---- Choose your option ---- */}
-        <section className="section section--soft">
+        <section className="section section--soft section--center">
           <div className="container">
+            <p className="eyebrow">Expand your Knowledge with Specialised Learning Paths</p>
             <h2>Choose your option</h2>
-            <p className="sub">Two ways to learn and earn verifiable, shareable credentials.</p>
+            <p className="sub">
+              Choose a micro-programme — a curated set of micro-credentials — or pick one or more
+              individual micro-credentials that match your goals.
+            </p>
             <div className="grid-2">
-              <div className="card option-card">
-                <span className="pill-num" aria-hidden="true">
-                  ◇
+              <div className="card option-card option-card--primary">
+                <span className="option-card__icon" aria-hidden="true">
+                  <Heart />
                 </span>
                 <h3>Micro-programmes</h3>
-                <p style={{ color: "var(--bms-muted)", margin: 0 }}>
-                  Structured learning paths that bundle several micro-credentials into a programme,
-                  with aggregate progress and a programme completion.
+                <p>
+                  Deepen your expertise with comprehensive micro-programmes that bundle several
+                  micro-credentials into one guided learning path.
                 </p>
-                <Link href="/programs" className="btn" style={{ alignSelf: "flex-start" }}>
-                  Browse micro-programmes <ArrowRight />
+                <Link href="/programs" className="btn">
+                  View all
                 </Link>
               </div>
               <div className="card option-card">
-                <span className="pill-num" aria-hidden="true">
-                  ○
+                <span className="option-card__icon" aria-hidden="true">
+                  <Bolt />
                 </span>
                 <h3>Micro-credentials</h3>
-                <p style={{ color: "var(--bms-muted)", margin: 0 }}>
-                  Focused courses with readings, videos and assessments. Pass to earn a verifiable
-                  certificate you can share and verify publicly.
+                <p>
+                  Boost your skill set with targeted micro-credentials — concise courses ideal for
+                  building a specific competency.
                 </p>
-                <Link href="/courses" className="btn" style={{ alignSelf: "flex-start" }}>
-                  Browse micro-credentials <ArrowRight />
+                <Link href="/courses" className="btn">
+                  View all
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ---- How to get started ---- */}
+        {/* ---- Get started in 3 simple steps ---- */}
         <section className="section">
-          <div className="container">
-            <h2>How to get started?</h2>
-            <p className="sub">Three steps from sign-up to a verifiable credential.</p>
-            <div className="grid-3">
-              <div className="card">
-                <span className="pill-num">1</span>
-                <h3 style={{ margin: "12px 0 6px" }}>Register for free</h3>
-                <p style={{ color: "var(--bms-muted)", margin: 0 }}>
-                  Create your free account to enrol in micro-credentials and micro-programmes.
-                </p>
-              </div>
-              <div className="card">
-                <span className="pill-num">2</span>
-                <h3 style={{ margin: "12px 0 6px" }}>Learn &amp; complete</h3>
-                <p style={{ color: "var(--bms-muted)", margin: 0 }}>
-                  Work through readings, videos and knowledge checks at your own pace; your progress
-                  is tracked at every level.
-                </p>
-              </div>
-              <div className="card">
-                <span className="pill-num">3</span>
-                <h3 style={{ margin: "12px 0 6px" }}>Earn your credential</h3>
-                <p style={{ color: "var(--bms-muted)", margin: 0 }}>
-                  Pass the assessment to earn a certificate with a public verification link.
-                </p>
-              </div>
+          <div className="container steps">
+            <div className="steps__title">
+              <p className="eyebrow">How to get started?</p>
+              <h2>Get started in 3 simple steps</h2>
+              <p className="sub" style={{ margin: 0 }}>
+                Achieve your learning goals quickly by following these straightforward steps.
+              </p>
             </div>
-            <div style={{ marginTop: 28 }}>
-              <Link href="/sign-up" className="btn btn-lg">
-                Register for free <ArrowRight />
-              </Link>
+            <div className="steps__list">
+              <div className="step">
+                <span className="step__num">1</span>
+                <div>
+                  <h3>First Step</h3>
+                  <p>
+                    Create your free account and explore our diverse range of micro-programmes and
+                    micro-credentials.
+                  </p>
+                </div>
+              </div>
+              <div className="step">
+                <span className="step__num">2</span>
+                <div>
+                  <h3>Second Step</h3>
+                  <p>
+                    Choose the micro-programmes and/or micro-credentials that align with your goals
+                    and interests.
+                  </p>
+                </div>
+              </div>
+              <div className="step">
+                <span className="step__num">3</span>
+                <div>
+                  <h3>Third Step</h3>
+                  <p>
+                    Start learning at your own pace and earn your certifications to boost your
+                    skills and career prospects.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -249,27 +279,17 @@ export default function HomePage() {
         {/* ---- Benefits ---- */}
         <section className="section section--soft">
           <div className="container">
+            <p className="eyebrow">Certifications to boost your skills and career prospects</p>
             <h2>Benefits of BoostMySkills</h2>
-            <p className="sub">Why learners across Europe choose BoostMySkills.</p>
-            <div
-              className="grid-3"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}
-            >
+            <div className="benefits-grid">
               {BENEFITS.map((b) => (
-                <div key={b.title} className="card benefit">
+                <div key={b.lead} className="benefit">
                   <span className="benefit__icon" aria-hidden="true">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d={b.icon}
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <b.Icon />
                   </span>
-                  <h3>{b.title}</h3>
-                  <p>{b.body}</p>
+                  <p>
+                    <strong>{b.lead}</strong> {b.body}
+                  </p>
                 </div>
               ))}
             </div>
@@ -279,15 +299,14 @@ export default function HomePage() {
         {/* ---- Testimonials ---- */}
         <section className="section">
           <div className="container">
-            <h2>What people are saying</h2>
-            <p className="sub">Learners on the BoostMySkills catalogue.</p>
-            <div className="grid-3">
+            <h2>What People Are Saying</h2>
+            <div className="grid-3" style={{ marginTop: 24 }}>
               {TESTIMONIALS.map((t, i) => (
                 <div key={i} className="card tcard">
                   <blockquote>&ldquo;{t.quote}&rdquo;</blockquote>
                   <div className="tcard__who">
                     <span className="tcard__avatar" aria-hidden="true">
-                      {t.name.charAt(0)}
+                      <Person />
                     </span>
                     <div>
                       <div style={{ fontWeight: 700 }}>{t.name}</div>
@@ -303,17 +322,26 @@ export default function HomePage() {
         {/* ---- Partners ---- */}
         <section className="section section--soft">
           <div className="container partners-strip">
-            <h2>Our partners</h2>
-            <p className="sub" style={{ marginBottom: 0 }}>
-              Co-funded by the EU and delivered with our project and university partners.
-            </p>
+            <h2>Our Partners</h2>
             <Image
               src="/brand/partners.jpg"
-              alt="BoostMySkills partners and funders"
-              width={900}
-              height={220}
-              style={{ width: "100%", height: "auto", maxWidth: 900 }}
+              alt="BoostMySkills partner universities and organisations"
+              width={1000}
+              height={620}
+              style={{ width: "100%", height: "auto", maxWidth: 1000 }}
             />
+            <div className="projects-box">
+              {PROJECTS.map((p) => (
+                <Image
+                  key={p.src}
+                  src={p.src}
+                  alt={p.alt}
+                  width={260}
+                  height={52}
+                  style={{ height: 52, width: "auto" }}
+                />
+              ))}
+            </div>
           </div>
         </section>
       </main>
