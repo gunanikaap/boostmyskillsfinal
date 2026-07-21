@@ -61,6 +61,9 @@ export interface AdminProgrammeDetail {
   status: string;
   projectId: string;
   projectName: string;
+  shortDescription: string | null;
+  aboutHtml: string;
+  bannerObjectKey: string | null;
   members: {
     credentialId: string;
     code: string;
@@ -79,7 +82,8 @@ export async function adminGetProgramme(
   conn: Queryable = db,
 ): Promise<AdminProgrammeDetail | null> {
   const progRes = await conn.query(
-    `SELECT mp.id, mp.title, mp.slug, mp.status, mp.project_id, p.name AS project_name
+    `SELECT mp.id, mp.title, mp.slug, mp.status, mp.project_id, p.name AS project_name,
+            mp.short_description, mp.about_content, mp.banner_object_key
      FROM micro_programmes mp JOIN projects p ON p.id = mp.project_id WHERE mp.id = $1`,
     [id],
   );
@@ -91,6 +95,9 @@ export async function adminGetProgramme(
         status: string;
         project_id: string;
         project_name: string;
+        short_description: string | null;
+        about_content: { html?: string } | null;
+        banner_object_key: string | null;
       }
     | undefined;
   if (!prog) return null;
@@ -127,6 +134,9 @@ export async function adminGetProgramme(
     status: prog.status,
     projectId: prog.project_id,
     projectName: prog.project_name,
+    shortDescription: prog.short_description,
+    aboutHtml: prog.about_content?.html ?? "",
+    bannerObjectKey: prog.banner_object_key,
     members: (members.rows as Record<string, unknown>[]).map((m) => ({
       credentialId: m.credential_id as string,
       code: m.code as string,

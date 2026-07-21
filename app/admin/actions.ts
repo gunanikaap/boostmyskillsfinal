@@ -17,6 +17,7 @@ import {
 } from "@/lib/credentials/service";
 import {
   createProgramme,
+  updateProgramme,
   setProgrammeCredentials,
   publishProgramme,
   hideProgramme,
@@ -241,6 +242,25 @@ export async function createProgrammeAction(form: FormData): Promise<ActionResul
     });
     revalidatePath("/admin/programmes");
     return { ok: true, message: "Programme created.", id };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function updateProgrammeAction(
+  programmeId: string,
+  form: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    await updateProgramme(programmeId, {
+      title: String(form.get("title") ?? ""),
+      shortDescription: String(form.get("shortDescription") ?? "") || undefined,
+      aboutHtml: String(form.get("aboutHtml") ?? "") || undefined,
+    });
+    revalidatePath(`/admin/programmes/${programmeId}`);
+    revalidatePath("/programs");
+    return { ok: true, message: "Programme details saved." };
   } catch (err) {
     return fail(err);
   }

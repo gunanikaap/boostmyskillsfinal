@@ -10,18 +10,26 @@ not yet verified), **BLOCKED** (needs an external credential/data/decision),
 > migration, real email delivery, real UAT→Prod OLX promotion, real UAT cloud
 > deployment, real Clerk integration, real B2 integration, real RDS/RDS-Proxy.
 
-Automated evidence lives in `tests/` and runs via `npm test` (**137 Vitest tests**,
-real PostgreSQL) + `npm run test:e2e` (**7 Playwright**, real dev server + Clerk
-dev keys). Test files are cited per row.
+Automated evidence lives in `tests/` and runs via `npm test` (**157 Vitest tests**,
+real PostgreSQL) + `npm run test:e2e` (**7 Playwright** auth-agnostic smokes, real
+dev server + Clerk dev keys) + `npm run test:e2e:auth` (**6 Playwright**
+authorization tests, **test-auth-backed — see below**). Test files are cited per row.
 
-> **"PASS (local)" evidence basis (local-vertical-product-flow phase):** the UI is
-> implemented and build-verified, AND the underlying workflow is proven by
-> service/integration tests against real PostgreSQL (and, for auth-agnostic paths,
-> by the 7 real-browser Playwright smokes). It does **not** claim a fully
-> automated authenticated browser click-through of that specific screen — driving
-> the complete authenticated admin+learner journey through Playwright with Clerk
-> testing tokens is a documented follow-up. It is **not** a claim of cloud/UAT or
-> Production readiness.
+> **"PASS (local)" evidence basis:** the UI is implemented and build-verified, AND
+> the underlying workflow is proven by service/integration tests against real
+> PostgreSQL (and, for auth-agnostic paths, by the 7 real-browser Playwright
+> smokes). Role enforcement (admin vs learner vs anonymous) is additionally proven
+> end to end through a real browser by the **test-auth** authenticated vertical
+> (`tests/e2e-auth/`). It is **not** a claim of cloud/UAT or Production readiness.
+>
+> **Test-auth vs Clerk (honesty rule):** the authenticated Playwright vertical is
+> driven by a **secret-gated test-auth adapter** (activates only under
+> `APP_ENV=test`; unreachable in local/uat/production — unit-proven in
+> `tests/unit/test-auth-adapter.test.ts`), **not** by real Clerk sessions. It
+> proves the real HTTP + SSR + server-side authorization stack
+> (`requireAdmin`/`getCurrentAppUser`) enforces roles per request. A fully
+> **Clerk-session** automated click-through remains a documented follow-up
+> (B-CLERK-E2E); real Clerk auth is otherwise evidenced manually (US-L-01/03/06).
 
 ## Learner stories
 
@@ -29,7 +37,7 @@ dev keys). Test files are cited per row.
 |----|-------|----------------|------|--------|-----------------|
 | US-L-01 | Registration | `app/sign-up`, `middleware.ts`, `components/AuthControls.tsx`, `lib/auth/*`, migration 003 | `sync.test.ts` (10), `webhook.test.ts` (6), E2E | PASS (local) | REAL Clerk dev sign-up completed (email + **username** + password). Lazy sync created exactly ONE `app_users` row: email normalized, username stored, `clerk_user_id` present, `role=learner`. |
 | US-L-02 | Email verification | Clerk-hosted (email_code, verify-at-sign-up) | instance config | PASS (dev) | REAL email-code verification completed during the sign-up (Clerk **Development** email). Production email delivery remains B-EMAIL. |
-| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard`, `middleware.ts` | `access.test.ts`, E2E, live browser | PASS (local) | REAL **email login** AND **username login** both succeeded (authenticated app access; `/admin` renders); anonymous `/dashboard` 307→`/sign-in`. Minor UX note: after sign-in Clerk lands on `/` (per `SIGN_IN_FALLBACK_REDIRECT_URL`); `/dashboard` is reachable and works — set the fallback to `/dashboard` for a direct landing if desired. |
+| US-L-03 | Login / dashboard | `app/sign-in`, `app/dashboard`, `middleware.ts` | `access.test.ts`, `tests/e2e-auth/authz-vertical.spec.ts` (test-auth browser), live browser | PASS (local) | REAL **email login** AND **username login** both succeeded (authenticated app access; `/admin` renders); anonymous `/dashboard` 307→`/sign-in`. **Automated browser (test-auth):** an authenticated learner identity resolves through the browser on `/dashboard` (empty-state, not the sign-in prompt); anonymous sees the sign-in prompt. Minor UX note: after sign-in Clerk lands on `/` (per `SIGN_IN_FALLBACK_REDIRECT_URL`); `/dashboard` is reachable and works — set the fallback to `/dashboard` for a direct landing if desired. |
 | US-L-04 | Historical learner migration | `lib/migration/service.ts`, `scripts/migration/dry-run.mts` | `tests/db/migration.test.ts` | BLOCKED | No source export + no Clerk mapping strategy (B-MIGRATE, B-CLERK). Dry-run + idempotent upsert implemented and tested; never fabricates. |
 | US-L-05 | Password reset | Clerk-hosted recovery | live browser | PARTIAL | The secure forgot-password flow PASSED locally on the Clerk **Development** instance (new password set, login succeeded, same `app_users` row + admin role). BUT the dev instance uses an email **CODE** while the strict employer AC requires a reset **LINK**. Literal link parity remains a **product-owner acceptance decision** — NOT marked strict PASS until explicitly accepted as equivalent. Production email = B-EMAIL. |
 | US-L-06 | Profile editing | Clerk profile + `syncAppUser` (username/email/name) | `sync.test.ts` (10), live browser + DB | PASS (local) | REAL Clerk profile name edit → loading an authenticated page lazily synced `app_users` (first/last name now populated, `updated_at > created_at`); **same Clerk ID + same `app_users.id`** (single row updated in place); **role stayed admin**. |
@@ -64,7 +72,8 @@ dev keys). Test files are cited per row.
 | US-A-14 | OLX import → draft review + archive storage | `lib/olx/importer.ts`, `lib/storage/*`, `app/admin/imports`, `app/admin/credentials/[id]/olx-archive` | `olx.test.ts`, `olx-archive.test.ts`, `storage-integration.test.ts` | PARTIAL | Import→draft + archive-safety tested; **original archive now persisted privately via the storage provider** (admin-only download, denied anon/learner). Full Open edX XBlock fidelity NOT claimed. |
 | US-A-15 | Unsafe archive rejection | `lib/olx/archiveSafety.ts` | `olx-archive.test.ts` (14) | PASS | Traversal/symlink/hardlink/device/size-bomb/etc. |
 | US-A-16 | UAT→Prod OLX promotion | export + import round trip | `olx.test.ts` | PARTIAL | Round-trip proven locally; real cross-env promotion BLOCKED (B-DEPLOY). |
-| US-A-17 | Server-side admin denial + admin access | `requireAdmin` on layout + every action/route | `access.test.ts` (8), real HTTP, live browser | PASS | REAL user promoted via `promote.mts` (exactly 1 row); anonymous `/admin`/CSV-export/OLX all 307/401/403; browser `role='learner'` ignored on the REAL row (stayed admin). **Live:** the promoted admin's `/admin` dashboard renders Projects/Credentials/Programmes/Analytics/Maintenance, and `/admin` still renders after email login, username login, profile edit and password reset. |
+| US-A-17 | Server-side admin denial + admin access | `requireAdmin` on layout + every action/route | `access.test.ts` (8), `tests/e2e-auth/authz-vertical.spec.ts` (6, test-auth browser), real HTTP, live browser | PASS | REAL user promoted via `promote.mts` (exactly 1 row); anonymous `/admin`/CSV-export/OLX all 307/401/403; browser `role='learner'` ignored on the REAL row (stayed admin). **Automated browser (test-auth):** admin reaches `/admin` + nav; learner denied; anonymous denied; a forged header without the run secret cannot become admin. **Live (Clerk):** the promoted admin's `/admin` dashboard renders Projects/Credentials/Programmes/Analytics/Maintenance, and `/admin` still renders after email login, username login, profile edit and password reset. |
+| US-A-20 | Programme banner + About/context | `lib/storage/bannerService.ts` `uploadProgrammeBanner`, `app/admin/programmes/[id]/banner`, `ProgrammeDetailsEditor.tsx`, `updateProgramme`, public/catalogue `<img>` via `/media` | `programme-media.test.ts` (7) | PASS (local) | Admin-only upload (learner 403 / anon 401), provider-neutral logical key in `micro_programmes.banner_object_key` (no absolute path), draft not public, published exposes banner+About, hidden blocks detail+registration, unhide restores same row, invalid image rejected + previous banner preserved on failed replace. Real B2 still B-B2. |
 | US-A-18 | Maintenance mode | `platform_settings`, guard + `/maintenance` page | `access.test.ts` (gate) | PASS | Server-side; singleton; no redeploy. |
 | US-A-19 | Enrolment analytics | `lib/admin/analytics.ts`, `app/admin/analytics` | `analytics.test.ts` | PASS | |
 | US-A-20 | Learner activity | analytics rows (last access, progress) | `analytics.test.ts` | PASS | |

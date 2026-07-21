@@ -30,6 +30,26 @@ export async function createProgramme(
   return (rows[0] as { id: string }).id;
 }
 
+/** Update a programme's title, short description and About/context (sanitised). */
+export async function updateProgramme(
+  id: string,
+  input: { title: string; shortDescription?: string; aboutHtml?: string },
+  conn: Queryable = db,
+): Promise<void> {
+  const res = await conn.query(
+    `UPDATE micro_programmes
+       SET title = $2, short_description = $3, about_content = $4
+     WHERE id = $1`,
+    [
+      id,
+      input.title,
+      input.shortDescription ?? null,
+      JSON.stringify({ html: sanitizeHtml(input.aboutHtml ?? "") }),
+    ],
+  );
+  if ((res.rowCount ?? 0) === 0) throw new ServiceError("not_found", "Programme not found");
+}
+
 /** True once any learner has registered for the programme (membership locked). */
 async function hasProgrammeRegistrations(programmeId: string, conn: Queryable): Promise<boolean> {
   const { rows } = await conn.query(`SELECT 1 FROM enrollments WHERE programme_id = $1 LIMIT 1`, [

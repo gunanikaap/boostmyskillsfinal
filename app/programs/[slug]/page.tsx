@@ -33,6 +33,22 @@ export default async function ProgrammeDetailPage({
           {detail.organisationName}
         </p>
         <h1 style={{ marginTop: 4 }}>{detail.title}</h1>
+        {detail.bannerObjectKey && (
+          // Served through the controlled /media route (published programme banners are public).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/media/${detail.bannerObjectKey}`}
+            alt={`${detail.title} banner`}
+            style={{
+              width: "100%",
+              maxWidth: 720,
+              aspectRatio: "16 / 9",
+              objectFit: "cover",
+              borderRadius: 12,
+              margin: "12px 0",
+            }}
+          />
+        )}
         <div
           className="card"
           style={{ marginTop: 16 }}

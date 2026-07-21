@@ -30,6 +30,7 @@ export function ProgrammeForm({ projects }: { projects: { id: string; name: stri
       <input name="title" placeholder="Title" required />
       <input name="slug" placeholder="slug" required />
       <input name="shortDescription" placeholder="Short description (optional)" />
+      <textarea name="aboutHtml" rows={3} placeholder="About / context (optional, sanitised)" />
       <button className="btn" disabled={pending}>
         {pending ? "Creating…" : "Create programme"}
       </button>

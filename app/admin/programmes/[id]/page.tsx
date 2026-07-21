@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { adminGetProgramme } from "@/lib/admin/queries";
 import { MembershipEditor } from "./MembershipEditor";
+import { ProgrammeDetailsEditor } from "./ProgrammeDetailsEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function AdminProgrammeDetail({
           Ordered credential membership. Hiding does not change each credential&apos;s own status.
         </p>
       </div>
+      <ProgrammeDetailsEditor detail={detail} />
       <MembershipEditor detail={detail} />
     </div>
   );
