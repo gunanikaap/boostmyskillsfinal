@@ -796,39 +796,40 @@ a {
 /* ---- Contact ---------------------------------------------------------- */
 .contact {
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 72px;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
   align-items: stretch;
-  padding: 56px 0 72px;
+  padding: 36px 0 52px;
 }
 .contact__intro {
   display: flex;
   flex-direction: column;
 }
 .contact__intro h1 {
-  font-size: clamp(40px, 5.5vw, 64px);
-  line-height: 1.03;
-  letter-spacing: -1.5px;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.8px;
   margin: 0;
   font-weight: 800;
 }
 .contact__meta {
   margin-top: auto;
-  padding-top: 56px;
+  padding-top: 36px;
 }
 .contact__intro p {
   color: var(--bms-muted);
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.6;
-  max-width: 340px;
+  max-width: 320px;
   margin: 0;
 }
 .contact__follow {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 .contact__follow strong {
   display: block;
-  margin-bottom: 12px;
+  font-size: 15px;
+  margin-bottom: 10px;
 }
 .contact__social {
   display: inline-flex;
@@ -839,29 +840,30 @@ a {
 }
 .contact-form {
   display: grid;
-  gap: 22px;
+  gap: 16px;
   align-self: start;
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
 }
 .field label {
   display: block;
-  font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 7px;
 }
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 .input,
 .textarea {
   width: 100%;
   border: 1px solid var(--bms-border);
-  border-radius: 10px;
-  padding: 13px 15px;
+  border-radius: 8px;
+  padding: 10px 12px;
   font: inherit;
+  font-size: 14px;
   color: var(--bms-ink);
   background: #fff;
 }
@@ -876,33 +878,34 @@ a {
   border-color: var(--bms-green);
 }
 .textarea {
-  min-height: 160px;
+  min-height: 120px;
   resize: vertical;
   line-height: 1.5;
 }
 .contact-form__actions {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .form-status {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
 }
 .form-status--err {
   color: #b3261e;
 }
 .form-status--ok {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   justify-items: start;
-  padding: 28px;
+  padding: 22px;
   border: 1px solid var(--bms-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--bms-green-soft);
-  max-width: 480px;
+  max-width: 440px;
 }
 .form-status--ok p {
   margin: 0;
   color: var(--bms-muted);
+  font-size: 14px;
 }
 
 /* ---- Legal / static content ------------------------------------------- */

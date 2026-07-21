@@ -107,7 +107,7 @@ export default function ContactForm() {
       )}
 
       <div className="contact-form__actions">
-        <button type="submit" className="btn btn-lg" disabled={status === "submitting"}>
+        <button type="submit" className="btn" disabled={status === "submitting"}>
           {status === "submitting" ? (
             "Sending…"
           ) : (
