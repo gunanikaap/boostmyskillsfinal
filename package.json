@@ -27,6 +27,7 @@
     "db:backup": "node --experimental-strip-types scripts/db/backup.mts",
     "db:restore:verify": "node --experimental-strip-types scripts/db/restore-verify.mts",
     "test:e2e": "playwright test",
+    "test:e2e:auth": "node --experimental-strip-types scripts/e2e/run-auth-e2e.mts",
     "security:audit": "npm audit --omit=dev --audit-level=high"
   },
   "overrides": {
