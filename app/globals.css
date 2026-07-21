@@ -508,15 +508,26 @@ a {
   font-weight: 700;
   color: var(--bms-green-dark);
 }
+.filter-field select,
+.filter-field option {
+  font-family:
+    var(--font-urbanist),
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
 .filter-field select {
   width: 100%;
   padding: 14px 14px;
   border: 1px solid var(--bms-border);
   border-radius: 10px;
-  font: inherit;
   font-size: 15px;
-  background: #fff;
   color: var(--bms-ink);
+  background: #fff;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;

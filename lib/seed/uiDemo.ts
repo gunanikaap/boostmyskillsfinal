@@ -59,6 +59,37 @@ async function setCredentialTopic(credentialId: string, topic: string): Promise<
   );
 }
 
+function slugify(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Idempotently ensure a project row exists for a (funded project, organisation)
+ * pair. The Project facet groups by project name, the Organisation facet by org,
+ * so distinct (project, org) pairs give the catalogue a realistic partner spread.
+ */
+async function ensureProject(name: string, org: string): Promise<string> {
+  const slug = slugify(`${name}-${org}`);
+  const found = (await getPool().query(`SELECT id FROM projects WHERE slug = $1`, [slug])).rows[0]
+    ?.id as string | undefined;
+  if (found) return found;
+  return createProject({
+    name,
+    slug,
+    organisationName: org,
+    certificateTemplate: {
+      issuerName: name,
+      signatoryName: "Programme Director",
+      signatoryRole: `Director, ${name}`,
+    },
+  });
+}
+
 /** A local demo admin used as created_by. Never touches a real admin. */
 async function ensureDemoAdmin(): Promise<string> {
   const pool = getPool();
@@ -184,6 +215,10 @@ interface CredDef {
   title: string;
   topic: string;
   short: string;
+  /** Funded project this credential belongs to (Project facet). */
+  project: string;
+  /** Delivering partner organisation (Organisation facet). */
+  org: string;
 }
 
 const CREDENTIALS: CredDef[] = [
@@ -193,6 +228,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Fundamentals of Energy Systems",
     topic: "energy systems",
     short: "Understand how modern energy systems are generated, distributed and balanced.",
+    project: "RES4CITY",
+    org: "Universitat Politècnica de València",
   },
   {
     code: "MC02",
@@ -200,6 +237,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Introduction to Renewable Energies",
     topic: "renewable energy",
     short: "Explore solar, wind and other renewables and their role in decarbonisation.",
+    project: "RES4CITY",
+    org: "National University of Ireland Maynooth",
   },
   {
     code: "MC03",
@@ -207,6 +246,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Introduction to Sustainable Finance",
     topic: "sustainable finance",
     short: "Learn how finance drives the green transition through ESG and green investment.",
+    project: "SHERLOCK",
+    org: "University of Coimbra",
   },
   {
     code: "MC04",
@@ -214,6 +255,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Data Analytics for the Energy Sector",
     topic: "energy data analytics",
     short: "Use data to understand demand, efficiency and emissions in the energy sector.",
+    project: "RES4CITY",
+    org: "Technical University of Denmark",
   },
   {
     code: "MC05",
@@ -221,6 +264,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Efficient Building Techniques",
     topic: "efficient buildings",
     short: "Design and retrofit buildings for lower energy use and carbon.",
+    project: "RES4CITY",
+    org: "Universitat Politècnica de València",
   },
   {
     code: "MC06",
@@ -228,6 +273,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Tools for City Decarbonisation",
     topic: "city decarbonisation",
     short: "Practical tools and strategies to cut emissions across a city.",
+    project: "RESSKILL",
+    org: "Halmstad University",
   },
   {
     code: "MC07",
@@ -235,6 +282,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Energy Utilisation and Storage",
     topic: "energy storage",
     short: "How energy is stored and used efficiently across the grid.",
+    project: "STREACS",
+    org: "Université Grenoble Alpes",
   },
   {
     code: "MC08",
@@ -242,6 +291,8 @@ const CREDENTIALS: CredDef[] = [
     title: "Case Studies in Energy Management",
     topic: "energy management",
     short: "Real-world case studies in managing energy sustainably.",
+    project: "COSS",
+    org: "Università degli studi di Sassari",
   },
 ];
 
@@ -291,8 +342,12 @@ async function seedCredential(
   const ref = `${DEMO}${def.code}`;
   const existing = await findByRef("micro_credentials", ref);
   if (existing) {
-    // Idempotent backfill: ensure the topic is present on already-seeded rows.
+    // Idempotent backfill: keep topic + project (org) current on already-seeded rows.
     await setCredentialTopic(existing, def.topic);
+    await getPool().query(`UPDATE micro_credentials SET project_id = $2 WHERE id = $1`, [
+      existing,
+      projectId,
+    ]);
     return existing;
   }
   const { credentialId } = await createCredentialWithDraft({
@@ -378,8 +433,11 @@ export async function seedUiDemo(): Promise<SeedSummary> {
   // Eight published credentials.
   const codeToId = new Map<string, string>();
   for (let i = 0; i < CREDENTIALS.length; i++) {
-    const id = await seedCredential(admin, projectId, CREDENTIALS[i]!, i, { publish: true });
-    codeToId.set(CREDENTIALS[i]!.code, id);
+    const def = CREDENTIALS[i]!;
+    // Each credential lives under its own funded-project + partner-organisation.
+    const credProjectId = await ensureProject(def.project, def.org);
+    const id = await seedCredential(admin, credProjectId, def, i, { publish: true });
+    codeToId.set(def.code, id);
   }
 
   // Three published programmes.
@@ -397,6 +455,8 @@ export async function seedUiDemo(): Promise<SeedSummary> {
       title: "Draft Preview Credential",
       topic: "draft content",
       short: "A draft credential for visibility checks.",
+      project: "RES4CITY",
+      org: "RES4CITY",
     },
     0,
     { publish: false },
@@ -410,6 +470,8 @@ export async function seedUiDemo(): Promise<SeedSummary> {
       title: "Hidden Preview Credential",
       topic: "hidden content",
       short: "A hidden credential for visibility checks.",
+      project: "RES4CITY",
+      org: "RES4CITY",
     },
     1,
     { publish: true, hide: true },
