@@ -6,6 +6,7 @@ import { AccessError } from "@/lib/access/errors";
 import { withTransaction } from "@/lib/db/tx";
 import {
   createProject,
+  updateProject,
   createCredentialWithDraft,
   saveDraft,
   publishCredential,
@@ -39,6 +40,17 @@ function fail(err: unknown): ActionResult {
   return { ok: false, message: "Operation failed." };
 }
 
+function templateFromForm(form: FormData) {
+  const t: Record<string, unknown> = {
+    issuerName: String(form.get("issuerName") ?? form.get("organisationName") ?? "Issuer"),
+  };
+  const sig = String(form.get("signatoryName") ?? "").trim();
+  const role = String(form.get("signatoryRole") ?? "").trim();
+  if (sig) t.signatoryName = sig;
+  if (role) t.signatoryRole = role;
+  return t;
+}
+
 export async function createProjectAction(form: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
@@ -46,12 +58,26 @@ export async function createProjectAction(form: FormData): Promise<ActionResult>
       name: String(form.get("name") ?? ""),
       slug: String(form.get("slug") ?? ""),
       organisationName: String(form.get("organisationName") ?? ""),
-      certificateTemplate: {
-        issuerName: String(form.get("issuerName") ?? form.get("organisationName") ?? "Issuer"),
-      },
+      certificateTemplate: templateFromForm(form),
     });
     revalidatePath("/admin/projects");
     return { ok: true, message: "Project created.", id };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function updateProjectAction(id: string, form: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    await updateProject(id, {
+      name: String(form.get("name") ?? ""),
+      organisationName: String(form.get("organisationName") ?? ""),
+      certificateTemplate: templateFromForm(form),
+    });
+    revalidatePath(`/admin/projects/${id}`);
+    revalidatePath("/admin/projects");
+    return { ok: true, message: "Project updated." };
   } catch (err) {
     return fail(err);
   }
