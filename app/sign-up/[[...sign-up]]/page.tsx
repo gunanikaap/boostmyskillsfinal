@@ -1,25 +1,20 @@
 import { SignUp } from "@clerk/nextjs";
+import AuthShell from "@/components/AuthShell";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import { authAppearance } from "@/lib/auth/clerkAppearance";
 
 export const metadata = { title: "Create account" };
 
 export default function SignUpPage() {
-  if (!clerkConfigured()) {
-    return (
-      <main className="container" style={{ paddingTop: 48 }}>
-        <div className="card">
-          <h1>Create account</h1>
-          <p>Registration is not yet configured in this environment (Clerk keys pending).</p>
-        </div>
-      </main>
-    );
-  }
   return (
-    <main
-      className="container"
-      style={{ paddingTop: 48, display: "flex", justifyContent: "center" }}
-    >
-      <SignUp />
-    </main>
+    <AuthShell active="register">
+      {clerkConfigured() ? (
+        <SignUp appearance={authAppearance} />
+      ) : (
+        <p style={{ color: "var(--bms-muted)" }}>
+          Registration is not yet configured in this environment (Clerk keys pending).
+        </p>
+      )}
+    </AuthShell>
   );
 }

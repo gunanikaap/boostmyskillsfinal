@@ -1292,6 +1292,88 @@ a {
   font-size: 14px;
 }
 
+/* ---- Auth (two-panel, mirrors apps.boostmyskills.eu) ------------------ */
+.auth {
+  min-height: 100vh;
+  background: var(--bms-green-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+.auth__inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  max-width: 1040px;
+  width: 100%;
+}
+.auth__logo {
+  display: inline-block;
+  margin-bottom: 28px;
+}
+.auth__brand h1 {
+  color: var(--bms-green);
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -1.2px;
+  font-weight: 800;
+  margin: 0 0 16px;
+  max-width: 8ch;
+}
+.auth__brand p {
+  color: var(--bms-muted);
+  font-size: 16px;
+  margin: 0;
+}
+.auth__card {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(18, 33, 26, 0.14);
+  padding: 30px;
+  width: 100%;
+  max-width: 460px;
+  justify-self: end;
+}
+.auth__toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--bms-green);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 26px;
+}
+.auth__tab {
+  text-align: center;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  color: var(--bms-green-dark);
+  background: #fff;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.auth__tab--active {
+  background: var(--bms-green);
+  color: #fff;
+}
+@media (max-width: 820px) {
+  .auth__inner {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    max-width: 460px;
+  }
+  .auth__brand h1 {
+    max-width: none;
+  }
+  .auth__card {
+    justify-self: stretch;
+  }
+}
+
 /* ---- Legal / static content ------------------------------------------- */
 .legal p.lead {
   font-size: 17px;
