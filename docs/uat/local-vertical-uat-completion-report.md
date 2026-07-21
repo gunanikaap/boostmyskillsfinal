@@ -160,9 +160,11 @@ returned to **PARTIAL** (code vs link — product-owner decision).
 
 B-EMAIL (production email), B-CLERK-WEBHOOK (real signed delivery), B-B2, B-DEPLOY
 (RDS/RDS-Proxy/Amplify), B-MIGRATE (US-L-04), US-A-16 real promotion, XBlock
-breadth. In-repo follow-ups (non-blocking): automated authenticated Playwright
-vertical (Clerk testing tokens); project **edit** UI + fuller certificate-template
-fields; programme banner/about UI; `fast-xml-parser` 5.x.
+breadth. In-repo follow-ups (non-blocking): **Clerk-session** automated E2E
+(B-CLERK-E2E — the authenticated vertical is delivered test-auth-backed, see §36);
+`fast-xml-parser` 5.x. _(Delivered since: project **edit** UI + fuller
+certificate-template fields; programme banner/about UI; authenticated
+authorization vertical — see §36.)_
 
 ## 35. Screenshots / traces
 
@@ -176,8 +178,41 @@ by 137 real-PostgreSQL tests + 7 real-browser smokes. It does **not** claim a
 fully automated authenticated browser vertical, cloud/UAT deployment, Production
 readiness, real B2/RDS integration, or historical-migration completion.
 
+## 36. Addendum — programme media + authenticated authorization vertical
+
+Two follow-ups from §34 are now delivered on `uat/programme-media-and-auth-e2e`
+(commits `99a5677`, `71a8bef`):
+
+- **Programme banner + About/context UI (US-A-20).** Admin-only banner upload
+  route (learner 403 / anon 401) reusing the provider-neutral
+  `uploadProgrammeBanner`; logical key in `micro_programmes.banner_object_key`
+  (no absolute path); a failed replacement preserves the previous banner
+  (validate + storage-write precede the DB update). `ProgrammeDetailsEditor`
+  gives title/short-desc/sanitised-About editing; banner renders on the admin
+  page, the public programme detail, and the catalogue card via the controlled
+  `/media` route (published = public; draft/hidden not served). 7 tests
+  (`programme-media.test.ts`).
+
+- **Authenticated authorization vertical — test-auth-backed (B-CLERK-E2E).** The
+  in-process test-auth adapter now also accepts a **secret-gated request header**
+  (`resolveTestHeaderIdentity` / pure `parseTestActorHeader`), reachable only
+  behind `testAuthEnabled()` (`APP_ENV=test`) and only with the exact server-side
+  `TEST_AUTH_SECRET`. `npm run test:e2e:auth` boots `next dev` under `APP_ENV=test`
+  with an ephemeral per-run secret, the test DB, and blanked Clerk keys (middleware
+  pass-through), then drives 6 Chromium tests proving admin/learner/anon role
+  enforcement through the real SSR + `requireAdmin`/`getCurrentAppUser` stack —
+  including that a forged header without the secret cannot become admin. 8 unit
+  tests prove the adapter is inert outside `APP_ENV=test` and rejects any
+  wrong/missing secret or malformed payload. **This is not Clerk-session
+  automation** — that remains B-CLERK-E2E (install `@clerk/testing`, isolated test
+  users, no committed tokens).
+
+Phase gate (separate steps): `format:check`, `lint`, `typecheck`, **Vitest 157 /
+25 files**, `build`, `security:audit` — all exit 0; **6/6** authenticated
+Playwright tests pass. No migrations touched; no secret/PII committed.
+
 ## Close
 
 - Merge SHA + delivery HEAD are recorded in the terminal at delivery (`git rev-parse`).
-- Gate at merge (separate steps): `format:check`, `lint`, `typecheck`, Vitest 137,
+- Gate at merge (separate steps): `format:check`, `lint`, `typecheck`, Vitest 157,
   `build`, `security:audit`, secret scan — all pass.
