@@ -366,17 +366,17 @@ a {
 .pcard__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px 18px 18px;
+  gap: 8px;
+  padding: 22px 24px 24px;
 }
 .pcard__org {
   color: var(--bms-purple);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   margin: 0;
 }
 .pcard__title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0;
   line-height: 1.25;
@@ -466,8 +466,9 @@ a {
   margin: 0 0 18px;
 }
 .catalogue-grid--main {
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  margin: 0 0 40px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 28px;
+  margin: 0 0 48px;
 }
 .catalogue-filters {
   position: sticky;
