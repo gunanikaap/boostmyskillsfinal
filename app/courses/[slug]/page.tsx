@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { getPublishedCredentialBySlug } from "@/lib/catalogue/queries";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { EnrolButton } from "./EnrolButton";
@@ -14,6 +16,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: detail.title, description: detail.shortDescription ?? undefined };
 }
 
+const UNIT_LABEL: Record<string, string> = {
+  reading: "Reading",
+  video: "Video",
+  mcq: "Quiz",
+};
+
 export default async function CredentialDetailPage({
   params,
 }: {
@@ -25,49 +33,94 @@ export default async function CredentialDetailPage({
   if (!detail) notFound(); // draft/hidden are indistinguishable from missing
 
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
-  const sectionCount = detail.content.sections.length;
-  const unitCount = detail.content.sections
-    .flatMap((s) => s.subsections)
-    .flatMap((ss) => ss.units).length;
+  // Flatten the content outline for the "Sections" sidebar — titles only, never
+  // answers. Handles any number of sections/subsections/units.
+  const units = detail.content.sections.flatMap((s) =>
+    s.subsections.flatMap((ss) => ss.units.map((u) => ({ title: u.title, type: u.type }))),
+  );
 
   return (
     <>
       <SiteHeader />
-      <main className="container" style={{ paddingTop: 32, paddingBottom: 48 }}>
-        <p style={{ fontSize: 13, color: "var(--bms-green)", fontWeight: 700 }}>
-          {detail.code} · {detail.organisationName}
+      <main className="container course-detail">
+        <p className="crumb">
+          <Link href="/courses">Micro-credentials</Link> / {detail.title}
         </p>
-        <h1 style={{ marginTop: 4 }}>{detail.title}</h1>
-        {detail.bannerObjectKey && (
-          // Served through the controlled /media route (published banners are public).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/media/${detail.bannerObjectKey}`}
-            alt={`${detail.title} banner`}
-            style={{
-              width: "100%",
-              maxWidth: 720,
-              aspectRatio: "16 / 9",
-              objectFit: "cover",
-              borderRadius: 12,
-              margin: "12px 0",
-            }}
-          />
-        )}
-        <p style={{ color: "var(--bms-muted)" }}>By {detail.authorName}</p>
-        <p style={{ color: "var(--bms-muted)" }}>
-          {sectionCount} sections · {unitCount} units
-        </p>
-        {/* about content is sanitised at write time */}
-        <div
-          className="card"
-          style={{ marginTop: 20 }}
-          dangerouslySetInnerHTML={{ __html: about }}
-        />
-        <div style={{ marginTop: 24 }}>
-          <EnrolButton credentialId={detail.id} />
+
+        <div className="course-detail__grid">
+          <article className="course-detail__main">
+            <p className="course-detail__eyebrow">{detail.organisationName}</p>
+            <h1>{detail.title}</h1>
+            <p className="course-detail__code">
+              {detail.code} | {detail.projectName}
+            </p>
+            <div className="course-detail__cta">
+              <EnrolButton credentialId={detail.id} />
+            </div>
+
+            {detail.bannerObjectKey && (
+              // Served through the controlled /media route (published banners are public).
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="course-detail__banner"
+                src={`/media/${detail.bannerObjectKey}`}
+                alt={`${detail.title} banner`}
+              />
+            )}
+
+            {detail.shortDescription && (
+              <p className="course-detail__lead">{detail.shortDescription}</p>
+            )}
+
+            {/* about_content is sanitised at write time; it may contain any number
+                of <h2> blocks (Context and overview / Learning objectives / …). */}
+            <div className="course-about" dangerouslySetInnerHTML={{ __html: about }} />
+          </article>
+
+          <aside className="course-detail__side">
+            <div className="course-facts">
+              <div className="course-fact">
+                <dt>Course Number</dt>
+                <dd>
+                  {detail.code} | {detail.projectName}
+                </dd>
+              </div>
+              <div className="course-fact">
+                <dt>Format</dt>
+                <dd>Self-paced &middot; fully online</dd>
+              </div>
+              <div className="course-fact">
+                <dt>Created and delivered by</dt>
+                <dd>
+                  {detail.authorName}
+                  <br />
+                  <span>{detail.organisationName}</span>
+                </dd>
+              </div>
+            </div>
+
+            {units.length > 0 && (
+              <div className="course-sections">
+                <h2>Sections</h2>
+                <ol>
+                  {units.map((u, i) => (
+                    <li key={i}>
+                      <span className="course-sections__num">{i + 1}</span>
+                      <span className="course-sections__title">
+                        {u.title}
+                        {UNIT_LABEL[u.type] && (
+                          <em className="course-sections__type">{UNIT_LABEL[u.type]}</em>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </aside>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }

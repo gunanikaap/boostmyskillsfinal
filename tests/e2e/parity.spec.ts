@@ -41,7 +41,7 @@ test("/programs lists published seeded programmes with members; drafts/hidden ab
 test("credential detail shows banner, title, code, organisation, about", async ({ page }) => {
   await page.goto("/courses/fundamentals-of-energy-systems");
   await expect(page.getByRole("heading", { name: "Fundamentals of Energy Systems" })).toBeVisible();
-  await expect(page.getByText(/MC01/)).toBeVisible();
+  await expect(page.getByText(/MC01/).first()).toBeVisible();
   await expect(page.getByText(/RES4CITY/).first()).toBeVisible();
   await expect(page.locator('img[alt*="banner"]')).toBeVisible();
   await expect(page.getByText(/Delivered by RES4CITY/)).toBeVisible();

@@ -16,6 +16,7 @@ import {
   hideProgramme,
 } from "@/lib/programmes/service";
 import { uploadCredentialBanner, uploadProgrammeBanner } from "@/lib/storage/bannerService";
+import { sanitizeHtml } from "@/lib/content/sanitize";
 
 /**
  * Persistent, idempotent LOCAL demo catalogue for visual/frontend review.
@@ -105,6 +106,104 @@ async function ensureDemoAdmin(): Promise<string> {
     ["local-ui-demo-admin", "local-ui-demo-admin@example.test", `${DEMO}admin`],
   );
   return (rows[0] as { id: string }).id;
+}
+
+// --- About content (varying number of titled blocks per credential) ----------
+// Some credentials carry a "Background" block (3 headings), some don't (2) — the
+// detail page renders whatever headings the sanitised HTML contains.
+const ABOUT: Record<string, { objectives: string[]; background?: string }> = {
+  MC01: {
+    objectives: [
+      "Explain how modern energy systems generate, transmit and distribute power",
+      "Describe how supply and demand are balanced across the grid",
+      "Identify the role of energy systems in the low-carbon transition",
+    ],
+    background: "A basic understanding of physics and mathematics at EQF level 4–5 is recommended.",
+  },
+  MC02: {
+    objectives: [
+      "Compare the main renewable energy sources and their applications",
+      "Assess the role of renewables in decarbonisation",
+      "Recognise the barriers to, and enablers of, renewable deployment",
+    ],
+  },
+  MC03: {
+    objectives: [
+      "Explain the principles of ESG and sustainable investment",
+      "Interpret how green finance drives the transition",
+      "Identify sustainable financial instruments and their uses",
+    ],
+    background: "No prior finance knowledge is required, though basic economics is helpful.",
+  },
+  MC04: {
+    objectives: [
+      "Apply data analysis to energy demand and efficiency",
+      "Interpret emissions and consumption data",
+      "Use data insights to support energy decision-making",
+    ],
+  },
+  MC05: {
+    objectives: [
+      "Diagnose the thermal performance of a building",
+      "Design buildings for minimum energy consumption",
+      "Apply sustainable retrofit and construction techniques",
+    ],
+    background: "Basics in mathematics and physics at EQF 4–5 level are recommended.",
+  },
+  MC06: {
+    objectives: [
+      "Select tools and strategies to reduce city-wide emissions",
+      "Evaluate decarbonisation pathways for urban areas",
+      "Plan practical interventions across sectors",
+    ],
+  },
+  MC07: {
+    objectives: [
+      "Explain how energy is stored and released across the grid",
+      "Compare storage technologies and their trade-offs",
+      "Assess the role of storage in a flexible energy system",
+    ],
+    background: "A basic understanding of energy systems is recommended before starting.",
+  },
+  MC08: {
+    objectives: [
+      "Analyse real-world energy-management case studies",
+      "Identify best practices in sustainable energy use",
+      "Translate lessons learned into your own context",
+    ],
+  },
+};
+
+function buildAbout(def: CredDef): string {
+  const extra = ABOUT[def.code] ?? { objectives: [] };
+  const parts = [
+    `<h2>Context and overview</h2>`,
+    `<p>This micro-credential introduces the key ideas behind ${def.topic}. ${def.short} ` +
+      `You will explore core concepts, why they matter for a sustainable transition, and how ` +
+      `they apply in real European cities and organisations.</p>`,
+  ];
+  if (extra.objectives.length) {
+    parts.push(
+      `<h2>Learning objectives</h2>`,
+      `<p>By the end of this micro-credential, you will be able to:</p>`,
+      `<ul>${extra.objectives.map((o) => `<li>${o}</li>`).join("")}</ul>`,
+    );
+  }
+  if (extra.background) {
+    parts.push(`<h2>Background</h2>`, `<p>${extra.background}</p>`);
+  }
+  parts.push(
+    `<p>Delivered by ${def.project} and partner universities as part of the BoostMySkills catalogue.</p>`,
+  );
+  return parts.join("");
+}
+
+/** Overwrite about_content on every version (idempotent backfill). */
+async function setCredentialAbout(credentialId: string, html: string): Promise<void> {
+  await getPool().query(
+    `UPDATE credential_versions SET about_content = $2::jsonb WHERE credential_id = $1`,
+    [credentialId, JSON.stringify({ html: sanitizeHtml(html) })],
+  );
 }
 
 // --- Content generator (valid against the publish validator) -----------------
@@ -342,8 +441,9 @@ async function seedCredential(
   const ref = `${DEMO}${def.code}`;
   const existing = await findByRef("micro_credentials", ref);
   if (existing) {
-    // Idempotent backfill: keep topic + project (org) current on already-seeded rows.
+    // Idempotent backfill: keep topic, project (org) and about content current.
     await setCredentialTopic(existing, def.topic);
+    await setCredentialAbout(existing, buildAbout(def));
     await getPool().query(`UPDATE micro_credentials SET project_id = $2 WHERE id = $1`, [
       existing,
       projectId,
@@ -357,7 +457,7 @@ async function seedCredential(
     title: def.title,
     authorName: "RES4CITY Faculty",
     shortDescription: def.short,
-    aboutHtml: `<p>${def.short}</p><p>Delivered by RES4CITY and partner universities as part of the BoostMySkills catalogue.</p>`,
+    aboutHtml: buildAbout(def),
     topic: def.topic,
     createdBy: admin,
   });
