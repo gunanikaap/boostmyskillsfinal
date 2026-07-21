@@ -1,8 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
 
-// The official channel; swap in the exact company slug if it ever changes.
-const LINKEDIN_URL = "https://www.linkedin.com/company/boostmyskills";
+// External destinations mirror the live boostmyskills.eu footer exactly.
+const SELF_ASSESSMENT_URL = "https://www.res4city.eu/self-assessment/";
+const LINKEDIN_URL = "https://www.linkedin.com/company/res4city/posts/?feedView=all";
+const PROJECTS = [
+  { name: "RES4CITY", href: "https://www.res4city.eu/" },
+  { name: "SHERLOCK", href: "https://www.sherlockproject.eu/" },
+  { name: "COSS", href: "https://www.coss.ac.kr/" },
+  { name: "RESSKILL", href: "https://www.resskill.eu/" },
+  { name: "STREACS", href: "https://ace.aua.am/projects/streacs/" },
+];
 
 function LinkedInIcon() {
   return (
@@ -34,18 +42,20 @@ export default function SiteFooter() {
           </p>
         </div>
         <nav style={{ display: "grid", gap: 8, fontSize: 14 }} aria-label="Company">
-          <Link href="/courses">Self-Assessment</Link>
+          <a href={SELF_ASSESSMENT_URL} target="_blank" rel="noopener noreferrer">
+            Self-Assessment
+          </a>
           <Link href="/privacy">Privacy Policy</Link>
-          <Link href="/cookie-policy">Cookie Policy</Link>
-          <Link href="/terms">Terms and Conditions</Link>
+          <Link href="/cookie_policy">Cookie Policy</Link>
+          <Link href="/tos">Terms and Conditions</Link>
         </nav>
         <nav style={{ display: "grid", gap: 8, fontSize: 14 }} aria-label="Our projects">
           <strong style={{ color: "#fff" }}>Our projects</strong>
-          <span>RES4CITY</span>
-          <span>SHERLOCK</span>
-          <span>COSS</span>
-          <span>RESSKILL</span>
-          <span>STREACS</span>
+          {PROJECTS.map((p) => (
+            <a key={p.name} href={p.href} target="_blank" rel="noopener noreferrer">
+              {p.name}
+            </a>
+          ))}
         </nav>
         <nav style={{ display: "grid", gap: 8, fontSize: 14 }} aria-label="Get in touch">
           <strong style={{ color: "#fff" }}>Get in touch</strong>
