@@ -31,7 +31,16 @@ export function setTestActor(identity: ExternalIdentity | null): void {
  *
  * Returns an identity ONLY when the caller presents the exact server-side secret
  * AND a well-formed actor payload. Any missing/mismatched secret, missing env
- * secret, absent payload, malformed JSON, or missing required field → null.
+ * secret, absent payload, malformed JSON, missing/empty required field, or an
+ * unsupported caller-supplied `role` → null.
+ *
+ * SECURITY: this parser resolves only the EXTERNAL identity (clerk id + profile),
+ * never an application role. Authorization role is derived exclusively from the
+ * `app_users` row by `syncAppUser`; a `role` in the header is NEVER trusted to
+ * grant privilege — an unknown role value is rejected, and a known value is
+ * ignored. To act as an admin, the harness must have provisioned that
+ * `app_users` row as admin out-of-band; a caller cannot self-elevate.
+ *
  * This function is only ever consulted from behind the APP_ENV==="test" gate in
  * resolveExternalIdentity(); it can never run in a uat/production request.
  */
@@ -49,7 +58,12 @@ export function parseTestActorHeader(
   } catch {
     return null;
   }
-  if (typeof p.clerkUserId !== "string" || typeof p.email !== "string") return null;
+  // Required identity fields must be present, string, and non-empty.
+  if (typeof p.clerkUserId !== "string" || p.clerkUserId.trim() === "") return null;
+  if (typeof p.email !== "string" || !p.email.includes("@")) return null;
+  // A caller-supplied role is never used for authorization; reject an unsupported
+  // value outright rather than silently dropping it (defence in depth).
+  if (p.role !== undefined && p.role !== "learner" && p.role !== "admin") return null;
   return {
     clerkUserId: p.clerkUserId,
     email: p.email,

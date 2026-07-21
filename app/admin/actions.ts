@@ -94,14 +94,21 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
     return await withTransaction(async (tx) => {
       let projectId = String(form.get("projectId") ?? "");
       if (!projectId) {
+        const newOrg = String(form.get("newProjectOrg") ?? "");
+        const inlineIssuer = String(form.get("issuerName") ?? "").trim();
+        const inlineSig = String(form.get("signatoryName") ?? "").trim();
+        const inlineRole = String(form.get("signatoryRole") ?? "").trim();
+        const certificateTemplate: Record<string, unknown> = {
+          issuerName: inlineIssuer || newOrg || "Issuer",
+        };
+        if (inlineSig) certificateTemplate.signatoryName = inlineSig;
+        if (inlineRole) certificateTemplate.signatoryRole = inlineRole;
         projectId = await createProject(
           {
             name: String(form.get("newProjectName") ?? ""),
             slug: String(form.get("newProjectSlug") ?? ""),
-            organisationName: String(form.get("newProjectOrg") ?? ""),
-            certificateTemplate: {
-              issuerName: String(form.get("newProjectOrg") ?? "Issuer"),
-            },
+            organisationName: newOrg,
+            certificateTemplate,
           },
           tx,
         );
