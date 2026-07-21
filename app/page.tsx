@@ -168,9 +168,14 @@ export default function HomePage() {
               </p>
               <ul className="ticks">
                 <li>
-                  <span className="tick-plain" aria-hidden="true">
-                    <Shield />
-                  </span>{" "}
+                  <Image
+                    className="tick-plain"
+                    src="/brand/certified.png"
+                    alt=""
+                    width={26}
+                    height={26}
+                    aria-hidden="true"
+                  />{" "}
                   <span style={{ fontWeight: 600 }}>
                     Developed by pan-European and international universities, co-funded by the EU,
                     Swiss Confederation and a consortium of South Korean universities (COSS) — and
