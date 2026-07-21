@@ -26,13 +26,15 @@ export interface CredentialCardData {
   title: string;
   shortDescription: string | null;
   organisationName: string;
+  projectName: string;
   bannerObjectKey: string | null;
 }
 
 export function CredentialCard({ c, i = 0 }: { c: CredentialCardData; i?: number }) {
   const img = artFor(c.bannerObjectKey, i);
+  const href = `/courses/${c.slug}`;
   return (
-    <Link href={`/courses/${c.slug}`} className="pcard">
+    <article className="pcard">
       <div className="pcard__art">
         <Image
           src={img}
@@ -44,16 +46,23 @@ export function CredentialCard({ c, i = 0 }: { c: CredentialCardData; i?: number
         />
       </div>
       <div className="pcard__body">
+        <p className="pcard__org">{c.organisationName}</p>
         <p className="pcard__code">
-          {c.code} · {c.organisationName}
+          {c.code} | {c.projectName}
         </p>
-        <h3 className="pcard__title">{c.title}</h3>
-        {c.shortDescription && <p className="pcard__desc">{c.shortDescription}</p>}
-        <span className="pcard__cta">
-          View credential <Arrow />
-        </span>
+        <h3 className="pcard__title">
+          <Link href={href}>{c.title}</Link>
+        </h3>
+        <div className="pcard__footer">
+          <Link href={href} className="btn pcard__enrol">
+            Enrol <Arrow />
+          </Link>
+          <Link href={href} className="pcard__more">
+            More info <Arrow />
+          </Link>
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 

@@ -370,11 +370,9 @@ a {
   padding: 16px 18px 18px;
 }
 .pcard__org {
-  color: var(--bms-green);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+  color: var(--bms-purple);
+  font-weight: 600;
+  font-size: 14px;
   margin: 0;
 }
 .pcard__title {
@@ -481,37 +479,51 @@ a {
   flex: none;
   max-width: none;
 }
+.catalogue-filters .search svg {
+  color: var(--bms-green);
+}
 .filter-panel {
   border: 1px solid var(--bms-border);
   border-radius: 16px;
   background: #fff;
-  padding: 22px;
+  padding: 22px 22px 24px;
 }
 .filter-panel h3 {
-  margin: 0 0 18px;
+  margin: 0 0 22px;
   font-size: 19px;
   font-weight: 800;
+  text-align: center;
 }
 .filter-field {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 16px;
+  position: relative;
+  margin-bottom: 18px;
 }
 .filter-field label {
-  font-size: 13px;
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  padding: 0 6px;
+  background: #fff;
+  font-size: 12px;
   font-weight: 700;
   color: var(--bms-green-dark);
 }
 .filter-field select {
   width: 100%;
-  padding: 11px 14px;
+  padding: 14px 14px;
   border: 1px solid var(--bms-border);
   border-radius: 10px;
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
   background: #fff;
   color: var(--bms-ink);
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23079845' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
 }
 .filter-field select:focus {
   outline: 2px solid var(--bms-green);
@@ -544,6 +556,32 @@ a {
 .pcard__enrol {
   margin-top: auto;
   align-self: flex-start;
+}
+/* Credential card footer: Enrol (left) + More info (right), pinned to bottom */
+.pcard__footer {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pcard__footer .pcard__enrol {
+  margin-top: 0;
+  align-self: auto;
+}
+.pcard__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bms-ink);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pcard__more:hover {
+  color: var(--bms-green-dark);
 }
 .pcard__desc {
   color: var(--bms-muted);

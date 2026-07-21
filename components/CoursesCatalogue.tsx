@@ -5,17 +5,20 @@ import { CredentialCard, type CredentialCardData } from "@/components/CatalogueC
 
 interface Item extends CredentialCardData {
   projectName: string;
+  programmeTitles: string[];
 }
 
 /**
  * Micro-credentials catalogue: a results grid plus a "Refine Your Search"
- * sidebar (free-text search + Project and Organisation filters), mirroring the
- * live boostmyskills.eu/courses layout. All filtering is client-side.
+ * sidebar (free-text search + Project / Organisation / Micro-programme filters),
+ * mirroring the live boostmyskills.eu/courses layout. All filtering is
+ * client-side.
  */
 export default function CoursesCatalogue({ items }: { items: Item[] }) {
   const [q, setQ] = useState("");
   const [project, setProject] = useState("");
   const [org, setOrg] = useState("");
+  const [programme, setProgramme] = useState("");
 
   const projects = useMemo(
     () => [...new Set(items.map((i) => i.projectName).filter(Boolean))].sort(),
@@ -25,26 +28,39 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
     () => [...new Set(items.map((i) => i.organisationName).filter(Boolean))].sort(),
     [items],
   );
+  const programmes = useMemo(
+    () => [...new Set(items.flatMap((i) => i.programmeTitles).filter(Boolean))].sort(),
+    [items],
+  );
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    // Related-terms search: every whitespace-separated term must appear somewhere
+    // in the credential's searchable text (title, code, org, project, summary and
+    // the programmes it belongs to) — so a word from the description or a related
+    // programme surfaces the credential even when the title doesn't contain it.
+    const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return items.filter((c) => {
       if (project && c.projectName !== project) return false;
       if (org && c.organisationName !== org) return false;
-      if (
-        needle &&
-        ![c.title, c.code, c.organisationName, c.projectName]
+      if (programme && !c.programmeTitles.includes(programme)) return false;
+      if (terms.length) {
+        const haystack = [
+          c.title,
+          c.code,
+          c.organisationName,
+          c.projectName,
+          c.shortDescription ?? "",
+          ...c.programmeTitles,
+        ]
           .join(" ")
-          .toLowerCase()
-          .includes(needle)
-      ) {
-        return false;
+          .toLowerCase();
+        if (!terms.every((t) => haystack.includes(t))) return false;
       }
       return true;
     });
-  }, [q, project, org, items]);
+  }, [q, project, org, programme, items]);
 
-  const hasFilters = Boolean(q || project || org);
+  const hasFilters = Boolean(q || project || org || programme);
 
   return (
     <div className="container catalogue-layout">
@@ -109,6 +125,23 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
               ))}
             </select>
           </div>
+          {programmes.length > 0 && (
+            <div className="filter-field">
+              <label htmlFor="filter-programme">Micro-programme</label>
+              <select
+                id="filter-programme"
+                value={programme}
+                onChange={(e) => setProgramme(e.target.value)}
+              >
+                <option value="">All micro-programmes</option>
+                {programmes.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {hasFilters && (
             <button
               type="button"
@@ -117,6 +150,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
                 setQ("");
                 setProject("");
                 setOrg("");
+                setProgramme("");
               }}
             >
               Clear filters

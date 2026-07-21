@@ -17,6 +17,8 @@ export interface CatalogueCredential {
   bannerObjectKey: string | null;
   organisationName: string;
   projectName: string;
+  /** Titles of the published micro-programmes this credential belongs to. */
+  programmeTitles: string[];
 }
 
 export async function listPublishedCredentials(
@@ -25,7 +27,15 @@ export async function listPublishedCredentials(
   const { rows } = await conn.query(
     `SELECT mc.id, mc.code, mc.slug,
             cv.title, cv.short_description, cv.author_name, cv.banner_object_key,
-            p.organisation_name, p.name AS project_name
+            p.organisation_name, p.name AS project_name,
+            COALESCE(
+              (SELECT array_agg(DISTINCT mp.title)
+               FROM programme_credentials pc
+               JOIN micro_programmes mp
+                 ON mp.id = pc.programme_id AND mp.status = 'published'
+               WHERE pc.credential_id = mc.id),
+              ARRAY[]::text[]
+            ) AS programme_titles
      FROM micro_credentials mc
      JOIN projects p ON p.id = mc.project_id
      JOIN credential_versions cv
@@ -43,6 +53,7 @@ export async function listPublishedCredentials(
     bannerObjectKey: (r.banner_object_key as string) ?? null,
     organisationName: r.organisation_name as string,
     projectName: r.project_name as string,
+    programmeTitles: (r.programme_titles as string[]) ?? [],
   }));
 }
 
@@ -61,7 +72,15 @@ export async function getPublishedCredentialBySlug(
     `SELECT mc.id, mc.code, mc.slug,
             cv.id AS version_id, cv.title, cv.short_description, cv.author_name,
             cv.banner_object_key, cv.about_content, cv.content_document,
-            p.organisation_name, p.name AS project_name
+            p.organisation_name, p.name AS project_name,
+            COALESCE(
+              (SELECT array_agg(DISTINCT mp.title)
+               FROM programme_credentials pc
+               JOIN micro_programmes mp
+                 ON mp.id = pc.programme_id AND mp.status = 'published'
+               WHERE pc.credential_id = mc.id),
+              ARRAY[]::text[]
+            ) AS programme_titles
      FROM micro_credentials mc
      JOIN projects p ON p.id = mc.project_id
      JOIN credential_versions cv
@@ -81,6 +100,7 @@ export async function getPublishedCredentialBySlug(
     bannerObjectKey: (r.banner_object_key as string) ?? null,
     organisationName: r.organisation_name as string,
     projectName: r.project_name as string,
+    programmeTitles: (r.programme_titles as string[]) ?? [],
     aboutContent: r.about_content,
     content: r.content_document as ContentDocument,
     credentialVersionId: r.version_id as string,
