@@ -2,6 +2,8 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { listMyLearning } from "@/lib/learner/queries";
+import { listMyProgrammeProgress } from "@/lib/programmes/progress";
+import { ProgrammeProgressList } from "./ProgrammeProgressList";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ export default async function DashboardPage() {
     );
   }
   const items = await listMyLearning(user.id);
+  const programmes = await listMyProgrammeProgress(user.id);
   return (
     <>
       <SiteHeader />
@@ -32,6 +35,8 @@ export default async function DashboardPage() {
         <p>
           <Link href="/account/certificates">View your certificates</Link>
         </p>
+        <ProgrammeProgressList programmes={programmes} />
+        {items.length > 0 && <h2 style={{ marginTop: 24 }}>Your credentials</h2>}
         {items.length === 0 ? (
           <p style={{ color: "var(--bms-muted)" }}>
             You are not enrolled in anything yet.{" "}

@@ -1,6 +1,7 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { productAdminActor, runId } from "./global-setup";
 import { all, closeDb, count, db, one } from "./_db";
+import { makePng } from "../helpers/images";
 
 /**
  * ACTUAL PRODUCT VERTICAL — TEST-AUTH-BACKED (not Clerk-backed).
@@ -44,11 +45,9 @@ const CRED_A = { code: `MCA${U}`, slug: `uat-cred-a-${RUN}`, title: `UAT Credent
 const CRED_B = { code: `MCB${U}`, slug: `uat-cred-b-${RUN}`, title: `UAT Credential B ${U}` };
 const PROG = { title: `UAT Programme ${U}`, slug: `uat-prog-${RUN}` };
 
-// A minimal valid PNG (signature + IHDR-ish bytes) accepted by the banner validator.
-const PNG_BYTES = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 1,
-  0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1f, 0x15, 0xc4, 0x89,
-]);
+// A real, fully-decodable 160×90 PNG (valid IHDR + IDAT + IEND) — decodes in the
+// browser with naturalWidth/Height > 0 and passes structural banner validation.
+const PNG_BYTES = makePng(160, 90);
 
 function headersFor(actor: Record<string, unknown> | null): Record<string, string> {
   if (!actor) return {};
@@ -89,7 +88,7 @@ async function ctx(
 /** Author one credential's content through the visual builder (already on its [id] page). */
 async function authorCredential(
   page: Page,
-  opts: { withVideo: boolean; threshold?: number },
+  opts: { withVideo: boolean; threshold?: number; requireReading?: boolean },
 ): Promise<void> {
   // Section
   await page.getByRole("button", { name: "+ Add section" }).click();
@@ -122,15 +121,16 @@ async function authorCredential(
     .last()
     .fill("50");
 
-  // Question 1 (default present)
+  // Question 1 — NEUTRAL option labels (no "(correct)"/"(wrong)" hints). Correctness
+  // is configured ONLY through the admin grading checkbox, never the visible text.
   const q1 = page.locator("fieldset", { hasText: "Question 1" });
   await q1.getByLabel("Question text").fill("What is 2 + 2?");
   await q1.getByRole("button", { name: "+ option" }).click(); // → 3 options
   const q1opts = q1.getByLabel("Option text");
-  await q1opts.nth(0).fill("4 (correct)");
-  await q1opts.nth(1).fill("5 (wrong)");
-  await q1opts.nth(2).fill("6 (wrong)");
-  await q1.getByLabel("Correct answer").nth(0).check();
+  await q1opts.nth(0).fill("4");
+  await q1opts.nth(1).fill("5");
+  await q1opts.nth(2).fill("6");
+  await q1.getByLabel("Correct answer").nth(0).check(); // "4" is correct (grading only)
 
   // Question 2
   await page.getByRole("button", { name: "+ Add question" }).last().click();
@@ -138,13 +138,18 @@ async function authorCredential(
   await q2.getByLabel("Question text").fill("Capital of France?");
   await q2.getByRole("button", { name: "+ option" }).click();
   const q2opts = q2.getByLabel("Option text");
-  await q2opts.nth(0).fill("Paris (correct)");
-  await q2opts.nth(1).fill("Rome (wrong)");
-  await q2opts.nth(2).fill("Berlin (wrong)");
-  await q2.getByLabel("Correct answer").nth(0).check();
+  await q2opts.nth(0).fill("Paris");
+  await q2opts.nth(1).fill("Rome");
+  await q2opts.nth(2).fill("Berlin");
+  await q2.getByLabel("Correct answer").nth(0).check(); // "Paris" is correct (grading only)
 
   // Certification threshold (set explicitly; default 50)
   await page.getByLabel(/Threshold/).fill(String(opts.threshold ?? 50));
+  // Require the Reading unit for certification (enables the §6 "MCQ first, required
+  // Reading later" issuance path). Only for the credential that carries a video/reading.
+  if (opts.requireReading) {
+    await page.getByLabel('Require "Introduction reading" for certification').check();
+  }
 
   // Save the draft (waits for the server round-trip), then confirm readiness.
   await clickSaveDraft(page);
@@ -181,8 +186,28 @@ async function markUnitComplete(page: Page, title: string): Promise<void> {
  * unit locks and shows the score — we assert that server-rendered locked state.
  */
 async function passMcq(page: Page): Promise<void> {
-  await page.getByText("4 (correct)").click();
-  await page.getByText("Paris (correct)").click();
+  // Answer-secrecy: the learner response must not serialise any internal answer key,
+  // and no option may carry a correctness marker before submission.
+  const html = await page.content();
+  for (const leak of [
+    "correctOptionIds",
+    "grading_document",
+    "gradingDocument",
+    "grading_snapshot",
+  ]) {
+    expect(html, `learner response must not contain ${leak}`).not.toContain(leak);
+  }
+  expect(await page.locator("[data-correct], [data-correct-option]").count()).toBe(0);
+  // Select the intended answers by their NEUTRAL labels, scoped to each question —
+  // the test knows these are correct from authoring, not from the visible text.
+  await page
+    .locator("fieldset", { hasText: "What is 2 + 2?" })
+    .getByText("4", { exact: true })
+    .click();
+  await page
+    .locator("fieldset", { hasText: "Capital of France?" })
+    .getByText("Paris", { exact: true })
+    .click();
   await page.getByRole("button", { name: "Submit answers" }).click();
   await expect(page.getByText(/Assessment submitted/)).toBeVisible();
   await expect(page.getByText(/score 100%/)).toBeVisible();
@@ -272,7 +297,7 @@ test.describe("actual product vertical (test-auth)", () => {
     const page = S.adminPage!;
     await page.goto(`/admin/credentials/${S.credAId}`);
     await expect(page.getByRole("heading", { name: CRED_A.code })).toBeVisible();
-    await authorCredential(page, { withVideo: true });
+    await authorCredential(page, { withVideo: true, requireReading: true });
 
     // Content persisted: stable IDs exist; NO correct answers in learner content.
     const draft = await one<{ content_document: { sections: unknown[] } }>(
@@ -325,6 +350,12 @@ test.describe("actual product vertical (test-auth)", () => {
     expect(row!.banner_object_key).toBeTruthy();
     expect(row!.banner_object_key!).not.toMatch(/^([a-zA-Z]:[\\/]|\/|file:)/);
     expect(row!.banner_object_key!).not.toContain("\\");
+    // §8 — draft media is admin-only.
+    const draftKey = row!.banner_object_key!;
+    expect((await S.adminPage!.request.get(`/media/${draftKey}`)).status()).toBe(200);
+    expect([401, 403, 404]).toContain(
+      (await S.anonPage!.request.get(`/media/${draftKey}`)).status(),
+    );
     // Draft is absent from the public catalogue.
     await S.anonPage!.goto("/courses");
     await expect(S.anonPage!.getByRole("link", { name: new RegExp(CRED_A.title) })).toHaveCount(0);
@@ -344,8 +375,25 @@ test.describe("actual product vertical (test-auth)", () => {
     await S.anonPage!.goto(`/courses/${CRED_A.slug}`);
     await expect(S.anonPage!.getByRole("heading", { name: CRED_A.title })).toBeVisible();
     await expect(S.anonPage!.getByText(ORG, { exact: false })).toBeVisible();
-    await expect(S.anonPage!.locator(`img[alt="${CRED_A.title} banner"]`)).toBeVisible();
     await expect(S.anonPage!.getByText("About credential A context.")).toBeVisible();
+
+    // §8 — published banner is public, correct content type, and a REAL decodable image.
+    const pubKey = (await one<{ banner_object_key: string }>(
+      `SELECT banner_object_key FROM credential_versions WHERE credential_id=$1 AND status='published'`,
+      [S.credAId],
+    ))!.banner_object_key;
+    const media = await S.anonPage!.request.get(`/media/${pubKey}`);
+    expect(media.status()).toBe(200);
+    expect(media.headers()["content-type"]).toContain("image/png");
+    const img = S.anonPage!.locator(`img[alt="${CRED_A.title} banner"]`);
+    await expect(img).toBeVisible();
+    await expect
+      .poll(async () => img.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => img.evaluate((el) => (el as HTMLImageElement).naturalHeight))
+      .toBeGreaterThan(0);
+
     // Learner-facing HTML must not contain grading answers.
     const html = await S.anonPage!.content();
     expect(html).not.toContain("correctOptionIds");
@@ -544,8 +592,11 @@ test.describe("actual product vertical (test-auth)", () => {
     ).toBe(1);
   });
 
-  // ============================ §9 LEARNER: PLAYER, PROGRESS, MCQ ============================
-  test("learner completes Credential A in the player (types render, one MCQ attempt)", async () => {
+  // ===== §9 PLAYER + §3 HIERARCHY STATUS + §6 ISSUANCE TRANSITION + §7 ANSWER SECRECY =====
+  const certCount = () =>
+    count(`SELECT 1 FROM certificates WHERE enrollment_id=$1`, [S.credAEnrolmentId]);
+
+  test("player renders every type; hierarchy status updates; MCQ-then-required-reading issues cert", async () => {
     const page = S.learnerPage!;
     await page.goto(`/learn/${S.credAId}`);
     // Each supported unit type renders in the browser.
@@ -558,23 +609,48 @@ test.describe("actual product vertical (test-auth)", () => {
       page.getByRole("heading", { level: 4, name: "Knowledge check quiz" }),
     ).toBeVisible();
 
-    await markUnitComplete(page, "Introduction reading");
-    await markUnitComplete(page, "Introduction video");
+    // §3.1 — initially Not started / 0% at every level.
+    await expect(page.getByLabel(/Overall credential: Not started, 0% complete/)).toBeVisible();
+    await expect(page.getByLabel(/Section Introduction: Not started, 0% complete/)).toBeVisible();
+    await expect(page.getByLabel(/Subsection Welcome: Not started, 0% complete/)).toBeVisible();
+    await expect(
+      page.getByLabel(/Subsection Knowledge Check: Not started, 0% complete/),
+    ).toBeVisible();
 
-    // Progress persists across a reload.
-    await page.reload();
-    const readingCard = page
-      .locator(".card")
-      .filter({ has: page.getByRole("heading", { level: 4, name: "Introduction reading" }) });
-    await expect(readingCard.getByText("✓ completed")).toBeVisible();
-
-    // Pass the MCQ (100%), then confirm a second attempt is blocked.
+    // §6 + §7 — pass the MCQ FIRST (neutral labels, answer-secrecy asserted in passMcq).
+    // The Reading is required for certification, so no certificate is issued yet.
     await passMcq(page);
+    expect(await certCount()).toBe(0);
+
+    // §3.2/§3.3 — completing that one unit updates its subsection + overall; the OTHER
+    // subsection stays Not started.
     await page.reload();
-    await expect(page.getByText(/Assessment submitted/)).toBeVisible();
+    await expect(
+      page.getByLabel(/Subsection Knowledge Check: Completed, 100% complete/),
+    ).toBeVisible();
+    await expect(page.getByLabel(/Subsection Welcome: Not started, 0% complete/)).toBeVisible();
+    await expect(page.getByLabel(/Overall credential: In progress, 33% complete/)).toBeVisible();
+    // one-attempt policy: locked, no resubmit.
     await expect(page.getByRole("button", { name: "Submit answers" })).toHaveCount(0);
 
-    // Exactly one attempt, passed, grading snapshot present; answers never in learner content.
+    // Completing the video still does not certify (required reading outstanding).
+    await markUnitComplete(page, "Introduction video");
+    expect(await certCount()).toBe(0);
+
+    // §6 — completing the REQUIRED reading LAST triggers issuance on that progress action.
+    await markUnitComplete(page, "Introduction reading");
+    expect(await certCount()).toBe(1);
+
+    // §3.4/§3.5 — reload preserves; Completed / 100% at every level.
+    await page.reload();
+    await expect(page.getByLabel(/Overall credential: Completed, 100% complete/)).toBeVisible();
+    await expect(page.getByLabel(/Section Introduction: Completed, 100% complete/)).toBeVisible();
+    await expect(page.getByLabel(/Subsection Welcome: Completed, 100% complete/)).toBeVisible();
+    await expect(
+      page.getByLabel(/Subsection Knowledge Check: Completed, 100% complete/),
+    ).toBeVisible();
+
+    // Exactly one attempt, passed; grading snapshot lives in the DB only.
     const att = await all<{ passed: boolean; percentage: string; grading_snapshot: unknown }>(
       `SELECT passed, percentage, grading_snapshot FROM assessment_attempts WHERE enrollment_id=$1`,
       [S.credAEnrolmentId],
@@ -586,8 +662,12 @@ test.describe("actual product vertical (test-auth)", () => {
 
     // Credential overall progress is shown on the dashboard.
     await page.goto("/dashboard");
-    const aCard = page.locator(".card").filter({ hasText: CRED_A.code });
-    await expect(aCard.getByText(/Progress:\s*100%/)).toBeVisible();
+    await expect(
+      page
+        .locator(".card")
+        .filter({ hasText: CRED_A.code })
+        .getByText(/Progress:\s*100%/),
+    ).toBeVisible();
   });
 
   // ============================ §11 CERTIFICATE ============================
@@ -639,27 +719,38 @@ test.describe("actual product vertical (test-auth)", () => {
   });
 
   // ============================ §10 PROGRAMME PROGRESS ============================
-  test("learner completes Credential B; both member-credential progresses show", async () => {
+  test("Credential B partial completion; programme aggregate shows on the dashboard (§4)", async () => {
     const page = S.learnerPage!;
     await page.goto(`/learn/${S.credBId}`);
-    await markUnitComplete(page, "Introduction reading"); // completes B's content progress
+    await markUnitComplete(page, "Introduction reading"); // 1 of B's 2 units → 50%
     await page.goto("/dashboard");
-    const aCard = page.locator(".card").filter({ hasText: CRED_A.code });
-    const bCard = page.locator(".card").filter({ hasText: CRED_B.code });
-    // Both member credentials of the programme show their own progress on the dashboard.
+
+    // Per-credential cards (scoped by their own heading, not the programme card).
+    const aCard = page.locator(".card").filter({
+      has: page.getByRole("heading", { level: 3, name: CRED_A.title }),
+    });
+    const bCard = page.locator(".card").filter({
+      has: page.getByRole("heading", { level: 3, name: CRED_B.title }),
+    });
     await expect(aCard.getByText(/Progress:\s*100%/)).toBeVisible();
-    await expect(bCard.getByText(/Progress:\s*\d+%/)).toBeVisible();
-    // B did not certify (its MCQ was not attempted → no final_percentage → no cert),
-    // keeping exactly one certificate in this run (verified in §17).
-    // Shared Credential A is counted once (single enrolment across direct + programme).
+    await expect(bCard.getByText(/Progress:\s*50%/)).toBeVisible();
+
+    // §4 — programme aggregate card: mean(A 100, B 50) = 75%, 1 of 2 completed, members shown.
+    const progCard = page.locator(".card").filter({
+      has: page.getByRole("heading", { level: 3, name: PROG.title }),
+    });
+    await expect(progCard.getByText(/Programme progress:\s*75%/)).toBeVisible();
+    await expect(progCard.getByText(/1 of 2 credentials completed/)).toBeVisible();
+    await expect(progCard.getByText(new RegExp(`${CRED_A.code}.*100%`))).toBeVisible();
+    await expect(progCard.getByText(new RegExp(`${CRED_B.code}.*50%`))).toBeVisible();
+
+    // Shared Credential A counted once (single enrolment across direct + programme).
     expect(
       await count(`SELECT 1 FROM enrollments WHERE user_id=$1 AND credential_id=$2`, [
         S.learnerUserId,
         S.credAId,
       ]),
     ).toBe(1);
-    // NOTE: a single aggregate programme-progress widget is not implemented (US-L-14
-    // stays PARTIAL); per-member-credential progress is the current UI evidence.
   });
 
   // ============================ §12 CREDENTIAL HIDE / UNHIDE ============================
@@ -700,10 +791,13 @@ test.describe("actual product vertical (test-auth)", () => {
     // A different learner cannot reach the detail to enrol.
     expect((await S.learner2Page!.goto(`/courses/${CRED_A.slug}`))!.status()).toBe(404);
 
-    // Dashboard shows Temporarily unavailable and no Resume link.
+    // Dashboard shows Temporarily unavailable and no Resume link (credential card,
+    // scoped by its own heading so the programme card's member row is not matched).
     await S.learnerPage!.goto("/dashboard");
-    const aCard = S.learnerPage!.locator(".card").filter({ hasText: CRED_A.code });
-    await expect(aCard.getByText("Temporarily unavailable")).toBeVisible();
+    const aCard = S.learnerPage!.locator(".card").filter({
+      has: S.learnerPage!.getByRole("heading", { level: 3, name: CRED_A.title }),
+    });
+    await expect(aCard.getByText("Temporarily unavailable", { exact: true })).toBeVisible();
     await expect(aCard.getByRole("link", { name: /Resume|Start/ })).toHaveCount(0);
 
     // Admin can still open it.
@@ -743,10 +837,8 @@ test.describe("actual product vertical (test-auth)", () => {
     await S.learnerPage!.goto("/dashboard");
     await expect(
       S.learnerPage!.locator(".card")
-        .filter({ hasText: CRED_A.code })
-        .getByRole("link", {
-          name: /Resume|Start/,
-        }),
+        .filter({ has: S.learnerPage!.getByRole("heading", { level: 3, name: CRED_A.title }) })
+        .getByRole("link", { name: /Resume|Start/ }),
     ).toBeVisible();
   });
 
@@ -782,10 +874,26 @@ test.describe("actual product vertical (test-auth)", () => {
       ]))!.status,
     ).toBe(aStatus);
 
-    // Unhide restores public detail.
+    // §4 hidden-programme dashboard: the learner's programme card stays as read-only
+    // "Temporarily unavailable" with no Open link, preserving the aggregate.
+    await S.learnerPage!.goto("/dashboard");
+    const progCard = S.learnerPage!.locator(".card").filter({
+      has: S.learnerPage!.getByRole("heading", { level: 3, name: PROG.title }),
+    });
+    await expect(progCard.getByText("Temporarily unavailable", { exact: true })).toBeVisible();
+    await expect(progCard.getByRole("link", { name: "Open programme" })).toHaveCount(0);
+    await expect(progCard.getByText(/Programme progress:\s*\d+%/)).toBeVisible(); // still shown
+
+    // Unhide restores public detail + the Open link.
     await S.adminPage!.getByRole("button", { name: "Unhide", exact: true }).click();
     await expect(S.adminPage!.getByText("Programme unhidden.")).toBeVisible();
     expect((await S.anonPage!.goto(`/programs/${PROG.slug}`))!.status()).toBe(200);
+    await S.learnerPage!.goto("/dashboard");
+    await expect(
+      S.learnerPage!.locator(".card")
+        .filter({ has: S.learnerPage!.getByRole("heading", { level: 3, name: PROG.title }) })
+        .getByRole("link", { name: "Open programme" }),
+    ).toBeVisible();
   });
 
   // ============================ §14 MAINTENANCE MODE ============================
@@ -875,6 +983,56 @@ test.describe("actual product vertical (test-auth)", () => {
         CRED_B.code,
       ]),
     ).toBe(0);
+
+    // §9 — REAL supported round-trip: import the exported archive through the UI. The
+    // importer auto-suffixes code/slug (the supported collision-safe workflow).
+    await S.adminPage!.goto("/admin/imports");
+    await S.adminPage!.locator('select[name="projectId"]').selectOption({ label: PROJECT_NAME });
+    await S.adminPage!.locator('input[type="file"]').setInputFiles({
+      name: `cred-a-export-${RUN}.tar.gz`,
+      mimeType: "application/gzip",
+      buffer: body,
+    });
+    await S.adminPage!.getByRole("button", { name: "Import as draft" }).click();
+    await expect(S.adminPage!.getByText(/Imported draft/)).toBeVisible();
+
+    // Locate the imported draft (unique-suffixed, same project, not A/B).
+    const imported = (await one<{ id: string; source_metadata: Record<string, unknown> }>(
+      `SELECT mc.id, cv.source_metadata
+         FROM micro_credentials mc
+         JOIN credential_versions cv ON cv.credential_id = mc.id AND cv.status='draft'
+        WHERE mc.project_id=$1 AND mc.id NOT IN ($2,$3) AND mc.status='draft'`,
+      [S.projectId, S.credAId, S.credBId],
+    ))!;
+    expect(imported).toBeTruthy();
+    // source_metadata records the private archive key, checksum, filename, source, time.
+    const sm = imported.source_metadata;
+    expect(sm.sourceType).toBe("olx");
+    expect(String(sm.archiveObjectKey)).toBeTruthy();
+    expect(String(sm.archiveSha256)).toMatch(/^[a-f0-9]{64}$/);
+    expect(String(sm.originalFilename)).toContain(".tar.gz");
+    expect(sm.importedAt).toBeTruthy();
+    expect(String(sm.archiveObjectKey)).not.toMatch(/^([a-zA-Z]:[\\/]|\/|file:)/);
+
+    // The imported draft opens in Admin and is absent from the learner catalogue.
+    await S.adminPage!.goto(`/admin/credentials/${imported.id}`);
+    await expect(S.adminPage!.getByRole("heading").first()).toBeVisible();
+    // Original archive is private: admin downloads it; learner + anon are denied.
+    const arch = await S.adminPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`);
+    expect(arch.status()).toBe(200);
+    expect(arch.headers()["content-type"]).toContain("gzip");
+    expect(
+      (await S.learnerPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`)).status(),
+    ).toBe(403);
+    expect(
+      (await S.anonPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`)).status(),
+    ).toBe(401);
+    // Supported Sections/Subsections/Units survived the round trip.
+    const imp = (await one<{ content_document: { sections: unknown[] } }>(
+      `SELECT content_document FROM credential_versions WHERE credential_id=$1 AND status='draft'`,
+      [imported.id],
+    ))!;
+    expect(imp.content_document.sections.length).toBeGreaterThanOrEqual(1);
   });
 
   // ============================ §17 DIRECT DATABASE ASSERTIONS ============================

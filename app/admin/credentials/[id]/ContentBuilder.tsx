@@ -627,6 +627,18 @@ function CertificationEditor({
   state: BuilderState;
   onChange: (c: BuilderState["certification"]) => void;
 }) {
+  const units = state.sections.flatMap((s) =>
+    s.subsections.flatMap((ss) =>
+      ss.units.map((u) => ({ id: u.id, title: u.title, type: u.type })),
+    ),
+  );
+  const required = new Set(state.certification.requiredUnitIds);
+  const toggle = (unitId: string, on: boolean) => {
+    const next = new Set(required);
+    if (on) next.add(unitId);
+    else next.delete(unitId);
+    onChange({ ...state.certification, requiredUnitIds: [...next] });
+  };
   return (
     <div className="card" style={{ display: "grid", gap: 6 }}>
       <h3 style={{ margin: 0 }}>Certification rule</h3>
@@ -643,9 +655,29 @@ function CertificationEditor({
           style={{ width: 70 }}
         />
       </label>
+      <fieldset style={{ border: "1px solid var(--bms-border)", borderRadius: 8, margin: 0 }}>
+        <legend style={{ fontSize: 13 }}>Required for certification</legend>
+        {units.length === 0 ? (
+          <p style={{ color: "var(--bms-muted)", margin: 0, fontSize: 13 }}>Add units first.</p>
+        ) : (
+          units.map((u) => (
+            <label key={u.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                aria-label={`Require "${u.title}" for certification`}
+                checked={required.has(u.id)}
+                onChange={(e) => toggle(u.id, e.target.checked)}
+              />
+              <span style={{ fontSize: 13 }}>
+                {u.title} <em style={{ color: "var(--bms-muted)" }}>({u.type})</em>
+              </span>
+            </label>
+          ))
+        )}
+      </fieldset>
       <p style={{ color: "var(--bms-muted)", margin: 0, fontSize: 13 }}>
-        A learner is certified when their result reaches this threshold (UAT default 50%) and all
-        explicitly required units are completed. Required-unit selection defaults to none.
+        A learner is certified when their result reaches the threshold (UAT default 50%) AND every
+        unit ticked above is completed. With none ticked, only the threshold applies.
       </p>
     </div>
   );

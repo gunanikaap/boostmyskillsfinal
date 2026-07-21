@@ -12,6 +12,7 @@ export type StorageErrorCode =
   | "not_found"
   | "too_large"
   | "unsupported_type"
+  | "invalid_image"
   | "not_configured";
 
 export class StorageError extends Error {
