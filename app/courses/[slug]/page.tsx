@@ -33,11 +33,17 @@ export default async function CredentialDetailPage({
   if (!detail) notFound(); // draft/hidden are indistinguishable from missing
 
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
-  // Flatten the content outline for the "Sections" sidebar — titles only, never
-  // answers. Handles any number of sections/subsections/units.
-  const units = detail.content.sections.flatMap((s) =>
-    s.subsections.flatMap((ss) => ss.units.map((u) => ({ title: u.title, type: u.type }))),
-  );
+  // "Sections" outline: prefer the OLX-style chapter list (source_metadata), and
+  // fall back to the flattened content units. Titles only — never answers.
+  // Handles any number of entries.
+  const sections: { title: string; label?: string }[] =
+    detail.chapters.length > 0
+      ? detail.chapters.map((title) => ({ title }))
+      : detail.content.sections.flatMap((s) =>
+          s.subsections.flatMap((ss) =>
+            ss.units.map((u) => ({ title: u.title, label: UNIT_LABEL[u.type] })),
+          ),
+        );
 
   return (
     <>
@@ -99,18 +105,16 @@ export default async function CredentialDetailPage({
               </div>
             </div>
 
-            {units.length > 0 && (
+            {sections.length > 0 && (
               <div className="course-sections">
                 <h2>Sections</h2>
                 <ol>
-                  {units.map((u, i) => (
+                  {sections.map((s, i) => (
                     <li key={i}>
                       <span className="course-sections__num">{i + 1}</span>
                       <span className="course-sections__title">
-                        {u.title}
-                        {UNIT_LABEL[u.type] && (
-                          <em className="course-sections__type">{UNIT_LABEL[u.type]}</em>
-                        )}
+                        {s.title}
+                        {s.label && <em className="course-sections__type">{s.label}</em>}
                       </span>
                     </li>
                   ))}

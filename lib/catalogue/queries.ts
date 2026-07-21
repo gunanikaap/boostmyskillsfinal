@@ -65,6 +65,8 @@ export interface PublicCredentialDetail extends CatalogueCredential {
   aboutContent: unknown;
   content: ContentDocument; // learner-safe: has no correct answers by schema
   credentialVersionId: string;
+  /** OLX-style section outline (chapter display names) from source_metadata. */
+  chapters: string[];
 }
 
 /** Public detail by slug. Returns null for draft/hidden/missing (no leak). */
@@ -77,6 +79,7 @@ export async function getPublishedCredentialBySlug(
             cv.id AS version_id, cv.title, cv.short_description, cv.author_name,
             cv.banner_object_key, cv.about_content, cv.content_document,
             cv.source_metadata->>'topic' AS topic,
+            cv.source_metadata->'chapters' AS chapters,
             p.organisation_name, p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
@@ -110,6 +113,7 @@ export async function getPublishedCredentialBySlug(
     aboutContent: r.about_content,
     content: r.content_document as ContentDocument,
     credentialVersionId: r.version_id as string,
+    chapters: (r.chapters as string[] | null) ?? [],
   };
 }
 

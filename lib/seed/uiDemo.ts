@@ -50,13 +50,79 @@ async function findByRef(table: string, ref: string): Promise<string | undefined
 async function tagRef(table: string, id: string, ref: string): Promise<void> {
   await getPool().query(`UPDATE ${table} SET external_ref = $2 WHERE id = $1`, [id, ref]);
 }
-/** Merge a topic into every version's source_metadata (idempotent backfill). */
-async function setCredentialTopic(credentialId: string, topic: string): Promise<void> {
+/**
+ * OLX-style section outline per credential — the chapter display_names shown in
+ * the detail-page "Sections" list (ending in "Final Exam"), mirroring how the
+ * live Open edX courses are structured. Count varies per credential.
+ */
+const CHAPTERS: Record<string, string[]> = {
+  MC01: [
+    "Foundations of Energy Systems",
+    "Generation, Transmission and Distribution",
+    "Balancing Supply and Demand",
+    "The Grid in the Low-Carbon Transition",
+    "Final Exam",
+  ],
+  MC02: [
+    "The Renewable Energy Landscape",
+    "Solar and Wind Technologies",
+    "Integrating Renewables into the Grid",
+    "Barriers and Enablers",
+    "Final Exam",
+  ],
+  MC03: [
+    "Foundations of Sustainable Finance",
+    "ESG Principles and Reporting",
+    "Green Financial Instruments",
+    "Financing the Transition",
+    "Final Exam",
+  ],
+  MC04: [
+    "Data in the Energy Sector",
+    "Analysing Demand and Efficiency",
+    "Emissions and Consumption Analytics",
+    "From Insight to Decision",
+    "Final Exam",
+  ],
+  // Matches the live "Efficient Building Techniques" (MC18) section list.
+  MC05: [
+    "Study of the thermal performance of buildings",
+    "Basic principles of sustainable building",
+    "Minimum energy consumption standards — Passivhaus",
+    "Infrared thermography in building construction",
+    "Infiltrations and Blower Door testing",
+    "Building modelling and simulation",
+    "Final Exam",
+  ],
+  MC06: [
+    "Understanding Urban Emissions",
+    "Decarbonisation Pathways",
+    "Sectoral Interventions",
+    "Planning and Implementation",
+    "Final Exam",
+  ],
+  MC07: [
+    "Fundamentals of Energy Storage",
+    "Storage Technologies Compared",
+    "Storage in a Flexible Grid",
+    "Final Exam",
+  ],
+  MC08: [
+    "Introduction to Energy Management",
+    "Case Study: Industry",
+    "Case Study: Cities",
+    "Best Practices and Lessons Learned",
+    "Final Exam",
+  ],
+};
+
+/** Merge topic + section outline into every version's source_metadata (idempotent). */
+async function setCredentialMeta(credentialId: string, code: string, topic: string): Promise<void> {
   await getPool().query(
     `UPDATE credential_versions
-     SET source_metadata = COALESCE(source_metadata, '{}'::jsonb) || jsonb_build_object('topic', $2::text)
+     SET source_metadata = COALESCE(source_metadata, '{}'::jsonb) || $2::jsonb
      WHERE credential_id = $1`,
-    [credentialId, topic],
+    [credentialId, JSON.stringify({ topic, chapters: CHAPTERS[code] ?? [] })],
   );
 }
 
@@ -439,34 +505,35 @@ async function seedCredential(
   opts: { publish: boolean; hide?: boolean },
 ): Promise<string> {
   const ref = `${DEMO}${def.code}`;
-  const existing = await findByRef("micro_credentials", ref);
-  if (existing) {
-    // Idempotent backfill: keep topic, project (org) and about content current.
-    await setCredentialTopic(existing, def.topic);
-    await setCredentialAbout(existing, buildAbout(def));
-    await getPool().query(`UPDATE micro_credentials SET project_id = $2 WHERE id = $1`, [
-      existing,
+  let credentialId = await findByRef("micro_credentials", ref);
+  if (!credentialId) {
+    const created = await createCredentialWithDraft({
       projectId,
-    ]);
-    return existing;
+      code: def.code,
+      slug: def.slug,
+      title: def.title,
+      authorName: "RES4CITY Faculty",
+      shortDescription: def.short,
+      aboutHtml: buildAbout(def),
+      topic: def.topic,
+      createdBy: admin,
+    });
+    credentialId = created.credentialId;
+    const { content, grading, certificationRule } = buildContent(def.code, def.topic);
+    await saveDraft({ credentialId, content, grading, certificationRule });
+    await uploadCredentialBanner(credentialId, bannerBytes(i));
+    if (opts.publish) await publishCredential(credentialId);
+    if (opts.hide) await hideCredential(credentialId, admin);
+    await tagRef("micro_credentials", credentialId, ref);
   }
-  const { credentialId } = await createCredentialWithDraft({
+  // Idempotent backfill (new + existing): keep project, about and OLX-style
+  // metadata (topic + section outline) current on every re-seed.
+  await getPool().query(`UPDATE micro_credentials SET project_id = $2 WHERE id = $1`, [
+    credentialId,
     projectId,
-    code: def.code,
-    slug: def.slug,
-    title: def.title,
-    authorName: "RES4CITY Faculty",
-    shortDescription: def.short,
-    aboutHtml: buildAbout(def),
-    topic: def.topic,
-    createdBy: admin,
-  });
-  const { content, grading, certificationRule } = buildContent(def.code, def.topic);
-  await saveDraft({ credentialId, content, grading, certificationRule });
-  await uploadCredentialBanner(credentialId, bannerBytes(i));
-  if (opts.publish) await publishCredential(credentialId);
-  if (opts.hide) await hideCredential(credentialId, admin);
-  await tagRef("micro_credentials", credentialId, ref);
+  ]);
+  await setCredentialAbout(credentialId, buildAbout(def));
+  await setCredentialMeta(credentialId, def.code, def.topic);
   return credentialId;
 }
 
