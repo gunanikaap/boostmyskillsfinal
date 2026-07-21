@@ -8,6 +8,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Seed the local demo catalogue once (idempotent) so the public parity smokes
+  // have persistent Micro-credentials / Micro-programmes to render.
+  globalSetup: "./tests/e2e/global-setup.ts",
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

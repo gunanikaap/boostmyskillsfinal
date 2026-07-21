@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import AuthControls from "@/components/AuthControls";
+import MobileNav from "@/components/MobileNav";
 
 /** The official BoostMySkills logo. */
 function Brand() {
@@ -54,6 +55,7 @@ export default function SiteHeader() {
         <div className="nav-right">
           <AuthControls />
         </div>
+        <MobileNav />
       </div>
     </header>
   );
