@@ -25,7 +25,9 @@ export default async function AdminProjectsPage() {
         <tbody>
           {projects.map((p) => (
             <tr key={p.id} style={{ borderBottom: "1px solid var(--bms-border)" }}>
-              <td style={{ padding: 8 }}>{p.name}</td>
+              <td style={{ padding: 8 }}>
+                <a href={`/admin/projects/${p.id}`}>{p.name}</a>
+              </td>
               <td style={{ padding: 8 }}>{p.slug}</td>
               <td style={{ padding: 8 }}>{p.organisation_name}</td>
             </tr>

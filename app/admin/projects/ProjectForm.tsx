@@ -22,7 +22,9 @@ export function ProjectForm() {
       <input name="slug" placeholder="slug" required />
       <input name="organisationName" placeholder="Organisation name" required />
       <input name="issuerName" placeholder="Certificate issuer name (optional)" />
-      <button className="btn" disabled={pending}>
+      <input name="signatoryName" placeholder="Certificate signatory name (optional)" />
+      <input name="signatoryRole" placeholder="Certificate signatory role (optional)" />
+      <button className="btn" disabled={pending} aria-busy={pending}>
         {pending ? "Creating…" : "Create project"}
       </button>
       {msg && <p style={{ color: "var(--bms-muted)" }}>{msg}</p>}

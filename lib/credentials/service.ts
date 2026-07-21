@@ -36,6 +36,53 @@ export async function listProjects(conn: Queryable = db) {
   return rows;
 }
 
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  slug: string;
+  organisationName: string;
+  certificateTemplate: unknown;
+}
+
+export async function getProject(id: string, conn: Queryable = db): Promise<ProjectDetail | null> {
+  const { rows } = await conn.query(
+    `SELECT id, name, slug, organisation_name, certificate_template FROM projects WHERE id = $1`,
+    [id],
+  );
+  const r = rows[0] as
+    | {
+        id: string;
+        name: string;
+        slug: string;
+        organisation_name: string;
+        certificate_template: unknown;
+      }
+    | undefined;
+  if (!r) return null;
+  return {
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    organisationName: r.organisation_name,
+    certificateTemplate: r.certificate_template,
+  };
+}
+
+/** Update a project's name, organisation and certificate template. Slug is
+ * immutable here (it may be referenced elsewhere); the template is re-validated. */
+export async function updateProject(
+  id: string,
+  input: { name: string; organisationName: string; certificateTemplate: unknown },
+  conn: Queryable = db,
+): Promise<void> {
+  const template = certificateTemplateSchema.parse(input.certificateTemplate);
+  const res = await conn.query(
+    `UPDATE projects SET name = $2, organisation_name = $3, certificate_template = $4 WHERE id = $1`,
+    [id, input.name, input.organisationName, JSON.stringify(template)],
+  );
+  if ((res.rowCount ?? 0) === 0) throw new ServiceError("not_found", "Project not found");
+}
+
 // --- Credential creation (stable identity + first draft revision) -----------
 
 const emptyContent = { schemaVersion: CONTENT_SCHEMA_VERSION, sections: [] };

@@ -207,3 +207,71 @@ describe("programme hide/unhide preserves history and credential independence", 
     expect(after.rows[0]!.id).toBe(beforeId); // same enrolment
   });
 });
+
+describe("programme membership required flag", () => {
+  it("persists required / not-required per member", async () => {
+    const admin = await makeUser("admin");
+    const project = await makeProject();
+    const a = await publishedCredential(project, admin, "ua");
+    const b = await publishedCredential(project, admin, "ub");
+    const prog = await createProgramme({
+      projectId: project,
+      slug: `p-${Date.now()}`,
+      title: "P",
+      createdBy: admin,
+    });
+    await setProgrammeCredentials(prog, [
+      { credentialId: a, position: 0, isRequired: true },
+      { credentialId: b, position: 1, isRequired: false },
+    ]);
+    const rows = await getPool().query(
+      `SELECT credential_id, is_required FROM programme_credentials WHERE programme_id=$1 ORDER BY position`,
+      [prog],
+    );
+    const map = new Map(
+      (rows.rows as { credential_id: string; is_required: boolean }[]).map((r) => [
+        r.credential_id,
+        r.is_required,
+      ]),
+    );
+    expect(map.get(a)).toBe(true);
+    expect(map.get(b)).toBe(false);
+  });
+});
+
+describe("registration is rejected for a non-published programme", () => {
+  it("rejects a draft programme and a hidden programme, creating no enrolments", async () => {
+    const admin = await makeUser("admin");
+    const project = await makeProject();
+    const a = await publishedCredential(project, admin, "ua");
+    const b = await publishedCredential(project, admin, "ub");
+    const learner = await makeUser("learner");
+
+    // draft programme (never published)
+    const draftProg = await createProgramme({
+      projectId: project,
+      slug: `pd-${Date.now()}`,
+      title: "PD",
+      createdBy: admin,
+    });
+    await setProgrammeCredentials(draftProg, [
+      { credentialId: a, position: 0 },
+      { credentialId: b, position: 1 },
+    ]);
+    await expect(registerForProgramme(learner, draftProg)).rejects.toMatchObject({
+      code: "not_registerable",
+    });
+
+    // hidden programme
+    const hidden = await publishedProgramme(project, admin, [a, b]);
+    await hideProgramme(hidden);
+    await expect(registerForProgramme(learner, hidden)).rejects.toMatchObject({
+      code: "not_registerable",
+    });
+
+    const cnt = await getPool().query(`SELECT count(*)::int c FROM enrollments WHERE user_id=$1`, [
+      learner,
+    ]);
+    expect(cnt.rows[0]!.c).toBe(0);
+  });
+});
