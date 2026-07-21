@@ -3,7 +3,13 @@
 import { useState, useTransition } from "react";
 import { createCredentialAction } from "@/app/admin/actions";
 
-export function CredentialForm({ projects }: { projects: { id: string; name: string }[] }) {
+export function CredentialForm({
+  projects,
+  topics = [],
+}: {
+  projects: { id: string; name: string }[];
+  topics?: string[];
+}) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [inline, setInline] = useState(projects.length === 0);
@@ -49,6 +55,17 @@ export function CredentialForm({ projects }: { projects: { id: string; name: str
       <input name="title" placeholder="Title" required />
       <input name="authorName" placeholder="Author name" required />
       <input name="shortDescription" placeholder="Short description (optional)" />
+      <input
+        name="topic"
+        list="topic-options"
+        placeholder="Topic — pick an existing one or type a new one (optional)"
+        autoComplete="off"
+      />
+      <datalist id="topic-options">
+        {topics.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
       <textarea name="aboutHtml" rows={3} placeholder="About / context (optional, sanitised)" />
       <button className="btn" disabled={pending}>
         {pending ? "Creating…" : "Create draft"}

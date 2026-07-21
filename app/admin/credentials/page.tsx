@@ -1,19 +1,20 @@
 import Link from "next/link";
-import { adminListCredentials } from "@/lib/admin/queries";
+import { adminListCredentials, listCredentialTopics } from "@/lib/admin/queries";
 import { listProjects } from "@/lib/credentials/service";
 import { CredentialForm } from "./CredentialForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCredentialsPage() {
-  const [credentials, projects] = await Promise.all([
+  const [credentials, projects, topics] = await Promise.all([
     adminListCredentials(),
     listProjects() as Promise<{ id: string; name: string }[]>,
+    listCredentialTopics(),
   ]);
   return (
     <div style={{ display: "grid", gap: 20 }}>
       <h1>Micro-credentials</h1>
-      <CredentialForm projects={projects} />
+      <CredentialForm projects={projects} topics={topics} />
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ textAlign: "left", borderBottom: "1px solid var(--bms-border)" }}>

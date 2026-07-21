@@ -49,6 +49,15 @@ async function findByRef(table: string, ref: string): Promise<string | undefined
 async function tagRef(table: string, id: string, ref: string): Promise<void> {
   await getPool().query(`UPDATE ${table} SET external_ref = $2 WHERE id = $1`, [id, ref]);
 }
+/** Merge a topic into every version's source_metadata (idempotent backfill). */
+async function setCredentialTopic(credentialId: string, topic: string): Promise<void> {
+  await getPool().query(
+    `UPDATE credential_versions
+     SET source_metadata = COALESCE(source_metadata, '{}'::jsonb) || jsonb_build_object('topic', $2::text)
+     WHERE credential_id = $1`,
+    [credentialId, topic],
+  );
+}
 
 /** A local demo admin used as created_by. Never touches a real admin. */
 async function ensureDemoAdmin(): Promise<string> {
@@ -281,7 +290,11 @@ async function seedCredential(
 ): Promise<string> {
   const ref = `${DEMO}${def.code}`;
   const existing = await findByRef("micro_credentials", ref);
-  if (existing) return existing;
+  if (existing) {
+    // Idempotent backfill: ensure the topic is present on already-seeded rows.
+    await setCredentialTopic(existing, def.topic);
+    return existing;
+  }
   const { credentialId } = await createCredentialWithDraft({
     projectId,
     code: def.code,
@@ -290,6 +303,7 @@ async function seedCredential(
     authorName: "RES4CITY Faculty",
     shortDescription: def.short,
     aboutHtml: `<p>${def.short}</p><p>Delivered by RES4CITY and partner universities as part of the BoostMySkills catalogue.</p>`,
+    topic: def.topic,
     createdBy: admin,
   });
   const { content, grading, certificationRule } = buildContent(def.code, def.topic);

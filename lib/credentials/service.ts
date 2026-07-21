@@ -98,6 +98,7 @@ export async function createCredentialWithDraft(
     createdBy: string;
     shortDescription?: string;
     aboutHtml?: string;
+    topic?: string;
   },
   conn?: Queryable,
 ): Promise<{ credentialId: string; versionId: string }> {
@@ -127,7 +128,10 @@ export async function createCredentialWithDraft(
           thresholdPercent: DEFAULT_CERTIFICATION_THRESHOLD,
           requiredUnitIds: [],
         }),
-        JSON.stringify({ sourceType: "native" }),
+        JSON.stringify({
+          sourceType: "native",
+          ...(input.topic?.trim() ? { topic: input.topic.trim() } : {}),
+        }),
         input.createdBy,
       ],
     );

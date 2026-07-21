@@ -6,6 +6,7 @@ import { CredentialCard, type CredentialCardData } from "@/components/CatalogueC
 interface Item extends CredentialCardData {
   projectName: string;
   programmeTitles: string[];
+  topic: string | null;
 }
 
 /**
@@ -19,6 +20,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
   const [project, setProject] = useState("");
   const [org, setOrg] = useState("");
   const [programme, setProgramme] = useState("");
+  const [topic, setTopic] = useState("");
 
   const projects = useMemo(
     () => [...new Set(items.map((i) => i.projectName).filter(Boolean))].sort(),
@@ -32,6 +34,14 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
     () => [...new Set(items.flatMap((i) => i.programmeTitles).filter(Boolean))].sort(),
     [items],
   );
+  // Topics with a count, most-used first (mirrors the live "Topic" facet).
+  const topics = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const i of items) {
+      if (i.topic) counts.set(i.topic, (counts.get(i.topic) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [items]);
 
   const filtered = useMemo(() => {
     // Related-terms search: every whitespace-separated term must appear somewhere
@@ -43,6 +53,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
       if (project && c.projectName !== project) return false;
       if (org && c.organisationName !== org) return false;
       if (programme && !c.programmeTitles.includes(programme)) return false;
+      if (topic && c.topic !== topic) return false;
       if (terms.length) {
         const haystack = [
           c.title,
@@ -50,6 +61,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
           c.organisationName,
           c.projectName,
           c.shortDescription ?? "",
+          c.topic ?? "",
           ...c.programmeTitles,
         ]
           .join(" ")
@@ -58,9 +70,9 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
       }
       return true;
     });
-  }, [q, project, org, programme, items]);
+  }, [q, project, org, programme, topic, items]);
 
-  const hasFilters = Boolean(q || project || org || programme);
+  const hasFilters = Boolean(q || project || org || programme || topic);
 
   return (
     <div className="container catalogue-layout">
@@ -125,6 +137,19 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
               ))}
             </select>
           </div>
+          {topics.length > 0 && (
+            <div className="filter-field">
+              <label htmlFor="filter-topic">Topic</label>
+              <select id="filter-topic" value={topic} onChange={(e) => setTopic(e.target.value)}>
+                <option value="">All topics</option>
+                {topics.map(([name, count]) => (
+                  <option key={name} value={name}>
+                    {name} ({count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {programmes.length > 0 && (
             <div className="filter-field">
               <label htmlFor="filter-programme">Micro-programme</label>
@@ -151,6 +176,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
                 setProject("");
                 setOrg("");
                 setProgramme("");
+                setTopic("");
               }}
             >
               Clear filters

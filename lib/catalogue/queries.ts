@@ -19,6 +19,8 @@ export interface CatalogueCredential {
   projectName: string;
   /** Titles of the published micro-programmes this credential belongs to. */
   programmeTitles: string[];
+  /** Topic taxonomy label, stored in credential_versions.source_metadata. */
+  topic: string | null;
 }
 
 export async function listPublishedCredentials(
@@ -27,6 +29,7 @@ export async function listPublishedCredentials(
   const { rows } = await conn.query(
     `SELECT mc.id, mc.code, mc.slug,
             cv.title, cv.short_description, cv.author_name, cv.banner_object_key,
+            cv.source_metadata->>'topic' AS topic,
             p.organisation_name, p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
@@ -54,6 +57,7 @@ export async function listPublishedCredentials(
     organisationName: r.organisation_name as string,
     projectName: r.project_name as string,
     programmeTitles: (r.programme_titles as string[]) ?? [],
+    topic: (r.topic as string) ?? null,
   }));
 }
 
@@ -72,6 +76,7 @@ export async function getPublishedCredentialBySlug(
     `SELECT mc.id, mc.code, mc.slug,
             cv.id AS version_id, cv.title, cv.short_description, cv.author_name,
             cv.banner_object_key, cv.about_content, cv.content_document,
+            cv.source_metadata->>'topic' AS topic,
             p.organisation_name, p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
@@ -101,6 +106,7 @@ export async function getPublishedCredentialBySlug(
     organisationName: r.organisation_name as string,
     projectName: r.project_name as string,
     programmeTitles: (r.programme_titles as string[]) ?? [],
+    topic: (r.topic as string) ?? null,
     aboutContent: r.about_content,
     content: r.content_document as ContentDocument,
     credentialVersionId: r.version_id as string,

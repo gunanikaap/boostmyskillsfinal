@@ -122,6 +122,7 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
           authorName: String(form.get("authorName") ?? ""),
           shortDescription: String(form.get("shortDescription") ?? "") || undefined,
           aboutHtml: String(form.get("aboutHtml") ?? "") || undefined,
+          topic: String(form.get("topic") ?? "") || undefined,
           createdBy: admin.id,
         },
         tx,

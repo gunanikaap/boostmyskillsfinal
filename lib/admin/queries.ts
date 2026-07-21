@@ -1,5 +1,16 @@
 import { db, type Queryable } from "@/lib/db/pool";
 
+/** Distinct topics already assigned to any credential version (for the authoring combobox). */
+export async function listCredentialTopics(conn: Queryable = db): Promise<string[]> {
+  const { rows } = await conn.query(
+    `SELECT DISTINCT source_metadata->>'topic' AS topic
+     FROM credential_versions
+     WHERE source_metadata->>'topic' IS NOT NULL AND source_metadata->>'topic' <> ''
+     ORDER BY topic`,
+  );
+  return (rows as { topic: string }[]).map((r) => r.topic);
+}
+
 export async function adminListCredentials(conn: Queryable = db) {
   const { rows } = await conn.query(
     `SELECT mc.id, mc.code, mc.slug, mc.status, p.name AS project_name,
