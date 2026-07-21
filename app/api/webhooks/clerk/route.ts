@@ -31,10 +31,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       primary_email_address_id?: string;
       first_name?: string | null;
       last_name?: string | null;
+      unsafe_metadata?: { country?: unknown; gender?: unknown };
     };
     const primary =
       data.email_addresses?.find((e) => e.id === data.primary_email_address_id) ??
       data.email_addresses?.[0];
+    const meta = data.unsafe_metadata;
     try {
       await syncAppUser({
         clerkUserId: data.id,
@@ -42,6 +44,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         username: data.username ?? null,
         firstName: data.first_name ?? null,
         lastName: data.last_name ?? null,
+        country: typeof meta?.country === "string" ? meta.country : null,
+        gender: typeof meta?.gender === "string" ? meta.gender : null,
       });
     } catch (err) {
       if (err instanceof SyncError) {

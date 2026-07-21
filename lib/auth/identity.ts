@@ -7,6 +7,9 @@ export interface ExternalIdentity {
   username: string | null;
   firstName: string | null;
   lastName: string | null;
+  /** Self-declared profile from registration (Clerk unsafeMetadata). */
+  country?: string | null;
+  gender?: string | null;
 }
 
 /**
@@ -110,11 +113,14 @@ export async function resolveExternalIdentity(): Promise<ExternalIdentity | null
   const user = await currentUser();
   const email =
     user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
+  const meta = user?.unsafeMetadata as { country?: unknown; gender?: unknown } | undefined;
   return {
     clerkUserId: userId,
     email,
     username: user?.username ?? null,
     firstName: user?.firstName ?? null,
     lastName: user?.lastName ?? null,
+    country: typeof meta?.country === "string" ? meta.country : null,
+    gender: typeof meta?.gender === "string" ? meta.gender : null,
   };
 }

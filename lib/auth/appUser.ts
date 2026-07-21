@@ -12,6 +12,8 @@ export interface AppUser {
   firstName: string | null;
   lastName: string | null;
   role: AppRole;
+  country: string | null;
+  gender: string | null;
 }
 
 function mapRow(r: {
@@ -22,6 +24,8 @@ function mapRow(r: {
   first_name: string | null;
   last_name: string | null;
   role: AppRole;
+  country: string | null;
+  gender: string | null;
 }): AppUser {
   return {
     id: r.id,
@@ -31,6 +35,8 @@ function mapRow(r: {
     firstName: r.first_name,
     lastName: r.last_name,
     role: r.role,
+    country: r.country,
+    gender: r.gender,
   };
 }
 
@@ -56,15 +62,27 @@ export async function syncAppUser(
 
   try {
     const { rows } = await conn.query(
-      `INSERT INTO app_users (clerk_user_id, email, username, first_name, last_name, role)
-       VALUES ($1, $2, $3, $4, $5, 'learner')
+      `INSERT INTO app_users (clerk_user_id, email, username, first_name, last_name, role, country, gender)
+       VALUES ($1, $2, $3, $4, $5, 'learner', $6, $7)
        ON CONFLICT (clerk_user_id) DO UPDATE
          SET email = EXCLUDED.email,
              username = EXCLUDED.username,
              first_name = EXCLUDED.first_name,
-             last_name = EXCLUDED.last_name
-       RETURNING id, clerk_user_id, email, username, first_name, last_name, role`,
-      [identity.clerkUserId, email, username, identity.firstName, identity.lastName],
+             last_name = EXCLUDED.last_name,
+             -- Preserve existing country/gender when a sync provides none (e.g. a
+             -- routine session sync where Clerk metadata wasn't surfaced).
+             country = COALESCE(EXCLUDED.country, app_users.country),
+             gender = COALESCE(EXCLUDED.gender, app_users.gender)
+       RETURNING id, clerk_user_id, email, username, first_name, last_name, role, country, gender`,
+      [
+        identity.clerkUserId,
+        email,
+        username,
+        identity.firstName,
+        identity.lastName,
+        identity.country ?? null,
+        identity.gender ?? null,
+      ],
     );
     return mapRow(rows[0] as Parameters<typeof mapRow>[0]);
   } catch (err) {
