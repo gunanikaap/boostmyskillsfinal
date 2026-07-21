@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -18,45 +19,6 @@ function ArrowRight() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-/** Brand-coloured hero illustration (self-contained SVG, no external assets). */
-function HeroArt() {
-  return (
-    <svg
-      viewBox="0 0 460 380"
-      width="100%"
-      style={{ maxWidth: 460 }}
-      role="img"
-      aria-label="A learner earning a sustainability micro-credential"
-    >
-      <circle cx="240" cy="200" r="170" fill="var(--bms-green-soft)" />
-      {/* browser / course window */}
-      <rect x="70" y="90" width="300" height="200" rx="18" fill="#fff" stroke="#e5eae7" />
-      <rect x="70" y="90" width="300" height="42" rx="18" fill="var(--bms-purple)" />
-      <rect x="70" y="118" width="300" height="14" fill="var(--bms-purple)" />
-      <circle cx="92" cy="111" r="5" fill="#fff" opacity="0.9" />
-      <circle cx="110" cy="111" r="5" fill="#fff" opacity="0.7" />
-      <circle cx="128" cy="111" r="5" fill="#fff" opacity="0.5" />
-      <rect x="96" y="158" width="150" height="14" rx="7" fill="#e7ece9" />
-      <rect x="96" y="186" width="210" height="10" rx="5" fill="#eef2f0" />
-      <rect x="96" y="206" width="180" height="10" rx="5" fill="#eef2f0" />
-      <rect x="96" y="238" width="120" height="30" rx="15" fill="var(--bms-green)" />
-      {/* graduation cap */}
-      <g transform="translate(300 60)">
-        <path d="M0 26 45 6 90 26 45 46 0 26Z" fill="var(--bms-purple)" />
-        <path d="M45 52c-18 0-30-7-30-14v-9l30 13 30-13v9c0 7-12 14-30 14Z" fill="#7a49c2" />
-        <rect x="86" y="26" width="4" height="26" rx="2" fill="var(--bms-purple)" />
-        <circle cx="88" cy="56" r="6" fill="var(--bms-green)" />
-      </g>
-      {/* growth / leaf motif */}
-      <g transform="translate(330 250)">
-        <path d="M0 60c0-30 22-52 52-52-2 30-24 52-52 52Z" fill="var(--bms-green)" />
-        <path d="M6 60c0-22 16-40 40-42-10 24-24 40-40 42Z" fill="var(--bms-green-bright)" />
-        <rect x="24" y="58" width="4" height="34" rx="2" fill="var(--bms-green-dark)" />
-      </g>
     </svg>
   );
 }
@@ -84,13 +46,16 @@ export default function HomePage() {
                 Explore micro-credentials <ArrowRight />
               </Link>
             </div>
-            <p className="partners">
-              Aligned with the UN Sustainable Development Goals and delivered with pan-European and
-              international university partners.
-            </p>
           </div>
           <div className="hero__art">
-            <HeroArt />
+            <Image
+              src="/brand/landing_img.png"
+              alt="Learn sustainability online — aligned with the UN SDGs and UNITAR, with partner universities"
+              width={460}
+              height={567}
+              priority
+              style={{ width: "100%", height: "auto", maxWidth: 460 }}
+            />
           </div>
         </section>
 

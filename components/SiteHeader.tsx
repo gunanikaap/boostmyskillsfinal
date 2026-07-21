@@ -1,13 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
 import AuthControls from "@/components/AuthControls";
 
-/** The BoostMySkills wordmark, styled to echo the boostmyskills.eu logo. */
+/** The official BoostMySkills logo. */
 function Brand() {
   return (
     <Link href="/" className="brand" aria-label="BoostMySkills home">
-      <span className="brand__boost">boost</span>
-      <span className="brand__my">my</span>
-      <span className="brand__skills">skills</span>
+      <Image
+        src="/brand/logo.png"
+        alt="BoostMySkills"
+        width={112}
+        height={54}
+        priority
+        style={{ height: 40, width: "auto" }}
+      />
     </Link>
   );
 }

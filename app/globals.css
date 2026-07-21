@@ -1,17 +1,17 @@
 :root {
-  /* Brand palette aligned with boostmyskills.eu */
-  --bms-green: #16a34a;
-  --bms-green-dark: #0f7f39;
-  --bms-green-bright: #1fbf5c;
-  --bms-purple: #5b2a9e;
-  --bms-purple-soft: #efe9fb;
-  --bms-green-soft: #e9f8ee;
-  --bms-ink: #14181d;
-  --bms-muted: #5b6b63;
+  /* Exact brand palette from boostmyskills.eu (res4city theme) */
+  --bms-green: #079845;
+  --bms-green-dark: #067038;
+  --bms-green-bright: #0bb453;
+  --bms-purple: #5b2ae0;
+  --bms-green-soft: #eaf3e7;
+  --bms-green-soft2: #d5e7d0;
+  --bms-ink: #1a1a1a;
+  --bms-muted: #767676;
   --bms-bg: #ffffff;
-  --bms-bg-soft: #f6f9f7;
+  --bms-bg-soft: #f6f7f9;
   --bms-card: #ffffff;
-  --bms-border: #e5eae7;
+  --bms-border: #e7e7e7;
   --bms-radius: 14px;
   --bms-shadow: 0 2px 10px rgba(18, 33, 26, 0.06);
 }
@@ -28,7 +28,7 @@ body {
 
 body {
   font-family:
-    "Poppins",
+    var(--font-urbanist),
     "Segoe UI",
     system-ui,
     -apple-system,

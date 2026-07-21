@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
+import { Urbanist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { siteUrl } from "@/lib/env";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
 import "./globals.css";
+
+// The BoostMySkills brand typeface (matches boostmyskills.eu).
+const urbanist = Urbanist({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-urbanist",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -15,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const body = (
-    <html lang="en">
+    <html lang="en" className={urbanist.variable}>
       <body>{children}</body>
     </html>
   );
