@@ -108,9 +108,14 @@ export function ProgrammeCard({ p, i = 0 }: { p: ProgrammeCardData; i?: number }
             </ul>
           </>
         )}
-        <Link href={href} className="btn pcard__enrol">
-          Enrol
-        </Link>
+        <div className="pcard__footer">
+          <Link href={href} className="btn pcard__enrol">
+            Enrol <Arrow />
+          </Link>
+          <Link href={href} className="pcard__more">
+            More info <Arrow />
+          </Link>
+        </div>
       </div>
     </article>
   );
