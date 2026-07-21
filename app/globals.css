@@ -914,56 +914,63 @@ a {
 
 /* ---- Course / credential detail (live-style two-column) --------------- */
 .course-detail {
-  padding: 20px 0 56px;
+  padding: 12px 0 56px;
 }
-.course-detail__grid {
+/* Hero: illustration (left) + title / author / enrol (right) */
+.course-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+  padding: 12px 0 34px;
+  border-bottom: 1px solid var(--bms-border);
+}
+.course-hero--noart {
+  grid-template-columns: 1fr;
+  max-width: 760px;
+}
+.course-hero__art {
+  background: var(--bms-green-soft);
+  border-radius: 24px;
+  overflow: hidden;
+}
+.course-hero__art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.course-hero__text h1 {
+  font-size: clamp(32px, 4.6vw, 54px);
+  letter-spacing: -1.2px;
+  line-height: 1.05;
+  margin: 0 0 14px;
+  font-weight: 800;
+}
+.course-hero__by {
+  color: var(--bms-muted);
+  font-size: 18px;
+  margin: 0;
+}
+.course-hero__cta {
+  margin-top: 28px;
+}
+/* Content band: about (left) + sidebar (right) */
+.course-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 48px;
   align-items: start;
-  margin-top: 12px;
-}
-.course-detail__eyebrow {
-  color: var(--bms-purple);
-  font-weight: 600;
-  font-size: 15px;
-  margin: 0 0 8px;
-}
-.course-detail__main h1 {
-  font-size: clamp(30px, 4vw, 44px);
-  letter-spacing: -1px;
-  line-height: 1.08;
-  margin: 0 0 8px;
-  font-weight: 800;
-}
-.course-detail__code {
-  color: var(--bms-muted);
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.3px;
-  margin: 0 0 18px;
-}
-.course-detail__cta {
-  margin: 0 0 24px;
-}
-.course-detail__banner {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 14px;
-  margin: 0 0 24px;
-}
-.course-detail__lead {
-  font-size: 18px;
-  color: var(--bms-ink);
-  line-height: 1.6;
-  margin: 0 0 4px;
+  padding-top: 34px;
 }
 .course-about h2 {
   color: var(--bms-green-dark);
-  font-size: 24px;
+  font-size: 26px;
   letter-spacing: -0.3px;
-  margin: 28px 0 12px;
+  margin: 30px 0 12px;
+}
+.course-about > h2:first-child {
+  margin-top: 0;
 }
 .course-about p {
   color: var(--bms-muted);
@@ -1236,8 +1243,12 @@ a {
     grid-template-columns: 1fr;
     padding-top: 32px;
   }
-  .course-detail__grid {
+  .course-hero,
+  .course-body {
     grid-template-columns: 1fr;
+  }
+  .course-hero__art {
+    order: -1;
   }
   .course-detail__side {
     position: static;

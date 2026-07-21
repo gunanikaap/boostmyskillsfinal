@@ -35,7 +35,6 @@ export default async function CredentialDetailPage({
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
   // "Sections" outline: prefer the OLX-style chapter list (source_metadata), and
   // fall back to the flattened content units. Titles only — never answers.
-  // Handles any number of entries.
   const sections: { title: string; label?: string }[] =
     detail.chapters.length > 0
       ? detail.chapters.map((title) => ({ title }))
@@ -53,35 +52,29 @@ export default async function CredentialDetailPage({
           <Link href="/courses">Micro-credentials</Link> / {detail.title}
         </p>
 
-        <div className="course-detail__grid">
-          <article className="course-detail__main">
-            <p className="course-detail__eyebrow">{detail.organisationName}</p>
+        {/* Hero: illustration (left) + title / author / enrol (right) */}
+        <section className={`course-hero${detail.bannerObjectKey ? "" : " course-hero--noart"}`}>
+          {detail.bannerObjectKey && (
+            <div className="course-hero__art">
+              {/* Served through the controlled /media route (published banners are public). */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/media/${detail.bannerObjectKey}`} alt={`${detail.title} banner`} />
+            </div>
+          )}
+          <div className="course-hero__text">
             <h1>{detail.title}</h1>
-            <p className="course-detail__code">
-              {detail.code} | {detail.projectName}
-            </p>
-            <div className="course-detail__cta">
+            <p className="course-hero__by">by {detail.organisationName}</p>
+            <div className="course-hero__cta">
               <EnrolButton credentialId={detail.id} />
             </div>
+          </div>
+        </section>
 
-            {detail.bannerObjectKey && (
-              // Served through the controlled /media route (published banners are public).
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                className="course-detail__banner"
-                src={`/media/${detail.bannerObjectKey}`}
-                alt={`${detail.title} banner`}
-              />
-            )}
-
-            {detail.shortDescription && (
-              <p className="course-detail__lead">{detail.shortDescription}</p>
-            )}
-
-            {/* about_content is sanitised at write time; it may contain any number
-                of <h2> blocks (Context and overview / Learning objectives / …). */}
-            <div className="course-about" dangerouslySetInnerHTML={{ __html: about }} />
-          </article>
+        {/* Content: about (left) + facts / sections sidebar (right) */}
+        <section className="course-body">
+          {/* about_content is sanitised at write time; it may contain any number of
+              <h2> blocks (Context and overview / Learning objectives / …). */}
+          <article className="course-about" dangerouslySetInnerHTML={{ __html: about }} />
 
           <aside className="course-detail__side">
             <div className="course-facts">
@@ -122,7 +115,7 @@ export default async function CredentialDetailPage({
               </div>
             )}
           </aside>
-        </div>
+        </section>
       </main>
       <SiteFooter />
     </>
