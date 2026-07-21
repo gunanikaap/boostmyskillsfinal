@@ -62,7 +62,6 @@ export default async function ProgrammeDetailPage({
           <div className="course-hero__text">
             <p className="course-hero__eyebrow">Micro-programme</p>
             <h1>{detail.title}</h1>
-            <p className="course-hero__by">by {detail.organisationName}</p>
             <div className="course-hero__cta">
               <RegisterButton programmeId={detail.id} />
             </div>
@@ -105,10 +104,6 @@ export default async function ProgrammeDetailPage({
               <div className="course-fact">
                 <dt>Project</dt>
                 <dd>{detail.projectName}</dd>
-              </div>
-              <div className="course-fact">
-                <dt>Organisation</dt>
-                <dd>{detail.organisationName}</dd>
               </div>
               <div className="course-fact">
                 <dt>Micro-credentials</dt>
