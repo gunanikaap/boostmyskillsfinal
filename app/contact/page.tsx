@@ -21,18 +21,20 @@ export default function ContactPage() {
       <main className="container contact">
         <div className="contact__intro">
           <h1>Let&rsquo;s get in touch!</h1>
-          <p>Contact us if you have questions about BoostMySkills.</p>
-          <div className="contact__follow">
-            <strong>Follow us</strong>
-            <a
-              href={LINKEDIN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="BoostMySkills on LinkedIn"
-              className="contact__social"
-            >
-              <LinkedInIcon />
-            </a>
+          <div className="contact__meta">
+            <p>Contact us if you have questions about BoostMySkills.</p>
+            <div className="contact__follow">
+              <strong>Follow us</strong>
+              <a
+                href={LINKEDIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="BoostMySkills on LinkedIn"
+                className="contact__social"
+              >
+                <LinkedInIcon />
+              </a>
+            </div>
           </div>
         </div>
         <div className="contact__form">

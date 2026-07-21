@@ -796,30 +796,39 @@ a {
 /* ---- Contact ---------------------------------------------------------- */
 .contact {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: start;
-  padding: 24px 0 56px;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 72px;
+  align-items: stretch;
+  padding: 56px 0 72px;
+}
+.contact__intro {
+  display: flex;
+  flex-direction: column;
 }
 .contact__intro h1 {
-  font-size: clamp(40px, 6vw, 68px);
-  line-height: 1.02;
+  font-size: clamp(40px, 5.5vw, 64px);
+  line-height: 1.03;
   letter-spacing: -1.5px;
-  margin: 0 0 28px;
+  margin: 0;
   font-weight: 800;
+}
+.contact__meta {
+  margin-top: auto;
+  padding-top: 56px;
 }
 .contact__intro p {
   color: var(--bms-muted);
   font-size: 18px;
   line-height: 1.6;
-  max-width: 360px;
+  max-width: 340px;
+  margin: 0;
 }
 .contact__follow {
-  margin-top: 36px;
+  margin-top: 32px;
 }
 .contact__follow strong {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .contact__social {
   display: inline-flex;
@@ -830,12 +839,16 @@ a {
 }
 .contact-form {
   display: grid;
-  gap: 20px;
+  gap: 22px;
+  align-self: start;
+  width: 100%;
+  max-width: 480px;
 }
 .field label {
   display: block;
   font-weight: 700;
-  margin-bottom: 8px;
+  font-size: 16px;
+  margin-bottom: 10px;
 }
 .field-row {
   display: grid;
@@ -847,10 +860,14 @@ a {
   width: 100%;
   border: 1px solid var(--bms-border);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 13px 15px;
   font: inherit;
   color: var(--bms-ink);
   background: #fff;
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: #9aa39d;
 }
 .input:focus,
 .textarea:focus {
@@ -859,8 +876,12 @@ a {
   border-color: var(--bms-green);
 }
 .textarea {
-  min-height: 150px;
+  min-height: 160px;
   resize: vertical;
+  line-height: 1.5;
+}
+.contact-form__actions {
+  margin-top: 4px;
 }
 .form-status {
   margin: 0;
@@ -871,12 +892,13 @@ a {
 }
 .form-status--ok {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   justify-items: start;
-  padding: 24px;
+  padding: 28px;
   border: 1px solid var(--bms-border);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--bms-green-soft);
+  max-width: 480px;
 }
 .form-status--ok p {
   margin: 0;
