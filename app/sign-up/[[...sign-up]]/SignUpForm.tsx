@@ -5,40 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
 import { EyeButton, clerkErrorMessage, safeNext } from "../../sign-in/[[...sign-in]]/authHelpers";
-
-const COUNTRIES = [
-  "Ireland",
-  "Spain",
-  "Portugal",
-  "France",
-  "Italy",
-  "Germany",
-  "Netherlands",
-  "Belgium",
-  "Denmark",
-  "Sweden",
-  "Finland",
-  "Norway",
-  "Greece",
-  "Austria",
-  "Switzerland",
-  "Poland",
-  "Czech Republic",
-  "Slovakia",
-  "Hungary",
-  "Romania",
-  "Bulgaria",
-  "Croatia",
-  "Slovenia",
-  "Estonia",
-  "Latvia",
-  "Lithuania",
-  "Luxembourg",
-  "Cyprus",
-  "Malta",
-  "United Kingdom",
-  "Other",
-];
+import { COUNTRIES } from "@/lib/geo/countries";
 
 const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 
