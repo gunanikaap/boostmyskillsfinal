@@ -29,7 +29,9 @@ export default async function AdminProgrammesPage() {
         <tbody>
           {programmes.map((p) => (
             <tr key={p.id} style={{ borderBottom: "1px solid var(--bms-border)" }}>
-              <td style={{ padding: 8 }}>{p.title}</td>
+              <td style={{ padding: 8 }}>
+                <a href={`/admin/programmes/${p.id}`}>{p.title}</a>
+              </td>
               <td style={{ padding: 8 }}>{p.project_name}</td>
               <td style={{ padding: 8 }}>{p.status}</td>
               <td style={{ padding: 8 }}>

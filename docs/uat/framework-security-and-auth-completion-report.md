@@ -13,8 +13,12 @@ Status values: PASS · PARTIAL · BLOCKED · NOT IMPLEMENTED · NOT TESTED.
 
 ## 2. Final commit
 
-`main` after merge + docs — see the exact SHA in "Close" (written after the final
-push). Security-patch merge commit: `784ceaa`.
+A commit cannot contain its own hash, so this report does not assert a
+self-referential final SHA. Instead:
+- Security-patch merge commit: `784ceaa`
+- Dependency patch: `9421e95` · Security docs: `cf4e711`
+- **Delivery HEAD:** obtain with `git rev-parse HEAD` at delivery time (reported
+  in the terminal after the push).
 
 ## 3. Branch and merge status
 
@@ -163,6 +167,8 @@ preservation is proven. Not claimed PASS. No signing secret was requested.
 
 ## Close
 
-- Final `main` HEAD: `036979f633e766ae4fbf9cbdb361871fd1fc1f83` (this docs commit).
-- Security-patch merge: `784ceaa`; dependency patch `9421e95`; security docs `cf4e711`.
+- Security-patch merge: `784ceaa`; dependency patch `9421e95`; security docs
+  `cf4e711`; auth-evidence commit `036979f`.
+- **Delivery HEAD** is not embedded here (a commit cannot contain its own hash);
+  obtain it with `git rev-parse HEAD` / `git rev-parse origin/main` at delivery.
 - `npm run verify` PASS · `npm run security:audit` exit 0 · secret scan clean · working tree clean.

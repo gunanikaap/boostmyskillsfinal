@@ -53,3 +53,93 @@ export async function adminListProgrammes(conn: Queryable = db) {
     project_name: string;
   }[];
 }
+
+export interface AdminProgrammeDetail {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  projectId: string;
+  projectName: string;
+  members: {
+    credentialId: string;
+    code: string;
+    title: string | null;
+    position: number;
+    isRequired: boolean;
+    publishable: boolean;
+  }[];
+  available: { id: string; code: string; title: string | null; publishable: boolean }[];
+}
+
+/** Programme detail for the admin membership editor: current members (ordered)
+ * + credentials available to add from the SAME project. */
+export async function adminGetProgramme(
+  id: string,
+  conn: Queryable = db,
+): Promise<AdminProgrammeDetail | null> {
+  const progRes = await conn.query(
+    `SELECT mp.id, mp.title, mp.slug, mp.status, mp.project_id, p.name AS project_name
+     FROM micro_programmes mp JOIN projects p ON p.id = mp.project_id WHERE mp.id = $1`,
+    [id],
+  );
+  const prog = progRes.rows[0] as
+    | {
+        id: string;
+        title: string;
+        slug: string;
+        status: string;
+        project_id: string;
+        project_name: string;
+      }
+    | undefined;
+  if (!prog) return null;
+
+  const members = await conn.query(
+    `SELECT pc.credential_id, pc.position, pc.is_required, mc.code,
+            (SELECT title FROM credential_versions cv WHERE cv.credential_id = mc.id
+              ORDER BY (cv.status='draft') DESC, cv.revision_number DESC LIMIT 1) AS title,
+            (mc.status='published' AND EXISTS(SELECT 1 FROM credential_versions cv
+               WHERE cv.credential_id=mc.id AND cv.status='published')) AS publishable
+     FROM programme_credentials pc
+     JOIN micro_credentials mc ON mc.id = pc.credential_id
+     WHERE pc.programme_id = $1 ORDER BY pc.position`,
+    [id],
+  );
+  const memberIds = (members.rows as { credential_id: string }[]).map((m) => m.credential_id);
+
+  const avail = await conn.query(
+    `SELECT mc.id, mc.code,
+            (SELECT title FROM credential_versions cv WHERE cv.credential_id = mc.id
+              ORDER BY (cv.status='draft') DESC, cv.revision_number DESC LIMIT 1) AS title,
+            (mc.status='published' AND EXISTS(SELECT 1 FROM credential_versions cv
+               WHERE cv.credential_id=mc.id AND cv.status='published')) AS publishable
+     FROM micro_credentials mc
+     WHERE mc.project_id = $1 AND ($2::uuid[] IS NULL OR NOT (mc.id = ANY($2::uuid[])))
+     ORDER BY mc.created_at DESC`,
+    [prog.project_id, memberIds.length ? memberIds : null],
+  );
+
+  return {
+    id: prog.id,
+    title: prog.title,
+    slug: prog.slug,
+    status: prog.status,
+    projectId: prog.project_id,
+    projectName: prog.project_name,
+    members: (members.rows as Record<string, unknown>[]).map((m) => ({
+      credentialId: m.credential_id as string,
+      code: m.code as string,
+      title: (m.title as string) ?? null,
+      position: m.position as number,
+      isRequired: m.is_required as boolean,
+      publishable: m.publishable as boolean,
+    })),
+    available: (avail.rows as Record<string, unknown>[]).map((a) => ({
+      id: a.id as string,
+      code: a.code as string,
+      title: (a.title as string) ?? null,
+      publishable: a.publishable as boolean,
+    })),
+  };
+}
