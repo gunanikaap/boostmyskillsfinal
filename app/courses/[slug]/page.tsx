@@ -22,6 +22,25 @@ const UNIT_LABEL: Record<string, string> = {
   mcq: "Quiz",
 };
 
+function InfoIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 11v5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="7.5" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 7.5V12l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default async function CredentialDetailPage({
   params,
 }: {
@@ -78,24 +97,18 @@ export default async function CredentialDetailPage({
 
           <aside className="course-detail__side">
             <div className="course-facts">
-              <div className="course-fact">
-                <dt>Course Number</dt>
-                <dd>
-                  {detail.code} | {detail.projectName}
-                </dd>
-              </div>
-              <div className="course-fact">
-                <dt>Format</dt>
-                <dd>Self-paced &middot; fully online</dd>
-              </div>
-              <div className="course-fact">
-                <dt>Created and delivered by</dt>
-                <dd>
-                  {detail.authorName}
-                  <br />
-                  <span>{detail.organisationName}</span>
-                </dd>
-              </div>
+              <p className="course-fact-row">
+                <InfoIcon />
+                <span>
+                  <strong>Course Number:</strong> {detail.code} | {detail.projectName}
+                </span>
+              </p>
+              {detail.duration && (
+                <p className="course-fact-row">
+                  <ClockIcon />
+                  <span>{detail.duration}</span>
+                </p>
+              )}
             </div>
 
             {sections.length > 0 && (
@@ -112,6 +125,14 @@ export default async function CredentialDetailPage({
                     </li>
                   ))}
                 </ol>
+                <div className="course-sections__author">
+                  <dt>Created and delivered by</dt>
+                  <dd>
+                    {detail.authorName}
+                    <br />
+                    <span>{detail.organisationName}</span>
+                  </dd>
+                </div>
               </div>
             )}
           </aside>

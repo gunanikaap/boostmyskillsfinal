@@ -67,6 +67,8 @@ export interface PublicCredentialDetail extends CatalogueCredential {
   credentialVersionId: string;
   /** OLX-style section outline (chapter display names) from source_metadata. */
   chapters: string[];
+  /** Effort/duration line from source_metadata (e.g. "Up to 15 hrs per week…"). */
+  duration: string | null;
 }
 
 /** Public detail by slug. Returns null for draft/hidden/missing (no leak). */
@@ -80,6 +82,7 @@ export async function getPublishedCredentialBySlug(
             cv.banner_object_key, cv.about_content, cv.content_document,
             cv.source_metadata->>'topic' AS topic,
             cv.source_metadata->'chapters' AS chapters,
+            cv.source_metadata->>'duration' AS duration,
             p.organisation_name, p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
@@ -114,6 +117,7 @@ export async function getPublishedCredentialBySlug(
     content: r.content_document as ContentDocument,
     credentialVersionId: r.version_id as string,
     chapters: (r.chapters as string[] | null) ?? [],
+    duration: (r.duration as string) ?? null,
   };
 }
 

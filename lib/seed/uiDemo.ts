@@ -116,13 +116,32 @@ const CHAPTERS: Record<string, string[]> = {
   ],
 };
 
-/** Merge topic + section outline into every version's source_metadata (idempotent). */
+/** Effort/duration line shown in the detail sidebar (mirrors the live "Up to …"). */
+const DURATION: Record<string, string> = {
+  MC01: "Up to 12 hrs per week for 5 weeks",
+  MC02: "Up to 10 hrs per week for 4 weeks",
+  MC03: "Up to 12 hrs per week for 5 weeks",
+  MC04: "Up to 15 hrs per week for 5 weeks",
+  MC05: "Up to 15 hrs per week for 5 weeks",
+  MC06: "Up to 12 hrs per week for 4 weeks",
+  MC07: "Up to 10 hrs per week for 4 weeks",
+  MC08: "Up to 12 hrs per week for 5 weeks",
+};
+
+/** Merge topic + section outline + duration into source_metadata (idempotent). */
 async function setCredentialMeta(credentialId: string, code: string, topic: string): Promise<void> {
   await getPool().query(
     `UPDATE credential_versions
      SET source_metadata = COALESCE(source_metadata, '{}'::jsonb) || $2::jsonb
      WHERE credential_id = $1`,
-    [credentialId, JSON.stringify({ topic, chapters: CHAPTERS[code] ?? [] })],
+    [
+      credentialId,
+      JSON.stringify({
+        topic,
+        chapters: CHAPTERS[code] ?? [],
+        duration: DURATION[code] ?? "Self-paced, fully online",
+      }),
+    ],
   );
 }
 
