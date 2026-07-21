@@ -1,5 +1,6 @@
 import { BANNER_RULES } from "@/lib/content/defaults";
 import { StorageError } from "@/lib/storage/types";
+import { imageInfo, type ImageInfo } from "@/lib/storage/imageInfo";
 
 /** Detect an image type by magic bytes; null if unrecognised. */
 function sniffImage(buf: Buffer): "image/png" | "image/jpeg" | "image/webp" | null {
@@ -31,6 +32,8 @@ const EXT_FOR: Record<string, string> = {
 export interface ValidatedBanner {
   contentType: string;
   ext: string;
+  width: number;
+  height: number;
 }
 
 /**
@@ -47,5 +50,8 @@ export function validateBanner(buf: Buffer): ValidatedBanner {
   if (!sniffed || !(BANNER_RULES.allowedMimeTypes as readonly string[]).includes(sniffed)) {
     throw new StorageError("unsupported_type", "banner must be a WebP, JPEG or PNG image");
   }
-  return { contentType: sniffed, ext: EXT_FOR[sniffed]! };
+  // Beyond magic bytes: prove the image is real (parseable header, positive
+  // dimensions), so a signature-only / truncated file is rejected.
+  const info: ImageInfo = imageInfo(buf, sniffed);
+  return { contentType: sniffed, ext: EXT_FOR[sniffed]!, width: info.width, height: info.height };
 }

@@ -18,6 +18,7 @@ import { exportCredentialToOlx } from "@/lib/olx/exporter";
 import { GET as olxArchiveGET } from "@/app/admin/credentials/[id]/olx-archive/route";
 import { GET as mediaGET } from "@/app/media/[...key]/route";
 import { resetDb, teardown } from "@/tests/helpers/db";
+import { makePng } from "@/tests/helpers/images";
 import { actAs, actAsAnonymous } from "@/tests/helpers/auth";
 import { makeProject, makeUser, sampleContent } from "@/tests/helpers/factories";
 
@@ -27,7 +28,7 @@ beforeEach(async () => {
 });
 afterAll(teardown);
 
-const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0]);
+const PNG = makePng(16, 9);
 
 async function credentialWithBanner(status: "published" | "draft" | "hidden") {
   const admin = await makeUser("admin");

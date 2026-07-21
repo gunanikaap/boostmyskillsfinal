@@ -11,6 +11,7 @@ import { POST as bannerPOST } from "@/app/admin/programmes/[id]/banner/route";
 import { resetDb, teardown } from "@/tests/helpers/db";
 import { actAs, actAsAnonymous } from "@/tests/helpers/auth";
 import { makeProject, makeProgramme, makeUser } from "@/tests/helpers/factories";
+import { makePng } from "@/tests/helpers/images";
 
 beforeEach(async () => {
   await resetDb();
@@ -18,8 +19,8 @@ beforeEach(async () => {
 });
 afterAll(teardown);
 
-const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0]);
-const PNG2 = Buffer.concat([PNG, Buffer.from([1, 2, 3])]);
+const PNG = makePng(16, 9);
+const PNG2 = makePng(24, 14);
 
 function fileReq(bytes: Buffer): Request {
   const fd = new FormData();
