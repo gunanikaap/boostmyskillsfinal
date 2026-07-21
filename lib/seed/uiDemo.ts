@@ -128,7 +128,19 @@ const DURATION: Record<string, string> = {
   MC08: "Up to 12 hrs per week for 5 weeks",
 };
 
-/** Merge topic + section outline + duration into source_metadata (idempotent). */
+/** Total estimated study time (≈ hrs/week × weeks). */
+const STUDY_TIME: Record<string, string> = {
+  MC01: "Around 60 hours total",
+  MC02: "Around 40 hours total",
+  MC03: "Around 60 hours total",
+  MC04: "Around 75 hours total",
+  MC05: "Around 75 hours total",
+  MC06: "Around 48 hours total",
+  MC07: "Around 40 hours total",
+  MC08: "Around 60 hours total",
+};
+
+/** Merge topic + sections + duration + study time into source_metadata (idempotent). */
 async function setCredentialMeta(credentialId: string, code: string, topic: string): Promise<void> {
   await getPool().query(
     `UPDATE credential_versions
@@ -140,6 +152,7 @@ async function setCredentialMeta(credentialId: string, code: string, topic: stri
         topic,
         chapters: CHAPTERS[code] ?? [],
         duration: DURATION[code] ?? "Self-paced, fully online",
+        studyTime: STUDY_TIME[code] ?? "",
       }),
     ],
   );

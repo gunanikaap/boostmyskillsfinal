@@ -69,6 +69,8 @@ export interface PublicCredentialDetail extends CatalogueCredential {
   chapters: string[];
   /** Effort/duration line from source_metadata (e.g. "Up to 15 hrs per week…"). */
   duration: string | null;
+  /** Total estimated study time from source_metadata (e.g. "Around 60 hours total"). */
+  studyTime: string | null;
 }
 
 /** Public detail by slug. Returns null for draft/hidden/missing (no leak). */
@@ -83,6 +85,7 @@ export async function getPublishedCredentialBySlug(
             cv.source_metadata->>'topic' AS topic,
             cv.source_metadata->'chapters' AS chapters,
             cv.source_metadata->>'duration' AS duration,
+            cv.source_metadata->>'studyTime' AS study_time,
             p.organisation_name, p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
@@ -118,6 +121,7 @@ export async function getPublishedCredentialBySlug(
     credentialVersionId: r.version_id as string,
     chapters: (r.chapters as string[] | null) ?? [],
     duration: (r.duration as string) ?? null,
+    studyTime: (r.study_time as string) ?? null,
   };
 }
 
