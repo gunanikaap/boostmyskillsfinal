@@ -168,18 +168,22 @@ function slugify(s: string): string {
 }
 
 /**
- * Idempotently ensure a project row exists for a (funded project, organisation)
- * pair. The Project facet groups by project name, the Organisation facet by org,
- * so distinct (project, org) pairs give the catalogue a realistic partner spread.
+ * Idempotently ensure ONE project row per funded project (keyed by name), so a
+ * funded project such as RES4CITY appears exactly once everywhere it's listed
+ * (admin project pickers, catalogue Project facet, analytics). The organisation
+ * is taken from the first credential that introduces the project; RES4CITY is
+ * created up front (organisation "RES4CITY") and reused by all its credentials.
  */
 async function ensureProject(name: string, org: string): Promise<string> {
-  const slug = slugify(`${name}-${org}`);
-  const found = (await getPool().query(`SELECT id FROM projects WHERE slug = $1`, [slug])).rows[0]
-    ?.id as string | undefined;
+  const found = (
+    await getPool().query(`SELECT id FROM projects WHERE name = $1 ORDER BY created_at LIMIT 1`, [
+      name,
+    ])
+  ).rows[0]?.id as string | undefined;
   if (found) return found;
   return createProject({
     name,
-    slug,
+    slug: slugify(name),
     organisationName: org,
     certificateTemplate: {
       issuerName: name,
