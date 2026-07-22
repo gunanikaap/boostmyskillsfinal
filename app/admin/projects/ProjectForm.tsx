@@ -20,7 +20,6 @@ export function ProjectForm() {
       <h3 style={{ margin: 0 }}>New project</h3>
       <input name="name" placeholder="Project name" required />
       <input name="slug" placeholder="slug" required />
-      <input name="organisationName" placeholder="Organisation name" required />
       <input name="issuerName" placeholder="Certificate issuer name (optional)" />
       <input name="signatoryName" placeholder="Certificate signatory name (optional)" />
       <input name="signatoryRole" placeholder="Certificate signatory role (optional)" />

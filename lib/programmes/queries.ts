@@ -26,7 +26,9 @@ export async function getPublishedProgrammeBySlug(
 ): Promise<PublicProgrammeDetail | null> {
   const { rows } = await conn.query(
     `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.about_content,
-            mp.banner_object_key, p.organisation_name, p.name AS project_name
+            mp.banner_object_key,
+            COALESCE(NULLIF(mp.about_content->>'organisation', ''), p.organisation_name) AS organisation_name,
+            p.name AS project_name
      FROM micro_programmes mp
      JOIN projects p ON p.id = mp.project_id
      WHERE mp.status = 'published' AND mp.slug = $1`,
@@ -36,11 +38,14 @@ export async function getPublishedProgrammeBySlug(
   if (!r) return null;
 
   // Only list published member credentials (published + a published revision).
+  // Each member's organisation now comes from the credential (source_metadata),
+  // falling back to its project.
   const memRes = await conn.query(
-    `SELECT mc.id, mc.code, mc.slug, pc.position, cv.title, mp2.organisation_name
+    `SELECT mc.id, mc.code, mc.slug, pc.position, cv.title,
+            COALESCE(NULLIF(cv.source_metadata->>'organisation', ''), pr.organisation_name) AS organisation_name
      FROM programme_credentials pc
      JOIN micro_credentials mc ON mc.id = pc.credential_id
-     JOIN projects mp2 ON mp2.id = mc.project_id
+     JOIN projects pr ON pr.id = mc.project_id
      JOIN credential_versions cv ON cv.credential_id = mc.id AND cv.status='published'
      WHERE pc.programme_id = $1 AND mc.status = 'published'
      ORDER BY pc.position`,

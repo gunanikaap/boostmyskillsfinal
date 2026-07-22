@@ -39,7 +39,7 @@ export async function adminGetCredential(id: string, conn: Queryable = db) {
   );
   if (!cred.rows[0]) return null;
   const versions = await conn.query(
-    `SELECT id, revision_number, status, title, published_at,
+    `SELECT id, revision_number, status, title, published_at, source_metadata,
             content_document, grading_document, certification_rule
      FROM credential_versions WHERE credential_id = $1 ORDER BY revision_number DESC`,
     [id],
@@ -74,6 +74,7 @@ export interface AdminProgrammeDetail {
   projectName: string;
   shortDescription: string | null;
   aboutHtml: string;
+  organisationName: string;
   bannerObjectKey: string | null;
   members: {
     credentialId: string;
@@ -107,7 +108,7 @@ export async function adminGetProgramme(
         project_id: string;
         project_name: string;
         short_description: string | null;
-        about_content: { html?: string } | null;
+        about_content: { html?: string; organisation?: string } | null;
         banner_object_key: string | null;
       }
     | undefined;
@@ -147,6 +148,7 @@ export async function adminGetProgramme(
     projectName: prog.project_name,
     shortDescription: prog.short_description,
     aboutHtml: prog.about_content?.html ?? "",
+    organisationName: prog.about_content?.organisation ?? "",
     bannerObjectKey: prog.banner_object_key,
     members: (members.rows as Record<string, unknown>[]).map((m) => ({
       credentialId: m.credential_id as string,

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { adminGetCredential } from "@/lib/admin/queries";
 import { CredentialActions } from "./CredentialActions";
+import { CredentialMeta } from "./CredentialMeta";
 import { BannerUpload } from "./BannerUpload";
 import { ContentBuilder } from "./ContentBuilder";
 import { toBuilderState, emptyBuilderState } from "@/lib/admin/builder/model";
@@ -21,9 +22,26 @@ export default async function AdminCredentialDetail({
   const data = await adminGetCredential(id);
   if (!data) notFound();
 
-  const cred = data.credential as { code: string; status: string; project_name: string };
+  const cred = data.credential as {
+    code: string;
+    slug: string;
+    status: string;
+    project_name: string;
+  };
   const draft = data.versions.find((v) => v.status === "draft");
   const published = data.versions.find((v) => v.status === "published");
+
+  // Current display metadata (prefer the draft, else the published revision).
+  const current = (draft ?? published) as
+    { title?: string; source_metadata?: { organisation?: string; topic?: string } } | undefined;
+  const sm = current?.source_metadata ?? {};
+  const metaInitial = {
+    code: cred.code,
+    slug: cred.slug,
+    title: current?.title ?? "",
+    organisation: sm.organisation ?? "",
+    topic: sm.topic ?? "",
+  };
 
   // Build the visual-builder initial state from the draft (safe-parse; empty on first draft).
   let builderState = emptyBuilderState();
@@ -51,6 +69,8 @@ export default async function AdminCredentialDetail({
           </a>
         </div>
       </div>
+
+      <CredentialMeta credentialId={id} initial={metaInitial} />
 
       <BannerUpload credentialId={id} />
 

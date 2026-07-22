@@ -33,7 +33,6 @@ export function CredentialForm({
         <>
           <input name="newProjectName" placeholder="New project name" required />
           <input name="newProjectSlug" placeholder="New project slug" required />
-          <input name="newProjectOrg" placeholder="Organisation name" required />
           <input name="issuerName" placeholder="Certificate issuer name (optional)" />
           <input name="signatoryName" placeholder="Certificate signatory name (optional)" />
           <input name="signatoryRole" placeholder="Certificate signatory role (optional)" />
@@ -54,6 +53,7 @@ export function CredentialForm({
       <input name="slug" placeholder="slug" required />
       <input name="title" placeholder="Title" required />
       <input name="authorName" placeholder="Author name" required />
+      <input name="organisationName" placeholder="Organisation (delivering university/partner)" />
       <input name="shortDescription" placeholder="Short description (optional)" />
       <input
         name="topic"

@@ -10,6 +10,7 @@ export async function createProgramme(
     title: string;
     shortDescription?: string;
     aboutHtml?: string;
+    organisationName?: string;
     createdBy: string;
   },
   conn: Queryable = db,
@@ -23,7 +24,10 @@ export async function createProgramme(
       input.slug,
       input.title,
       input.shortDescription ?? null,
-      JSON.stringify({ html: sanitizeHtml(input.aboutHtml ?? "") }),
+      JSON.stringify({
+        html: sanitizeHtml(input.aboutHtml ?? ""),
+        ...(input.organisationName?.trim() ? { organisation: input.organisationName.trim() } : {}),
+      }),
       input.createdBy,
     ],
   );
@@ -33,7 +37,12 @@ export async function createProgramme(
 /** Update a programme's title, short description and About/context (sanitised). */
 export async function updateProgramme(
   id: string,
-  input: { title: string; shortDescription?: string; aboutHtml?: string },
+  input: {
+    title: string;
+    shortDescription?: string;
+    aboutHtml?: string;
+    organisationName?: string;
+  },
   conn: Queryable = db,
 ): Promise<void> {
   const res = await conn.query(
@@ -44,7 +53,10 @@ export async function updateProgramme(
       id,
       input.title,
       input.shortDescription ?? null,
-      JSON.stringify({ html: sanitizeHtml(input.aboutHtml ?? "") }),
+      JSON.stringify({
+        html: sanitizeHtml(input.aboutHtml ?? ""),
+        ...(input.organisationName?.trim() ? { organisation: input.organisationName.trim() } : {}),
+      }),
     ],
   );
   if ((res.rowCount ?? 0) === 0) throw new ServiceError("not_found", "Programme not found");

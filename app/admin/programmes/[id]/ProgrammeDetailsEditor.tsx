@@ -30,6 +30,14 @@ export function ProgrammeDetailsEditor({ detail }: { detail: AdminProgrammeDetai
           <input value={detail.slug} readOnly disabled />
         </label>
         <label>
+          Organisation (delivering partner)
+          <input
+            name="organisationName"
+            defaultValue={detail.organisationName}
+            placeholder="e.g. University of Coimbra"
+          />
+        </label>
+        <label>
           Short description
           <input name="shortDescription" defaultValue={detail.shortDescription ?? ""} />
         </label>

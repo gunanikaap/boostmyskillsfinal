@@ -99,6 +99,7 @@ export async function createCredentialWithDraft(
     shortDescription?: string;
     aboutHtml?: string;
     topic?: string;
+    organisationName?: string;
   },
   conn?: Queryable,
 ): Promise<{ credentialId: string; versionId: string }> {
@@ -131,6 +132,9 @@ export async function createCredentialWithDraft(
         JSON.stringify({
           sourceType: "native",
           ...(input.topic?.trim() ? { topic: input.topic.trim() } : {}),
+          ...(input.organisationName?.trim()
+            ? { organisation: input.organisationName.trim() }
+            : {}),
         }),
         input.createdBy,
       ],
@@ -189,6 +193,70 @@ export async function saveDraft(
       input.certificationRule ? JSON.stringify(input.certificationRule) : null,
     ],
   );
+}
+
+/**
+ * Update editable credential metadata: the identity fields (code / slug on the
+ * micro_credential — useful after an OLX import mangles them) and the
+ * version-level meta (title + organisation + topic in source_metadata). Title /
+ * organisation / topic are applied to BOTH the draft and the published revision
+ * so the catalogue reflects a change without needing a republish.
+ */
+export async function updateCredentialMeta(
+  credentialId: string,
+  input: {
+    code?: string;
+    slug?: string;
+    title?: string;
+    organisation?: string;
+    topic?: string;
+  },
+  conn?: Queryable,
+): Promise<void> {
+  const run = async (tx: Queryable) => {
+    const idSets: string[] = [];
+    const idVals: unknown[] = [credentialId];
+    if (input.code !== undefined) {
+      const code = input.code.trim();
+      if (!code) throw new ServiceError("invalid_code", "Code cannot be empty.");
+      idVals.push(code);
+      idSets.push(`code = $${idVals.length}`);
+    }
+    if (input.slug !== undefined) {
+      const slug = input.slug.trim();
+      if (!slug) throw new ServiceError("invalid_slug", "Slug cannot be empty.");
+      idVals.push(slug);
+      idSets.push(`slug = $${idVals.length}`);
+    }
+    if (idSets.length) {
+      try {
+        await tx.query(`UPDATE micro_credentials SET ${idSets.join(", ")} WHERE id = $1`, idVals);
+      } catch (err) {
+        if ((err as { code?: string }).code === "23505") {
+          throw new ServiceError(
+            "duplicate",
+            "That code or slug is already used by another credential.",
+          );
+        }
+        throw err;
+      }
+    }
+
+    const patch: Record<string, string> = {};
+    if (input.organisation !== undefined) patch.organisation = input.organisation.trim();
+    if (input.topic !== undefined) patch.topic = input.topic.trim();
+    const setTitle = input.title !== undefined;
+    if (setTitle || Object.keys(patch).length > 0) {
+      await tx.query(
+        `UPDATE credential_versions
+         SET title = COALESCE($2, title),
+             source_metadata = source_metadata || $3::jsonb
+         WHERE credential_id = $1 AND status IN ('draft', 'published')`,
+        [credentialId, setTitle ? input.title!.trim() : null, JSON.stringify(patch)],
+      );
+    }
+  };
+  return conn ? run(conn) : withTransaction(run);
 }
 
 /**

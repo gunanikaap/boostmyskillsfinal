@@ -9,6 +9,7 @@ import {
   updateProject,
   createCredentialWithDraft,
   saveDraft,
+  updateCredentialMeta,
   publishCredential,
   createDraftFromPublished,
   hideCredential,
@@ -56,10 +57,14 @@ function templateFromForm(form: FormData) {
 export async function createProjectAction(form: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
+    // Organisation is now captured per micro-credential / micro-programme, not on
+    // the project. The project's organisation_name column is kept in step with the
+    // project name so existing catalogue/certificate fallbacks stay valid.
+    const name = String(form.get("name") ?? "");
     const id = await createProject({
-      name: String(form.get("name") ?? ""),
+      name,
       slug: String(form.get("slug") ?? ""),
-      organisationName: String(form.get("organisationName") ?? ""),
+      organisationName: name,
       certificateTemplate: templateFromForm(form),
     });
     revalidatePath("/admin/projects");
@@ -72,9 +77,10 @@ export async function createProjectAction(form: FormData): Promise<ActionResult>
 export async function updateProjectAction(id: string, form: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
+    const name = String(form.get("name") ?? "");
     await updateProject(id, {
-      name: String(form.get("name") ?? ""),
-      organisationName: String(form.get("organisationName") ?? ""),
+      name,
+      organisationName: name,
       certificateTemplate: templateFromForm(form),
     });
     revalidatePath(`/admin/projects/${id}`);
@@ -95,20 +101,22 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
     return await withTransaction(async (tx) => {
       let projectId = String(form.get("projectId") ?? "");
       if (!projectId) {
-        const newOrg = String(form.get("newProjectOrg") ?? "");
+        const newName = String(form.get("newProjectName") ?? "");
         const inlineIssuer = String(form.get("issuerName") ?? "").trim();
         const inlineSig = String(form.get("signatoryName") ?? "").trim();
         const inlineRole = String(form.get("signatoryRole") ?? "").trim();
         const certificateTemplate: Record<string, unknown> = {
-          issuerName: inlineIssuer || newOrg || "Issuer",
+          issuerName: inlineIssuer || newName || "Issuer",
         };
         if (inlineSig) certificateTemplate.signatoryName = inlineSig;
         if (inlineRole) certificateTemplate.signatoryRole = inlineRole;
         projectId = await createProject(
           {
-            name: String(form.get("newProjectName") ?? ""),
+            name: newName,
             slug: String(form.get("newProjectSlug") ?? ""),
-            organisationName: newOrg,
+            // Organisation now lives on the credential; keep the project column
+            // in step with its name for fallback purposes.
+            organisationName: newName,
             certificateTemplate,
           },
           tx,
@@ -124,6 +132,7 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
           shortDescription: String(form.get("shortDescription") ?? "") || undefined,
           aboutHtml: String(form.get("aboutHtml") ?? "") || undefined,
           topic: String(form.get("topic") ?? "") || undefined,
+          organisationName: String(form.get("organisationName") ?? "") || undefined,
           createdBy: admin.id,
         },
         tx,
@@ -131,6 +140,21 @@ export async function createCredentialAction(form: FormData): Promise<ActionResu
       revalidatePath("/admin/credentials");
       return { ok: true, message: "Credential draft created.", id: credentialId };
     });
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function updateCredentialMetaAction(
+  credentialId: string,
+  input: { code?: string; slug?: string; title?: string; organisation?: string; topic?: string },
+): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    await updateCredentialMeta(credentialId, input);
+    revalidatePath(`/admin/credentials/${credentialId}`);
+    revalidatePath("/courses");
+    return { ok: true, message: "Credential details saved." };
   } catch (err) {
     return fail(err);
   }
@@ -247,6 +271,7 @@ export async function createProgrammeAction(form: FormData): Promise<ActionResul
       title: String(form.get("title") ?? ""),
       shortDescription: String(form.get("shortDescription") ?? "") || undefined,
       aboutHtml: String(form.get("aboutHtml") ?? "") || undefined,
+      organisationName: String(form.get("organisationName") ?? "") || undefined,
       createdBy: admin.id,
     });
     revalidatePath("/admin/programmes");
@@ -266,6 +291,7 @@ export async function updateProgrammeAction(
       title: String(form.get("title") ?? ""),
       shortDescription: String(form.get("shortDescription") ?? "") || undefined,
       aboutHtml: String(form.get("aboutHtml") ?? "") || undefined,
+      organisationName: String(form.get("organisationName") ?? "") || undefined,
     });
     revalidatePath(`/admin/programmes/${programmeId}`);
     revalidatePath("/programs");

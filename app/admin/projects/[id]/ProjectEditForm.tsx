@@ -29,10 +29,6 @@ export function ProjectEditForm({ project }: { project: ProjectDetail }) {
         Slug (immutable)
         <input value={project.slug} readOnly disabled />
       </label>
-      <label>
-        Organisation name
-        <input name="organisationName" defaultValue={project.organisationName} required />
-      </label>
       <fieldset style={{ border: "1px solid var(--bms-border)", borderRadius: 8 }}>
         <legend>Certificate template</legend>
         <label>

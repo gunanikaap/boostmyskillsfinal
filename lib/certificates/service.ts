@@ -30,7 +30,8 @@ async function loadContext(enrollmentId: string, tx: Queryable): Promise<Enrolme
     `SELECT e.user_id, e.credential_id, e.credential_version_id,
             cv.content_document, cv.grading_document, cv.certification_rule,
             cv.title AS credential_title, mc.code AS credential_code,
-            p.name AS project_name, p.organisation_name, p.certificate_template,
+            p.name AS project_name, p.certificate_template,
+            COALESCE(NULLIF(cv.source_metadata->>'organisation', ''), p.organisation_name) AS organisation_name,
             u.first_name, u.last_name, u.email
      FROM enrollments e
      JOIN credential_versions cv ON cv.id = e.credential_version_id

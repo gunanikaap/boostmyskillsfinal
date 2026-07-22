@@ -30,7 +30,8 @@ export async function listPublishedCredentials(
     `SELECT mc.id, mc.code, mc.slug,
             cv.title, cv.short_description, cv.author_name, cv.banner_object_key,
             cv.source_metadata->>'topic' AS topic,
-            p.organisation_name, p.name AS project_name,
+            COALESCE(NULLIF(cv.source_metadata->>'organisation', ''), p.organisation_name) AS organisation_name,
+            p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
                FROM programme_credentials pc
@@ -86,7 +87,8 @@ export async function getPublishedCredentialBySlug(
             cv.source_metadata->'chapters' AS chapters,
             cv.source_metadata->>'duration' AS duration,
             cv.source_metadata->>'studyTime' AS study_time,
-            p.organisation_name, p.name AS project_name,
+            COALESCE(NULLIF(cv.source_metadata->>'organisation', ''), p.organisation_name) AS organisation_name,
+            p.name AS project_name,
             COALESCE(
               (SELECT array_agg(DISTINCT mp.title)
                FROM programme_credentials pc
@@ -156,7 +158,7 @@ export async function listPublishedProgrammesWithMembers(
 ): Promise<CatalogueProgrammeWithMembers[]> {
   const { rows } = await conn.query(
     `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.banner_object_key,
-            p.organisation_name,
+            COALESCE(NULLIF(mp.about_content->>'organisation', ''), p.organisation_name) AS organisation_name,
             COALESCE(
               (SELECT array_agg(cv.title ORDER BY pc.position)
                FROM programme_credentials pc
@@ -184,7 +186,7 @@ export async function listPublishedProgrammesWithMembers(
 export async function listPublishedProgrammes(conn: Queryable = db): Promise<CatalogueProgramme[]> {
   const { rows } = await conn.query(
     `SELECT mp.id, mp.slug, mp.title, mp.short_description, mp.banner_object_key,
-            p.organisation_name
+            COALESCE(NULLIF(mp.about_content->>'organisation', ''), p.organisation_name) AS organisation_name
      FROM micro_programmes mp
      JOIN projects p ON p.id = mp.project_id
      WHERE mp.status = 'published'
