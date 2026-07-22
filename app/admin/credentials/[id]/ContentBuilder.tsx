@@ -323,10 +323,11 @@ export function ContentBuilder({
   );
 }
 
-function blankUnit(type: "video" | "reading" | "mcq"): BuilderUnit {
+function blankUnit(type: "video" | "reading" | "pdf" | "mcq"): BuilderUnit {
   const base = { id: newId("u"), title: "New unit", required: true, sourceKey: null };
   if (type === "video") return { ...base, type, data: {} };
   if (type === "reading") return { ...base, type, data: { html: "" } };
+  if (type === "pdf") return { ...base, type, data: {} };
   return {
     ...base,
     type: "mcq",
@@ -347,11 +348,11 @@ function blankUnit(type: "video" | "reading" | "mcq"): BuilderUnit {
   };
 }
 
-function AddUnit({ onAdd }: { onAdd: (t: "video" | "reading" | "mcq") => void }) {
+function AddUnit({ onAdd }: { onAdd: (t: "video" | "reading" | "pdf" | "mcq") => void }) {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       <span style={{ color: "var(--bms-muted)", fontSize: 13 }}>Add unit:</span>
-      {(["video", "reading", "mcq"] as const).map((t) => (
+      {(["video", "reading", "pdf", "mcq"] as const).map((t) => (
         <button key={t} style={ghost} className="btn" onClick={() => onAdd(t)}>
           + {t.toUpperCase()}
         </button>
@@ -413,6 +414,7 @@ function UnitEditor({
       </div>
       {unit.type === "video" && <VideoFields unit={unit} onChange={onChange} />}
       {unit.type === "reading" && <ReadingFields unit={unit} onChange={onChange} />}
+      {unit.type === "pdf" && <PdfFields unit={unit} onChange={onChange} />}
       {unit.type === "mcq" && <McqFields unit={unit} onChange={onChange} />}
     </div>
   );
@@ -478,6 +480,45 @@ function ReadingFields({
         </summary>
         <div className="card" dangerouslySetInnerHTML={{ __html: unit.data.html }} />
       </details>
+    </div>
+  );
+}
+
+function PdfFields({
+  unit,
+  onChange,
+}: {
+  unit: Extract<BuilderUnit, { type: "pdf" }>;
+  onChange: (u: BuilderUnit) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      <input
+        aria-label="PDF URL"
+        placeholder="Link to a PDF (https://…/document.pdf)"
+        value={unit.data.url ?? ""}
+        onChange={(e) => onChange({ ...unit, data: { ...unit.data, url: e.target.value } })}
+      />
+      <input
+        aria-label="PDF display name"
+        placeholder="Display name (optional)"
+        value={unit.data.filename ?? ""}
+        onChange={(e) => onChange({ ...unit, data: { ...unit.data, filename: e.target.value } })}
+      />
+      {unit.data.url && (
+        <div style={{ height: 320, marginTop: 4 }}>
+          <iframe
+            title="PDF preview"
+            src={unit.data.url}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "1px solid var(--bms-border)",
+              borderRadius: 8,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

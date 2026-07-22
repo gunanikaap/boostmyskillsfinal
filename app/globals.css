@@ -1544,6 +1544,60 @@ a {
   margin: 12px 0 0;
   font-weight: 600;
 }
+/* PDF unit */
+.unit-pdf iframe {
+  width: 100%;
+  height: 75vh;
+  min-height: 460px;
+  border: 1px solid var(--bms-border);
+  border-radius: 14px;
+  background: var(--bms-bg-soft);
+}
+.unit-pdf__open {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--bms-green-dark);
+  font-weight: 600;
+}
+/* MCQ review (after submission) */
+.mcq__score {
+  font-weight: 700;
+  color: var(--bms-ink);
+  margin: 0 0 16px;
+}
+.mcq__option--review {
+  cursor: default;
+}
+.mcq__option--correct {
+  border-color: var(--bms-green);
+  background: var(--bms-green-soft);
+}
+.mcq__option--wrong {
+  border-color: #e6b0aa;
+  background: #fdecea;
+}
+.mcq__mark {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-weight: 800;
+}
+.mcq__option--correct .mcq__mark {
+  color: var(--bms-green-dark);
+}
+.mcq__option--wrong .mcq__mark {
+  color: #b3261e;
+}
+.mcq__tag {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--bms-muted);
+  white-space: nowrap;
+}
+.mcq__tag--correct {
+  color: var(--bms-green-dark);
+}
 .player__nav {
   display: flex;
   justify-content: space-between;

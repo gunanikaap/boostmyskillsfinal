@@ -39,6 +39,17 @@ const readingData = z
   })
   .strict();
 
+const pdfData = z
+  .object({
+    // A PDF by URL (rendered in an embedded viewer, like the video embed) and/or
+    // an object-storage key served through /media. At least one is required.
+    url: z.string().url().max(2000).optional(),
+    objectKey: z.string().min(1).max(512).optional(),
+    filename: z.string().max(256).optional(),
+  })
+  .strict()
+  .refine((d) => d.url || d.objectKey, { message: "pdf unit requires a url or objectKey" });
+
 const mcqOption = z
   .object({
     id: stableId,
@@ -71,6 +82,7 @@ const baseUnit = {
 const unit = z.discriminatedUnion("type", [
   z.object({ ...baseUnit, type: z.literal("video"), data: videoData }).strict(),
   z.object({ ...baseUnit, type: z.literal("reading"), data: readingData }).strict(),
+  z.object({ ...baseUnit, type: z.literal("pdf"), data: pdfData }).strict(),
   z.object({ ...baseUnit, type: z.literal("mcq"), data: mcqData }).strict(),
 ]);
 

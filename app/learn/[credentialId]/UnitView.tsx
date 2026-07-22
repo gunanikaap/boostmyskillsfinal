@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitMcqAction, markUnitCompleteAction } from "./actions";
-import type { UnitState } from "@/lib/learner/queries";
+import type { UnitState, McqReview } from "@/lib/learner/queries";
 
 // The unit shape the player receives — NO correct answers are present.
 export interface PlayerUnit {
   id: string;
-  type: "video" | "reading" | "mcq";
+  type: "video" | "reading" | "pdf" | "mcq";
   title: string;
   data: unknown;
 }
@@ -17,22 +17,25 @@ export function UnitView({
   credentialId,
   unit,
   state,
+  review,
 }: {
   credentialId: string;
   unit: PlayerUnit;
   state?: UnitState;
+  review?: McqReview | null;
 }) {
   return (
     <div className="unit">
       {unit.type === "video" && <VideoUnit data={unit.data} />}
       {unit.type === "reading" && <ReadingUnit data={unit.data} />}
+      {unit.type === "pdf" && <PdfUnit data={unit.data} />}
       {unit.type === "mcq" && (
         <McqUnit
           credentialId={credentialId}
           unitId={unit.id}
           data={unit.data}
           locked={Boolean(state?.attempted)}
-          lastPercentage={state?.attemptPercentage ?? null}
+          review={review ?? null}
         />
       )}
       {unit.type !== "mcq" && (
@@ -66,6 +69,22 @@ function ReadingUnit({ data }: { data: unknown }) {
   const d = data as { html?: string };
   // html was sanitised server-side at authoring time.
   return <div className="unit-content" dangerouslySetInnerHTML={{ __html: d.html ?? "" }} />;
+}
+
+function PdfUnit({ data }: { data: unknown }) {
+  const d = data as { url?: string; objectKey?: string; filename?: string };
+  const src = d.url ?? (d.objectKey ? `/media/${d.objectKey}` : null);
+  if (!src) {
+    return <p style={{ color: "var(--bms-muted)" }}>PDF unavailable.</p>;
+  }
+  return (
+    <div className="unit-pdf">
+      <iframe title={d.filename ?? "PDF document"} src={`${src}#view=FitH`} />
+      <a href={src} target="_blank" rel="noopener noreferrer" className="unit-pdf__open">
+        Open the PDF in a new tab ↗
+      </a>
+    </div>
+  );
 }
 
 function MarkComplete({
@@ -113,13 +132,13 @@ function McqUnit({
   unitId,
   data,
   locked,
-  lastPercentage,
+  review,
 }: {
   credentialId: string;
   unitId: string;
   data: unknown;
   locked: boolean;
-  lastPercentage: number | null;
+  review: McqReview | null;
 }) {
   const router = useRouter();
   const d = data as {
@@ -130,15 +149,48 @@ function McqUnit({
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
 
+  // Submitted: show the score and reveal correct answers alongside the learner's.
   if (locked) {
     return (
-      <p className="unit-done" role="status">
-        <span className="unit-done__check" aria-hidden="true">
-          ✓
-        </span>
-        Assessment submitted{lastPercentage !== null ? ` — score ${lastPercentage}%` : ""}. No
-        further attempts.
-      </p>
+      <div className="mcq mcq--review">
+        <p className="mcq__score">
+          Assessment submitted
+          {review?.percentage != null ? ` — score ${review.percentage}%` : ""}. No further attempts.
+        </p>
+        {review &&
+          d.questions.map((q, qi) => {
+            const correct = review.correctByQuestion[q.id] ?? [];
+            const chosen = review.chosenByQuestion[q.id] ?? [];
+            return (
+              <fieldset key={q.id} className="mcq__q">
+                <div className="mcq__legend">
+                  <span className="mcq__num">{qi + 1}</span> {q.text}
+                </div>
+                <div className="mcq__options">
+                  {q.options.map((o) => {
+                    const isCorrect = correct.includes(o.id);
+                    const isChosen = chosen.includes(o.id);
+                    const cls = isCorrect
+                      ? " mcq__option--correct"
+                      : isChosen
+                        ? " mcq__option--wrong"
+                        : "";
+                    return (
+                      <div key={o.id} className={`mcq__option mcq__option--review${cls}`}>
+                        <span className="mcq__mark" aria-hidden="true">
+                          {isCorrect ? "✓" : isChosen ? "✗" : ""}
+                        </span>
+                        <span>{o.text}</span>
+                        {isCorrect && <span className="mcq__tag mcq__tag--correct">Correct</span>}
+                        {isChosen && !isCorrect && <span className="mcq__tag">Your answer</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            );
+          })}
+      </div>
     );
   }
 

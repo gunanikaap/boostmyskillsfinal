@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { getLearnerContent } from "@/lib/player/service";
-import { getEnrollmentUnitState } from "@/lib/learner/queries";
+import { getEnrollmentUnitState, getMcqReview } from "@/lib/learner/queries";
 import { getCredentialProgress } from "@/lib/progress/queries";
 import { AccessError } from "@/lib/access/errors";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
@@ -11,7 +11,12 @@ import { UnitView } from "./UnitView";
 
 export const dynamic = "force-dynamic";
 
-const TYPE_LABEL: Record<string, string> = { reading: "Reading", video: "Video", mcq: "Quiz" };
+const TYPE_LABEL: Record<string, string> = {
+  reading: "Reading",
+  video: "Video",
+  pdf: "PDF",
+  mcq: "Quiz",
+};
 
 function UnitIcon({ status }: { status?: string }) {
   if (status === "completed") {
@@ -116,6 +121,12 @@ export default async function PlayerPage({
   const next = flat[currentIndex + 1];
   const unitHref = (id: string) => `/learn/${credentialId}?unit=${id}`;
 
+  // For a submitted MCQ, load the review (correct answers + the learner's choices).
+  const review =
+    current.unit.type === "mcq" && stateMap[current.unit.id]?.attempted
+      ? await getMcqReview(enrollmentId, current.unit.id)
+      : null;
+
   return (
     <>
       <SiteHeader />
@@ -186,6 +197,7 @@ export default async function PlayerPage({
                 data: current.unit.data,
               }}
               state={stateMap[current.unit.id]}
+              review={review}
             />
 
             <nav className="player__nav" aria-label="Lesson navigation">

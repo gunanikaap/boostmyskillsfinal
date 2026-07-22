@@ -32,6 +32,7 @@ interface UnitBase {
 export type BuilderUnit =
   | (UnitBase & { type: "video"; data: { youtubeId?: string; mediaObjectKey?: string } })
   | (UnitBase & { type: "reading"; data: { html: string } })
+  | (UnitBase & { type: "pdf"; data: { url?: string; objectKey?: string; filename?: string } })
   | (UnitBase & { type: "mcq"; data: { passMark: number; questions: BuilderQuestion[] } });
 export interface BuilderSubsection {
   id: string;
@@ -132,6 +133,20 @@ export function assembleDocuments(state: BuilderState): {
               data,
             };
           }
+          if (u.type === "pdf") {
+            const data: { url?: string; objectKey?: string; filename?: string } = {};
+            if (u.data.url) data.url = u.data.url;
+            if (u.data.objectKey) data.objectKey = u.data.objectKey;
+            if (u.data.filename) data.filename = u.data.filename;
+            return {
+              id: u.id,
+              sourceKey: u.sourceKey,
+              type: "pdf" as const,
+              title: u.title,
+              required: u.required,
+              data,
+            };
+          }
           return {
             id: u.id,
             sourceKey: u.sourceKey,
@@ -216,6 +231,16 @@ export function toBuilderState(
               required: u.required,
               sourceKey: u.sourceKey,
               type: "video",
+              data: { ...u.data },
+            };
+          }
+          if (u.type === "pdf") {
+            return {
+              id: u.id,
+              title: u.title,
+              required: u.required,
+              sourceKey: u.sourceKey,
+              type: "pdf",
               data: { ...u.data },
             };
           }

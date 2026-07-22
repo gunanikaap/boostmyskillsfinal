@@ -113,6 +113,46 @@ export async function getEnrollmentUnitState(
   return out;
 }
 
+export interface McqReview {
+  percentage: number | null;
+  correctByQuestion: Record<string, string[]>;
+  chosenByQuestion: Record<string, string[]>;
+}
+
+/**
+ * Post-submission MCQ review: the correct option ids (from the recorded grading
+ * snapshot) and the learner's own answers, for the latest attempt. Only ever
+ * exposed AFTER the learner has submitted — the content_document never carries
+ * answers. Null if there is no attempt yet.
+ */
+export async function getMcqReview(
+  enrollmentId: string,
+  unitId: string,
+  conn: Queryable = db,
+): Promise<McqReview | null> {
+  const { rows } = await conn.query(
+    `SELECT percentage, submitted_answers, grading_snapshot
+     FROM assessment_attempts
+     WHERE enrollment_id = $1 AND unit_id = $2
+     ORDER BY attempt_number DESC LIMIT 1`,
+    [enrollmentId, unitId],
+  );
+  const r = rows[0] as
+    | { percentage: string | null; submitted_answers: unknown; grading_snapshot: unknown }
+    | undefined;
+  if (!r) return null;
+  const snap = r.grading_snapshot as {
+    questions?: { questionId: string; correctOptionIds: string[] }[];
+  };
+  const correctByQuestion: Record<string, string[]> = {};
+  for (const q of snap.questions ?? []) correctByQuestion[q.questionId] = q.correctOptionIds;
+  return {
+    percentage: r.percentage !== null ? Number(r.percentage) : null,
+    correctByQuestion,
+    chosenByQuestion: (r.submitted_answers as Record<string, string[]>) ?? {},
+  };
+}
+
 export interface CertificateListItem {
   verificationCode: string;
   credentialTitle: string;
