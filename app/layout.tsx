@@ -3,6 +3,7 @@ import { Urbanist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { siteUrl } from "@/lib/env";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import { enforceMaintenanceGate } from "@/lib/settings/maintenanceGate";
 import "./globals.css";
 
 // The BoostMySkills brand typeface (matches boostmyskills.eu).
@@ -22,7 +23,10 @@ export const metadata: Metadata = {
   description: "BoostMySkills — micro-credentials and micro-programmes for sustainability skills.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Global maintenance gate: when on, only home + /maintenance are reachable
+  // (admins keep full access). Runs before render so it covers every page.
+  await enforceMaintenanceGate();
   const body = (
     <html lang="en" className={urbanist.variable}>
       <body>{children}</body>

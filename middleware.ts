@@ -14,6 +14,17 @@ const isProtected = createRouteMatcher(["/dashboard(.*)", "/account(.*)", "/admi
 
 const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
+/**
+ * Expose the request path to server components (Next doesn't surface it) via an
+ * `x-pathname` header, so the root layout's maintenance gate can allow-list the
+ * home page and /maintenance while blocking everything else.
+ */
+function withPathname(req: NextRequest): NextResponse {
+  const headers = new Headers(req.headers);
+  headers.set("x-pathname", req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers } });
+}
+
 const handler = clerkConfigured
   ? clerkMiddleware(async (auth, req) => {
       if (isProtected(req)) {
@@ -25,8 +36,9 @@ const handler = clerkConfigured
           return redirectToSignIn({ returnBackUrl: req.url });
         }
       }
+      return withPathname(req);
     })
-  : (_req: NextRequest) => NextResponse.next();
+  : (req: NextRequest) => withPathname(req);
 
 export default handler;
 
