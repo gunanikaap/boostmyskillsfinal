@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { enrolInCredentialAction } from "./actions";
+import { enrolInCredentialAction, unenrolFromCredentialAction } from "./actions";
 
 function Arrow() {
   return (
@@ -67,6 +67,25 @@ export function EnrolButton({
         <Link href={`/learn/${credentialId}`} className="enrol-state__go">
           Go to course <Arrow />
         </Link>
+        <button
+          type="button"
+          className="enrol-state__undo"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const res = await unenrolFromCredentialAction(credentialId);
+              setMessage(res.ok ? null : res.message);
+              if (res.ok) router.refresh();
+            })
+          }
+        >
+          {pending ? "Unenrolling…" : "Unenrol"}
+        </button>
+        {message && (
+          <p style={{ marginTop: 8, color: "var(--bms-muted)" }} role="status">
+            {message}
+          </p>
+        )}
       </div>
     );
   }

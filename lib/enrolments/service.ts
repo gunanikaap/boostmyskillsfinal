@@ -164,35 +164,35 @@ export async function registerForProgramme(
 }
 
 /**
- * Withdraw from a programme and every one of its member credentials. Uses the
- * 'withdrawn' status (not DELETE) so progress/certificates are preserved and a
- * later re-registration reactivates the same enrolments.
+ * Withdraw from a PROGRAMME only. The member micro-credential enrolments are
+ * intentionally left intact — the learner stays enrolled in the individual
+ * courses and can unenrol from them separately. Uses the 'withdrawn' status (not
+ * DELETE) so progress/certificates are preserved and a later re-registration
+ * reactivates the programme enrolment.
  */
 export async function unregisterFromProgramme(
   userId: string,
   programmeId: string,
-  conn?: Queryable,
+  conn: Queryable = db,
 ): Promise<void> {
-  const run = async (tx: Queryable) => {
-    const mem = await tx.query(
-      `SELECT credential_id FROM programme_credentials WHERE programme_id = $1`,
-      [programmeId],
-    );
-    const credIds = (mem.rows as { credential_id: string }[]).map((r) => r.credential_id);
-    if (credIds.length) {
-      await tx.query(
-        `UPDATE enrollments SET status = 'withdrawn'
-         WHERE user_id = $1 AND credential_id = ANY($2::uuid[]) AND status <> 'withdrawn'`,
-        [userId, credIds],
-      );
-    }
-    await tx.query(
-      `UPDATE enrollments SET status = 'withdrawn'
-       WHERE user_id = $1 AND programme_id = $2 AND status <> 'withdrawn'`,
-      [userId, programmeId],
-    );
-  };
-  return conn ? run(conn) : withTransaction(run);
+  await conn.query(
+    `UPDATE enrollments SET status = 'withdrawn'
+     WHERE user_id = $1 AND programme_id = $2 AND status <> 'withdrawn'`,
+    [userId, programmeId],
+  );
+}
+
+/** Withdraw from a single micro-credential (progress/certificate preserved). */
+export async function unenrolFromCredential(
+  userId: string,
+  credentialId: string,
+  conn: Queryable = db,
+): Promise<void> {
+  await conn.query(
+    `UPDATE enrollments SET status = 'withdrawn'
+     WHERE user_id = $1 AND credential_id = $2 AND status <> 'withdrawn'`,
+    [userId, credentialId],
+  );
 }
 
 /** Is the user currently enrolled (non-withdrawn) in this credential? */

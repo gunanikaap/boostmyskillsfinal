@@ -2,12 +2,25 @@
 
 import { requireAuthenticatedUser } from "@/lib/access/guards";
 import { requirePublishedCredentialAccess } from "@/lib/access/guards";
-import { enrolInCredential } from "@/lib/enrolments/service";
+import { enrolInCredential, unenrolFromCredential } from "@/lib/enrolments/service";
 import { AccessError } from "@/lib/access/errors";
 
 export interface EnrolResult {
   ok: boolean;
   message: string;
+}
+
+export async function unenrolFromCredentialAction(credentialId: string): Promise<EnrolResult> {
+  try {
+    const user = await requireAuthenticatedUser();
+    await unenrolFromCredential(user.id, credentialId);
+    return { ok: true, message: "You have unenrolled from this micro-credential." };
+  } catch (err) {
+    if (err instanceof AccessError && err.kind === "unauthenticated") {
+      return { ok: false, message: "Please sign in." };
+    }
+    return { ok: false, message: "Could not unenrol. Please try again." };
+  }
 }
 
 export async function enrolInCredentialAction(credentialId: string): Promise<EnrolResult> {
