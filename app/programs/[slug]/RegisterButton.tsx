@@ -49,18 +49,67 @@ export function RegisterButton({
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
-  // Anonymous visitors are sent to sign in (and returned here afterwards).
-  if (!signedIn) {
-    return (
-      <Link href={signInHref} className="btn btn-lg">
-        Register for programme <Arrow />
-      </Link>
-    );
-  }
+  const view = !signedIn
+    ? "signin"
+    : !registered
+      ? "register"
+      : confirming
+        ? "confirm"
+        : "registered";
 
-  if (registered) {
-    if (confirming) {
-      return (
+  // key={view} replays the .enrol-anim transition on every state change.
+  return (
+    <div key={view} className="enrol-anim">
+      {view === "signin" && (
+        <Link href={signInHref} className="btn btn-lg">
+          Register for programme <Arrow />
+        </Link>
+      )}
+
+      {view === "register" && (
+        <>
+          <button
+            className="btn btn-lg"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const res = await registerForProgrammeAction(programmeId);
+                setMessage(res.ok ? null : res.message);
+                if (res.ok) router.refresh();
+              })
+            }
+          >
+            {pending ? (
+              "Registering…"
+            ) : (
+              <>
+                Register for programme <Arrow />
+              </>
+            )}
+          </button>
+          {message && (
+            <p style={{ marginTop: 10, color: "var(--bms-muted)" }} role="status">
+              {message}
+            </p>
+          )}
+        </>
+      )}
+
+      {view === "registered" && (
+        <button
+          type="button"
+          className="btn btn-lg enrol-state__toggle"
+          title="Click to unregister"
+          onClick={() => {
+            setMessage(null);
+            setConfirming(true);
+          }}
+        >
+          <Check /> Registered
+        </button>
+      )}
+
+      {view === "confirm" && (
         <div className="enrol-confirm">
           <span className="enrol-confirm__q">Unregister from this programme?</span>
           <div className="enrol-confirm__actions">
@@ -97,45 +146,6 @@ export function RegisterButton({
             </p>
           )}
         </div>
-      );
-    }
-    return (
-      <button
-        type="button"
-        className="btn btn-lg enrol-state__toggle"
-        title="Click to unregister"
-        onClick={() => setConfirming(true)}
-      >
-        <Check /> Registered
-      </button>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        className="btn btn-lg"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const res = await registerForProgrammeAction(programmeId);
-            setMessage(res.ok ? null : res.message);
-            if (res.ok) router.refresh();
-          })
-        }
-      >
-        {pending ? (
-          "Registering…"
-        ) : (
-          <>
-            Register for programme <Arrow />
-          </>
-        )}
-      </button>
-      {message && (
-        <p style={{ marginTop: 10, color: "var(--bms-muted)" }} role="status">
-          {message}
-        </p>
       )}
     </div>
   );

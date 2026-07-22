@@ -1178,6 +1178,25 @@ a {
 }
 
 /* ---- Enrolled / registered state -------------------------------------- */
+/* Smooth fade/slide when toggling between the button, badge and confirmation. */
+.enrol-anim {
+  animation: enrolSwap 0.22s ease;
+}
+@keyframes enrolSwap {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .enrol-anim {
+    animation: none;
+  }
+}
 .enrol-state {
   display: flex;
   align-items: center;
