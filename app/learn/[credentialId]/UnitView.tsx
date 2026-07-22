@@ -117,6 +117,8 @@ function MarkComplete({
         onClick={() =>
           start(async () => {
             await markUnitCompleteAction(credentialId, unitId);
+            // Pin the URL to this unit so completing it doesn't auto-advance.
+            router.replace(`/learn/${credentialId}?unit=${unitId}`);
             router.refresh();
           })
         }
@@ -230,6 +232,9 @@ function McqUnit({
               setResult(
                 res.message + (res.percentage !== undefined ? ` (${res.percentage}%)` : ""),
               );
+              // Stay on THIS quiz (pin the URL) so the review is visible; the
+              // learner advances only with the Next button.
+              router.replace(`/learn/${credentialId}?unit=${unitId}`);
               router.refresh();
             })
           }
