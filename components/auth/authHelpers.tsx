@@ -14,6 +14,13 @@ export function safeNext(): string {
   return "/dashboard";
 }
 
+/** True when Clerk reports the user already has an active session. */
+export function isSessionExistsError(err: unknown): boolean {
+  const e = err as { errors?: { code?: string; message?: string }[] } | undefined;
+  const first = e?.errors?.[0];
+  return first?.code === "session_exists" || /already signed in/i.test(first?.message ?? "");
+}
+
 /** Extract a human-readable message from a Clerk API error. */
 export function clerkErrorMessage(err: unknown): string {
   const e = err as { errors?: { longMessage?: string; message?: string }[] } | undefined;

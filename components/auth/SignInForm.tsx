@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs";
-import { EyeButton, clerkErrorMessage, safeNext } from "./authHelpers";
+import { EyeButton, clerkErrorMessage, isSessionExistsError, safeNext } from "./authHelpers";
 
 type View = "signin" | "reset-request" | "reset-code";
 
@@ -46,6 +46,10 @@ export default function SignInForm() {
         setError("Additional verification is required for this account.");
       }
     } catch (err) {
+      if (isSessionExistsError(err)) {
+        router.push(safeNext());
+        return;
+      }
       setError(clerkErrorMessage(err));
     } finally {
       setPending(false);

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
-import { EyeButton, clerkErrorMessage, safeNext } from "./authHelpers";
+import { EyeButton, clerkErrorMessage, isSessionExistsError, safeNext } from "./authHelpers";
 import { COUNTRIES } from "@/lib/geo/countries";
 
 const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
@@ -53,6 +53,10 @@ export default function SignUpForm() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setVerifying(true);
     } catch (err) {
+      if (isSessionExistsError(err)) {
+        router.push(safeNext());
+        return;
+      }
       setError(clerkErrorMessage(err));
     } finally {
       setPending(false);
@@ -73,6 +77,10 @@ export default function SignUpForm() {
         setError("Could not complete verification. Please check the code and try again.");
       }
     } catch (err) {
+      if (isSessionExistsError(err)) {
+        router.push(safeNext());
+        return;
+      }
       setError(clerkErrorMessage(err));
     } finally {
       setPending(false);

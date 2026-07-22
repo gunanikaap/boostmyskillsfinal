@@ -1,10 +1,22 @@
+import { redirect } from "next/navigation";
 import AuthShell from "@/components/AuthShell";
 import AuthPanel from "@/components/auth/AuthPanel";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import { isSignedIn } from "@/lib/auth/session";
+import { safeReturnPath } from "@/lib/redirects/redirects";
 
 export const metadata = { title: "Sign in" };
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect_url?: string }>;
+}) {
+  // Already-authenticated visitors shouldn't see the auth form.
+  if (await isSignedIn()) {
+    const { redirect_url } = await searchParams;
+    redirect(safeReturnPath(redirect_url, "/dashboard"));
+  }
   return (
     <AuthShell>
       {clerkConfigured() ? (
