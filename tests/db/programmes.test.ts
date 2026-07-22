@@ -53,10 +53,8 @@ describe("programme membership validation", () => {
     ).rejects.toMatchObject({ code: "duplicate_credential" });
   });
 
-  it("rejects credentials from a different organisation", async () => {
+  it("rejects credentials from a different project", async () => {
     const admin = await makeUser("admin");
-    // makeProject gives each project a distinct organisation, so a credential
-    // under projectB has a different organisation than a programme under projectA.
     const projectA = await makeProject();
     const projectB = await makeProject();
     const cB = await makeCredential(projectB, "published");
@@ -68,47 +66,7 @@ describe("programme membership validation", () => {
     });
     await expect(
       setProgrammeCredentials(prog, [{ credentialId: cB, position: 0 }]),
-    ).rejects.toMatchObject({ code: "organisation_mismatch" });
-  });
-
-  it("allows credentials of the same organisation across different projects", async () => {
-    const admin = await makeUser("admin");
-    const org = "Shared University";
-    const projectA = await makeProject();
-    const projectB = await makeProject();
-    const rnd = () => Math.round(Math.random() * 1e9);
-    const mk = async (projectId: string) =>
-      (
-        await createCredentialWithDraft({
-          projectId,
-          code: `C-${rnd()}`,
-          slug: `c-${rnd()}`,
-          title: "C",
-          authorName: "A",
-          organisationName: org,
-          createdBy: admin,
-        })
-      ).credentialId;
-    const a = await mk(projectA);
-    const b = await mk(projectB);
-    const prog = await createProgramme({
-      projectId: projectA,
-      slug: `p-${rnd()}`,
-      title: "P",
-      organisationName: org,
-      createdBy: admin,
-    });
-    // Same organisation on both credentials + programme → accepted despite the
-    // credentials living under different projects.
-    await setProgrammeCredentials(prog, [
-      { credentialId: a, position: 0 },
-      { credentialId: b, position: 1 },
-    ]);
-    const { rows } = await getPool().query(
-      `SELECT count(*)::int AS n FROM programme_credentials WHERE programme_id = $1`,
-      [prog],
-    );
-    expect(rows[0]!.n).toBe(2);
+    ).rejects.toMatchObject({ code: "project_mismatch" });
   });
 
   it("locks membership once a registration exists", async () => {
