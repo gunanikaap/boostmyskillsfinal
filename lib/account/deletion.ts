@@ -23,6 +23,10 @@ export class DeletionError extends Error {
   }
 }
 
+// Bounds for free-text fields.
+const MAX_REASON = 2000;
+const MAX_NOTE = 1000;
+
 function mapRequest(r: {
   id: string;
   status: DeletionStatus;
@@ -58,13 +62,27 @@ export async function getMyDeletionRequest(
   return r ? mapRequest(r) : null;
 }
 
-/** Raise a deletion request. If one is already pending, that one is returned. */
+/**
+ * Raise a self-service deletion request. Only an ACTIVE LEARNER may use this
+ * queue — administrator accounts cannot be deleted here (admin removal is a
+ * separate controlled operational procedure). If one is already pending, that
+ * one is returned.
+ */
 export async function requestAccountDeletion(
   userId: string,
   reason: string,
   conn: Queryable = db,
 ): Promise<DeletionRequest> {
-  const trimmed = reason.trim();
+  const trimmed = reason.trim().slice(0, MAX_REASON);
+  const who = await conn.query(`SELECT role, deactivated_at FROM app_users WHERE id = $1`, [
+    userId,
+  ]);
+  const u = who.rows[0] as { role: string; deactivated_at: string | null } | undefined;
+  if (!u) throw new DeletionError("Account not found.");
+  if (u.deactivated_at != null) throw new DeletionError("This account is already closed.");
+  if (u.role !== "learner") {
+    throw new DeletionError("Administrator accounts cannot be deleted through this workflow.");
+  }
   try {
     const { rows } = await conn.query(
       `INSERT INTO account_deletion_requests (user_id, reason)
@@ -137,29 +155,58 @@ export async function approveDeletionRequest(
   adminUserId: string,
   note?: string,
 ): Promise<void> {
+  const trimmedNote = note?.trim().slice(0, MAX_NOTE) || null;
   const clerkUserId = await withTransaction(async (tx) => {
+    // Lock the request row and load the target's role + status.
     const { rows } = await tx.query(
-      `SELECT r.user_id, u.clerk_user_id
+      `SELECT r.user_id, u.clerk_user_id, u.role AS target_role, u.deactivated_at AS target_deactivated
        FROM account_deletion_requests r
        JOIN app_users u ON u.id = r.user_id
        WHERE r.id = $1 AND r.status = 'pending'
        FOR UPDATE OF r`,
       [requestId],
     );
-    const row = rows[0] as { user_id: string; clerk_user_id: string } | undefined;
+    const row = rows[0] as
+      | {
+          user_id: string;
+          clerk_user_id: string;
+          target_role: string;
+          target_deactivated: string | null;
+        }
+      | undefined;
     if (!row) throw new DeletionError("This request is no longer pending.");
+    // An admin may not approve their own request.
+    if (row.user_id === adminUserId) {
+      throw new DeletionError("You cannot approve your own deletion request.");
+    }
+    // Only a learner account may be closed through this queue, and only if active.
+    if (row.target_role !== "learner") {
+      throw new DeletionError("Only learner accounts can be closed through this workflow.");
+    }
+    if (row.target_deactivated != null) {
+      throw new DeletionError("The target account is already closed.");
+    }
+    // The resolver must be an ACTIVE administrator.
+    const res = await tx.query(`SELECT role, deactivated_at FROM app_users WHERE id = $1`, [
+      adminUserId,
+    ]);
+    const admin = res.rows[0] as { role: string; deactivated_at: string | null } | undefined;
+    if (!admin || admin.role !== "admin" || admin.deactivated_at != null) {
+      throw new DeletionError("Only an active administrator can approve deletion requests.");
+    }
 
     await tx.query(
       `UPDATE account_deletion_requests
        SET status = 'approved', admin_note = $2, resolved_at = now(), resolved_by = $3
        WHERE id = $1`,
-      [requestId, note?.trim() || null, adminUserId],
+      [requestId, trimmedNote, adminUserId],
     );
     // Deactivate AND release the email/username so the person can register again
     // with the same address later. The app_users row is kept (certificates and
     // enrolments reference it), but its unique identifiers are tombstoned; the
-    // originals are stashed in `profile` for the admin audit trail.
-    await tx.query(
+    // originals are stashed in `profile` for the admin audit trail. The guarded
+    // WHERE must affect exactly one row or the whole approval rolls back.
+    const upd = await tx.query(
       `UPDATE app_users
        SET deactivated_at = now(),
            profile = profile
@@ -169,12 +216,16 @@ export async function approveDeletionRequest(
                      ELSE '{}'::jsonb END,
            email = 'deleted+' || id::text || '@deleted.invalid',
            username = NULL
-       WHERE id = $1 AND deactivated_at IS NULL`,
+       WHERE id = $1 AND deactivated_at IS NULL AND role = 'learner'`,
       [row.user_id],
     );
+    if ((upd.rowCount ?? 0) !== 1) {
+      throw new DeletionError("Could not deactivate the target account.");
+    }
     return row.clerk_user_id;
   });
 
+  // Best-effort external removal; DB deactivation above is the authoritative gate.
   await deleteClerkUser(clerkUserId);
 }
 
@@ -183,13 +234,31 @@ export async function rejectDeletionRequest(
   requestId: string,
   adminUserId: string,
   note?: string,
-  conn: Queryable = db,
 ): Promise<void> {
-  const { rowCount } = await conn.query(
-    `UPDATE account_deletion_requests
-     SET status = 'rejected', admin_note = $2, resolved_at = now(), resolved_by = $3
-     WHERE id = $1 AND status = 'pending'`,
-    [requestId, note?.trim() || null, adminUserId],
-  );
-  if (!rowCount) throw new DeletionError("This request is no longer pending.");
+  const trimmedNote = note?.trim().slice(0, MAX_NOTE) || null;
+  await withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `SELECT user_id FROM account_deletion_requests
+       WHERE id = $1 AND status = 'pending' FOR UPDATE`,
+      [requestId],
+    );
+    const row = rows[0] as { user_id: string } | undefined;
+    if (!row) throw new DeletionError("This request is no longer pending.");
+    if (row.user_id === adminUserId) {
+      throw new DeletionError("You cannot resolve your own deletion request.");
+    }
+    const res = await tx.query(`SELECT role, deactivated_at FROM app_users WHERE id = $1`, [
+      adminUserId,
+    ]);
+    const admin = res.rows[0] as { role: string; deactivated_at: string | null } | undefined;
+    if (!admin || admin.role !== "admin" || admin.deactivated_at != null) {
+      throw new DeletionError("Only an active administrator can reject deletion requests.");
+    }
+    await tx.query(
+      `UPDATE account_deletion_requests
+       SET status = 'rejected', admin_note = $2, resolved_at = now(), resolved_by = $3
+       WHERE id = $1 AND status = 'pending'`,
+      [requestId, trimmedNote, adminUserId],
+    );
+  });
 }
