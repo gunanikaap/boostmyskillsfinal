@@ -14,6 +14,8 @@ export interface AppUser {
   role: AppRole;
   country: string | null;
   gender: string | null;
+  /** True once an admin has approved this account's deletion request. */
+  deactivated: boolean;
 }
 
 function mapRow(r: {
@@ -26,6 +28,7 @@ function mapRow(r: {
   role: AppRole;
   country: string | null;
   gender: string | null;
+  deactivated_at: string | null;
 }): AppUser {
   return {
     id: r.id,
@@ -37,7 +40,25 @@ function mapRow(r: {
     role: r.role,
     country: r.country,
     gender: r.gender,
+    deactivated: r.deactivated_at != null,
   };
+}
+
+export interface SyncOptions {
+  /**
+   * Whether the identity provider is authoritative for the self-editable profile
+   * fields (name / country / gender).
+   *
+   * - true (default) — an explicit profile event (the Clerk user.updated webhook,
+   *   or a direct sync): the provider's values win, so real profile changes
+   *   propagate into app_users.
+   * - false — the per-request session sync (getCurrentAppUser): the provider only
+   *   fills a field that is still empty, so a routine page load never clobbers an
+   *   edit the learner made on the /account page.
+   *
+   * Either way, email/username stay provider-owned and role is never touched here.
+   */
+  authoritative?: boolean;
 }
 
 /**
@@ -51,6 +72,7 @@ function mapRow(r: {
 export async function syncAppUser(
   identity: ExternalIdentity,
   conn: Queryable = db,
+  opts: SyncOptions = {},
 ): Promise<AppUser> {
   const email = normalizeEmail(identity.email);
   // A missing primary email is a typed, safe failure — never write an empty
@@ -59,6 +81,20 @@ export async function syncAppUser(
     throw new SyncError("missing_email", "Cannot synchronize a user without a primary email");
   }
   const username = normalizeUsername(identity.username);
+  const authoritative = opts.authoritative ?? true;
+
+  // Profile fields: the provider wins on an authoritative sync (propagate real
+  // changes); on a routine session sync it only fills an empty field so it can't
+  // overwrite an /account-page edit.
+  const profileSet = authoritative
+    ? `first_name = EXCLUDED.first_name,
+       last_name = EXCLUDED.last_name,
+       country = COALESCE(EXCLUDED.country, app_users.country),
+       gender = COALESCE(EXCLUDED.gender, app_users.gender)`
+    : `first_name = COALESCE(app_users.first_name, EXCLUDED.first_name),
+       last_name = COALESCE(app_users.last_name, EXCLUDED.last_name),
+       country = COALESCE(app_users.country, EXCLUDED.country),
+       gender = COALESCE(app_users.gender, EXCLUDED.gender)`;
 
   try {
     const { rows } = await conn.query(
@@ -67,13 +103,8 @@ export async function syncAppUser(
        ON CONFLICT (clerk_user_id) DO UPDATE
          SET email = EXCLUDED.email,
              username = EXCLUDED.username,
-             first_name = EXCLUDED.first_name,
-             last_name = EXCLUDED.last_name,
-             -- Preserve existing country/gender when a sync provides none (e.g. a
-             -- routine session sync where Clerk metadata wasn't surfaced).
-             country = COALESCE(EXCLUDED.country, app_users.country),
-             gender = COALESCE(EXCLUDED.gender, app_users.gender)
-       RETURNING id, clerk_user_id, email, username, first_name, last_name, role, country, gender`,
+             ${profileSet}
+       RETURNING id, clerk_user_id, email, username, first_name, last_name, role, country, gender, deactivated_at`,
       [
         identity.clerkUserId,
         email,
@@ -107,7 +138,8 @@ export async function syncAppUser(
 export async function getCurrentAppUser(conn: Queryable = db): Promise<AppUser | null> {
   const identity = await resolveExternalIdentity();
   if (!identity) return null;
-  return syncAppUser(identity, conn);
+  // Routine per-request sync: non-authoritative so it never clobbers /account edits.
+  return syncAppUser(identity, conn, { authoritative: false });
 }
 
 /**

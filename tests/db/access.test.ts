@@ -129,6 +129,7 @@ describe("maintenance gate", () => {
       lastName: null,
       country: null,
       gender: null,
+      deactivated: false,
     };
     await expect(
       requireMaintenanceAllowed({ user: adminUser, isHomePath: false, isAdminPath: true }),

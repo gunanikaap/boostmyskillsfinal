@@ -24,6 +24,7 @@ import {
   unhideProgramme,
 } from "@/lib/programmes/service";
 import { setMaintenance } from "@/lib/settings/maintenance";
+import { approveDeletionRequest, rejectDeletionRequest } from "@/lib/account/deletion";
 import { ContentValidationError, validateDraftForPublish } from "@/lib/content/validate";
 import { db } from "@/lib/db/pool";
 
@@ -309,6 +310,34 @@ export async function toggleProgrammeHiddenAction(
     else await unhideProgramme(programmeId);
     revalidatePath("/programs");
     return { ok: true, message: hide ? "Programme hidden." : "Programme unhidden." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function approveAccountDeletionAction(
+  requestId: string,
+  note?: string,
+): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await approveDeletionRequest(requestId, admin.id, note);
+    revalidatePath("/admin/account-deletions");
+    return { ok: true, message: "Account deletion approved — the account has been closed." };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function rejectAccountDeletionAction(
+  requestId: string,
+  note?: string,
+): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+    await rejectDeletionRequest(requestId, admin.id, note);
+    revalidatePath("/admin/account-deletions");
+    return { ok: true, message: "Request rejected — the account stays active." };
   } catch (err) {
     return fail(err);
   }

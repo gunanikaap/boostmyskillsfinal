@@ -2276,3 +2276,314 @@ a {
     display: flex;
   }
 }
+
+/* ============================ Button utilities ============================ */
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 0.86rem;
+}
+.btn-danger {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #a93226;
+  border-color: #a93226;
+}
+
+/* ========================= Header user menu ============================== */
+.usermenu {
+  position: relative;
+}
+.usermenu > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border: 1.5px solid var(--bms-border);
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--bms-ink);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.usermenu > summary::-webkit-details-marker {
+  display: none;
+}
+.usermenu > summary:hover {
+  border-color: var(--bms-green);
+}
+.usermenu__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--bms-green-soft);
+  color: var(--bms-green-dark);
+}
+.usermenu__name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usermenu[open] > summary .chev {
+  transform: rotate(180deg);
+}
+.usermenu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid var(--bms-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(18, 33, 26, 0.12);
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+  z-index: 40;
+}
+.usermenu__panel a,
+.usermenu__panel button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--bms-ink);
+  text-decoration: none;
+  font-weight: 500;
+  font: inherit;
+  cursor: pointer;
+}
+.usermenu__panel a:hover,
+.usermenu__panel button:hover {
+  background: var(--bms-green-soft);
+  color: var(--bms-green-dark);
+}
+
+/* ============================= Account page ============================= */
+.account {
+  padding-bottom: 64px;
+}
+.account-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+.account-nav {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 2px;
+}
+.account-nav a {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  color: var(--bms-muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.account-nav a:hover {
+  color: var(--bms-ink);
+  background: var(--bms-green-soft);
+}
+.account-nav a.is-active {
+  color: var(--bms-green-dark);
+  border-left-color: var(--bms-green);
+  background: var(--bms-green-soft);
+}
+.account-main {
+  display: grid;
+  gap: 20px;
+  max-width: 640px;
+}
+.account-section {
+  border: 1px solid var(--bms-border);
+  border-radius: 14px;
+  padding: 24px 26px;
+  scroll-margin-top: 88px;
+}
+.account-section h2 {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+}
+.account-section__intro {
+  color: var(--bms-muted);
+  margin: 0 0 16px;
+  font-size: 0.92rem;
+}
+.account-section--danger {
+  border-color: #f0c9c3;
+  background: #fdf6f5;
+}
+.account-muted {
+  color: var(--bms-muted);
+  font-size: 0.92rem;
+}
+
+.account-field {
+  padding: 14px 0;
+  border-top: 1px solid var(--bms-border);
+}
+.account-field:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.account-field__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.account-field__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bms-muted);
+}
+.account-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--bms-green-dark);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-edit:hover {
+  text-decoration: underline;
+}
+.account-field__value {
+  margin: 6px 0 0;
+  font-size: 1rem;
+  color: var(--bms-ink);
+}
+.account-field__note {
+  margin: 6px 0 0;
+  color: var(--bms-muted);
+  font-size: 0.84rem;
+}
+.account-add {
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--bms-green-dark);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-add:hover {
+  text-decoration: underline;
+}
+.account-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--bms-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--bms-ink);
+  background: #fff;
+}
+.account-input:focus {
+  outline: none;
+  border-color: var(--bms-green);
+}
+.account-edit-form {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+.account-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+.account-error {
+  color: #c0392b;
+  font-size: 0.86rem;
+  margin: 0;
+}
+.account-success {
+  color: var(--bms-green-dark);
+  font-size: 0.86rem;
+  margin: 8px 0 0;
+}
+
+.account-delete {
+  display: grid;
+  gap: 12px;
+}
+.account-delete p {
+  margin: 0;
+  font-size: 0.94rem;
+}
+.account-delete__warn {
+  color: #a93226;
+  font-weight: 600;
+}
+.account-delete__form {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+.account-delete__pending {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fff6e6;
+  border: 1px solid #f2d9a0;
+}
+.account-delete__pending p {
+  color: #7a5b16;
+}
+.account-closed {
+  border: 1px solid #f0c9c3;
+  background: #fdf6f5;
+  border-radius: 14px;
+  padding: 24px 26px;
+  max-width: 640px;
+}
+.account-closed h2 {
+  margin: 0 0 8px;
+}
+
+@media (max-width: 720px) {
+  .account-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .account-nav {
+    position: static;
+    grid-auto-flow: column;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .account-nav a {
+    white-space: nowrap;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+  .account-nav a.is-active {
+    border-left: 0;
+    border-bottom-color: var(--bms-green);
+  }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import UserMenu from "@/components/UserMenu";
 
 /**
  * Sign-in / register / signed-in user controls for the site header, matching the
@@ -35,10 +36,7 @@ export default function AuthControls() {
         </Link>
       </SignedOut>
       <SignedIn>
-        <Link href="/dashboard" className="btn btn-outline btn-lg">
-          Dashboard
-        </Link>
-        <UserButton afterSignOutUrl="/" />
+        <UserMenu />
       </SignedIn>
     </>
   );

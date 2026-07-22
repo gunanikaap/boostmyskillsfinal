@@ -17,6 +17,10 @@ import { AccessError } from "@/lib/access/errors";
 export async function requireAuthenticatedUser(conn: Queryable = db): Promise<AppUser> {
   const user = await getCurrentAppUser(conn);
   if (!user) throw new AccessError("unauthenticated");
+  // A deactivated account (deletion approved by an admin) can no longer perform
+  // any authenticated action. The /account page reads getCurrentAppUser directly
+  // so it can still show the "account closed" notice + sign-out.
+  if (user.deactivated) throw new AccessError("unauthenticated", "account deactivated");
   return user;
 }
 

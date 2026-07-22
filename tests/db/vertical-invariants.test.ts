@@ -22,6 +22,8 @@ const APP_TABLES = [
   "assessment_attempts",
   "certificates",
   "platform_settings",
+  // Additive (migration 005): admin-approved account deletion queue.
+  "account_deletion_requests",
 ];
 
 function state(): BuilderState {
@@ -77,7 +79,8 @@ function state(): BuilderState {
 
 describe("full vertical database invariants", () => {
   it("holds the 11-table model and per-vertical invariants after enrol+assess+certify", async () => {
-    // Exactly the 11 application tables (+ schema_migrations operational table).
+    // The core 11 application tables + the additive account_deletion_requests
+    // table (migration 005), plus the schema_migrations operational table.
     const tablesRes = await getPool().query(
       `SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`,
     );

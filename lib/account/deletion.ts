@@ -1,0 +1,195 @@
+import { db, type Queryable } from "@/lib/db/pool";
+import { withTransaction } from "@/lib/db/tx";
+import { clerkConfigured } from "@/lib/auth/clerkConfig";
+
+/**
+ * Admin-approved account deletion.
+ *
+ * A learner can't delete their own account outright. They raise a request, which
+ * an administrator reviews and either approves or rejects. On approval the
+ * account is DEACTIVATED (app_users.deactivated_at set) — not hard-deleted — so
+ * certificates, enrolments and audit history that reference the user remain
+ * intact. When Clerk is configured we also best-effort remove the Clerk user so
+ * the person can no longer authenticate; a Clerk failure never blocks approval.
+ */
+
+export type DeletionStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface DeletionRequest {
+  id: string;
+  status: DeletionStatus;
+  reason: string | null;
+  adminNote: string | null;
+  requestedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface AdminDeletionRequest extends DeletionRequest {
+  userId: string;
+  email: string;
+  username: string | null;
+  fullName: string;
+  deactivated: boolean;
+}
+
+export class DeletionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DeletionError";
+  }
+}
+
+function mapRequest(r: {
+  id: string;
+  status: DeletionStatus;
+  reason: string | null;
+  admin_note: string | null;
+  requested_at: string;
+  resolved_at: string | null;
+}): DeletionRequest {
+  return {
+    id: r.id,
+    status: r.status,
+    reason: r.reason,
+    adminNote: r.admin_note,
+    requestedAt: r.requested_at,
+    resolvedAt: r.resolved_at,
+  };
+}
+
+/** The current user's most recent deletion request, if any. */
+export async function getMyDeletionRequest(
+  userId: string,
+  conn: Queryable = db,
+): Promise<DeletionRequest | null> {
+  const { rows } = await conn.query(
+    `SELECT id, status, reason, admin_note, requested_at, resolved_at
+     FROM account_deletion_requests
+     WHERE user_id = $1
+     ORDER BY requested_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+  const r = rows[0] as Parameters<typeof mapRequest>[0] | undefined;
+  return r ? mapRequest(r) : null;
+}
+
+/** Raise a deletion request. If one is already pending, that one is returned. */
+export async function requestAccountDeletion(
+  userId: string,
+  reason: string,
+  conn: Queryable = db,
+): Promise<DeletionRequest> {
+  const trimmed = reason.trim();
+  try {
+    const { rows } = await conn.query(
+      `INSERT INTO account_deletion_requests (user_id, reason)
+       VALUES ($1, $2)
+       RETURNING id, status, reason, admin_note, requested_at, resolved_at`,
+      [userId, trimmed || null],
+    );
+    return mapRequest(rows[0] as Parameters<typeof mapRequest>[0]);
+  } catch (err) {
+    // Unique partial index: a pending request already exists → return it.
+    if ((err as { code?: string }).code === "23505") {
+      const existing = await getMyDeletionRequest(userId, conn);
+      if (existing) return existing;
+    }
+    throw err;
+  }
+}
+
+/** Withdraw the current user's own pending request. */
+export async function cancelMyDeletionRequest(userId: string, conn: Queryable = db): Promise<void> {
+  await conn.query(
+    `UPDATE account_deletion_requests
+     SET status = 'cancelled', resolved_at = now()
+     WHERE user_id = $1 AND status = 'pending'`,
+    [userId],
+  );
+}
+
+/** All deletion requests for the admin queue — pending first, then newest. */
+export async function listDeletionRequests(conn: Queryable = db): Promise<AdminDeletionRequest[]> {
+  const { rows } = await conn.query(
+    `SELECT r.id, r.status, r.reason, r.admin_note, r.requested_at, r.resolved_at,
+            r.user_id, u.email, u.username, u.first_name, u.last_name, u.deactivated_at
+     FROM account_deletion_requests r
+     JOIN app_users u ON u.id = r.user_id
+     ORDER BY (r.status = 'pending') DESC, r.requested_at DESC`,
+  );
+  return (rows as Record<string, unknown>[]).map((r) => ({
+    ...mapRequest(r as Parameters<typeof mapRequest>[0]),
+    userId: r.user_id as string,
+    email: r.email as string,
+    username: (r.username as string) ?? null,
+    fullName: `${(r.first_name as string) ?? ""} ${(r.last_name as string) ?? ""}`.trim(),
+    deactivated: r.deactivated_at != null,
+  }));
+}
+
+async function deleteClerkUser(clerkUserId: string): Promise<void> {
+  if (!clerkConfigured() || !process.env.CLERK_SECRET_KEY) return;
+  try {
+    const { clerkClient } = await import("@clerk/nextjs/server");
+    const client = await clerkClient();
+    await client.users.deleteUser(clerkUserId);
+  } catch {
+    // Best effort — the account is already deactivated in our DB, which is the
+    // authoritative access gate. A Clerk removal failure must not fail approval.
+  }
+}
+
+/**
+ * Approve a pending deletion request: mark it approved and deactivate the
+ * account. Returns the clerk_user_id so the caller can trigger the (best-effort)
+ * Clerk removal outside the transaction.
+ */
+export async function approveDeletionRequest(
+  requestId: string,
+  adminUserId: string,
+  note?: string,
+): Promise<void> {
+  const clerkUserId = await withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `SELECT r.user_id, u.clerk_user_id
+       FROM account_deletion_requests r
+       JOIN app_users u ON u.id = r.user_id
+       WHERE r.id = $1 AND r.status = 'pending'
+       FOR UPDATE OF r`,
+      [requestId],
+    );
+    const row = rows[0] as { user_id: string; clerk_user_id: string } | undefined;
+    if (!row) throw new DeletionError("This request is no longer pending.");
+
+    await tx.query(
+      `UPDATE account_deletion_requests
+       SET status = 'approved', admin_note = $2, resolved_at = now(), resolved_by = $3
+       WHERE id = $1`,
+      [requestId, note?.trim() || null, adminUserId],
+    );
+    await tx.query(
+      `UPDATE app_users SET deactivated_at = now() WHERE id = $1 AND deactivated_at IS NULL`,
+      [row.user_id],
+    );
+    return row.clerk_user_id;
+  });
+
+  await deleteClerkUser(clerkUserId);
+}
+
+/** Reject a pending deletion request; the account stays fully active. */
+export async function rejectDeletionRequest(
+  requestId: string,
+  adminUserId: string,
+  note?: string,
+  conn: Queryable = db,
+): Promise<void> {
+  const { rowCount } = await conn.query(
+    `UPDATE account_deletion_requests
+     SET status = 'rejected', admin_note = $2, resolved_at = now(), resolved_by = $3
+     WHERE id = $1 AND status = 'pending'`,
+    [requestId, note?.trim() || null, adminUserId],
+  );
+  if (!rowCount) throw new DeletionError("This request is no longer pending.");
+}
