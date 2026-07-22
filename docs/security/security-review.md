@@ -40,8 +40,10 @@ fixes applied in the same build.
   Clerk id, storage paths, answers, grading). Test: `certificates.test.ts`.
 - **SQL injection**: all queries parameterised (`pg` `$1..$n`); no string
   interpolation of user input into SQL.
-- **SSRF/XXE**: XML parsing via fast-xml-parser with no DTD processing; OLX video
-  embeds restricted to YouTube id encoding.
+- **SSRF/XXE**: OLX XML is parsed with `processEntities:false`, and every parse
+  site routes through `parseXml()`, which rejects any `<!DOCTYPE`/`<!ENTITY`
+  declaration BEFORE parsing (billion-laughs / external-entity vectors). OLX video
+  embeds restricted to YouTube id encoding. Tests: `olx.test.ts` (entity hardening).
 
 ## Residual risks / follow-ups (non-blocking for UAT candidate)
 
@@ -109,3 +111,50 @@ The dev server + webhook relay were stopped before the dependency change.
 
 **Status: RESOLVED** for critical/high (0 in the production tree); one documented
 non-exploitable moderate remains.
+
+---
+
+## Codex mandatory remediation (2026-07-22)
+
+An independent Codex review of `cleanup/code-quality-pass` returned "GO WITH
+MANDATORY FIXES". All accepted items were implemented on
+`fix/codex-mandatory-remediation` with dedicated tests. Full detail:
+[docs/reviews/codex-mandatory-remediation-report.md](../reviews/codex-mandatory-remediation-report.md).
+
+- **AUTH-P1-001 — deactivated-account boundary.** A deletion-approved account
+  (`deactivated_at` set) is now denied every learner/admin surface:
+  `requireAuthenticatedUser` throws, `getActiveAppUser()` returns null, the
+  maintenance-bypass and admin guards require `!deactivated`, and dashboard /
+  learn / certificates pages redirect a deactivated session to `/account`.
+  Tests: `deactivation.test.ts`.
+- **Account-deletion policy.** `requestAccountDeletion` only targets active
+  learners; `approveDeletionRequest` locks the row and re-verifies (no
+  self-approve, learner-only target, active-admin resolver) with a guarded
+  `WHERE … AND deactivated_at IS NULL AND role='learner'`. Tests:
+  `account-deletion.test.ts`.
+- **CSV-P2-001 — central injection-safe CSV.** `lib/export/csv.ts` neutralises
+  formula/DDE payloads (`= + - @`, incl. after skippable control/format runs) and
+  RFC-4180 quotes; analytics export uses it. Tests: `csv.test.ts`.
+- **ASSET-P2-002 — revision-bound content-asset authz.** `/content-asset/[...key]`
+  requires an active session, validates the credential/revision UUIDs, requires
+  the key to be referenced by that exact revision, and (for learners) an
+  enrolment on that revision; `private, no-store`. Tests: `content-asset.test.ts`.
+- **OLX-P2-003 — storage compensation.** A failed OLX import deletes only the
+  objects it wrote (never caller-owned keys), best-effort, logging an op-id +
+  counts. Tests: `olx-compensation.test.ts`.
+- **OPS-P2-004 — backup selection.** `db:restore:verify` selects the newest dump
+  by mtime (or a `.last-backup` handoff / explicit path), not lexical order.
+  Tests: `select-backup.test.ts`.
+- **P3 — private caching.** `private, no-store` on the certificate PDF, OLX export
+  (grading), and analytics CSV (PII). Tests: `private-download-headers.test.ts`.
+- **P3 — sanitiser reviewability.** URL control-char stripping rewritten from a
+  literal-control-byte regex to an explicit code-point filter. Tests:
+  `sanitize.test.ts`.
+- **Dependencies.** fast-xml-parser hardened (above). The newly disclosed
+  `sharp < 0.35` libvips advisory (GHSA-f88m-g3jw-g9cj, HIGH) is pulled in
+  transitively by `next@15.5.20`; npm's only offered fix is a **downgrade** to
+  `next@14.2.35`. It is risk-accepted via a machine-readable, EXPIRING exception
+  (`security/audit-exceptions.json`, expires 2026-08-21 / first cloud UAT). The
+  release gate `npm run security:audit` is now exception-aware (fails on any
+  unexpected OR expired high/critical); `npm run security:audit:raw` shows the
+  unfiltered report. See [known-blockers.md](../uat/known-blockers.md).

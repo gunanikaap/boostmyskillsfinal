@@ -597,9 +597,7 @@ test.describe("actual product vertical (test-auth)", () => {
     // action de-dupes; the UI offers no second "Register" button) — no new rows.
     await page.goto(`/programs/${PROG.slug}`);
     await expect(page.getByRole("button", { name: "Registered" })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Register for programme" }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Register for programme" })).toHaveCount(0);
     expect(
       await count(`SELECT 1 FROM enrollments WHERE user_id=$1 AND programme_id=$2`, [
         S.learnerUserId,
@@ -623,9 +621,7 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.goto(`/learn/${S.credAId}`);
     // One-unit-per-page: after the earlier reorder the video is the first lesson and
     // opens by default; the sidebar lists all three units.
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Introduction video" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Introduction video" })).toBeVisible();
     for (const t of ["Introduction reading", "Introduction video", "Knowledge check quiz"]) {
       await expect(page.getByRole("link", { name: t, exact: true })).toBeVisible();
     }

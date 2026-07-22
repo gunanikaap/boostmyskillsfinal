@@ -4,6 +4,13 @@
 > `cleanup/code-quality-pass` (this report intentionally does not embed its own
 > final commit SHA). Contains no secrets or private data.
 
+> **Follow-up:** this branch was subsequently reviewed by Codex, which returned
+> "GO WITH MANDATORY FIXES". Those fixes were implemented on
+> `fix/codex-mandatory-remediation` — see
+> [codex-mandatory-remediation-report.md](codex-mandatory-remediation-report.md).
+> The open questions in §26 below are addressed there (deactivated-account
+> boundary, central CSV sanitiser, dependency advisory handling).
+
 ## 1–5. Provenance
 
 | Item | Value |
