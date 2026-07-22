@@ -15,7 +15,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const rows = await adminEnrolmentAnalytics({
     userId: p.get("userId") ?? undefined,
     organisationName: p.get("organisation") ?? undefined,
-    projectId: p.get("projectId") ?? undefined,
+    projectName: p.get("project") ?? undefined,
     programmeId: p.get("programmeId") ?? undefined,
     credentialId: p.get("credentialId") ?? undefined,
     from: p.get("from") ?? undefined,

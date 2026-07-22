@@ -6,7 +6,13 @@ import { unitProgressRowsByEnrolment } from "@/lib/progress/queries";
 export interface AnalyticsFilter {
   userId?: string;
   organisationName?: string;
-  projectId?: string;
+  /**
+   * Funded-project NAME (not a row id). The projects table holds one row per
+   * (project × organisation), so several rows share a name (e.g. RES4CITY);
+   * filtering by name selects the whole funded project across organisations,
+   * and keeps the picker free of duplicates. Organisation is a separate filter.
+   */
+  projectName?: string;
   programmeId?: string;
   credentialId?: string;
   from?: string; // ISO date
@@ -31,7 +37,7 @@ export interface AnalyticsRow {
 export interface AnalyticsOptions {
   learners: { id: string; name: string }[];
   organisations: string[];
-  projects: { id: string; name: string }[];
+  projects: string[]; // distinct funded-project names
   programmes: { id: string; title: string }[];
   credentials: { id: string; label: string }[];
 }
@@ -54,7 +60,7 @@ export async function adminEnrolmentAnalytics(
   if (filter.userId) add("e.user_id = $?", filter.userId);
   if (filter.organisationName) add("p.organisation_name = $?", filter.organisationName);
   if (filter.credentialId) add("e.credential_id = $?", filter.credentialId);
-  if (filter.projectId) add("mc.project_id = $?", filter.projectId);
+  if (filter.projectName) add("p.name = $?", filter.projectName);
   if (filter.programmeId)
     add(
       "e.user_id IN (SELECT user_id FROM enrollments WHERE programme_id = $?)",
@@ -159,36 +165,39 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
   return lines.join("\r\n");
 }
 
-/** Aggregate figures for the filtered result set (calculated server-side). */
+/**
+ * Aggregate figures for the filtered result set (calculated server-side).
+ *
+ * NOTE on pass/fail: an enrolment's `passed` flag is only ever set to `true`
+ * (on certificate issuance); a learner who finishes but doesn't meet the pass
+ * criteria is never persisted as `passed = false`. Reporting a "pass rate" over
+ * such data is therefore structurally always 100% and misleading, so we report
+ * honest completion metrics (completed / in-progress / average progress)
+ * instead. "Completed" here is exactly the set that earned a certificate.
+ */
 export interface AnalyticsSummary {
   enrolments: number;
   learners: number;
   completed: number;
-  completionRate: number; // %
+  inProgress: number;
+  completionRate: number; // % of enrolments completed (= certified)
   averageProgress: number; // %
-  graded: number;
-  passed: number;
-  passRate: number; // % of graded
 }
 
 export function summariseAnalytics(rows: AnalyticsRow[]): AnalyticsSummary {
   const enrolments = rows.length;
   const learners = new Set(rows.map((r) => r.learnerName)).size;
   const completed = rows.filter((r) => r.completed).length;
-  const graded = rows.filter((r) => r.passed !== null);
-  const passed = graded.filter((r) => r.passed).length;
   const round = (n: number) => Math.round(n);
   return {
     enrolments,
     learners,
     completed,
+    inProgress: enrolments - completed,
     completionRate: enrolments ? round((completed / enrolments) * 100) : 0,
     averageProgress: enrolments
       ? round(rows.reduce((s, r) => s + r.progressPercent, 0) / enrolments)
       : 0,
-    graded: graded.length,
-    passed,
-    passRate: graded.length ? round((passed / graded.length) * 100) : 0,
   };
 }
 
@@ -203,7 +212,7 @@ export async function analyticsFilterOptions(conn: Queryable = db): Promise<Anal
        ORDER BY name`,
     ),
     conn.query(`SELECT DISTINCT organisation_name FROM projects ORDER BY organisation_name`),
-    conn.query(`SELECT id, name FROM projects ORDER BY name`),
+    conn.query(`SELECT DISTINCT name FROM projects ORDER BY name`),
     conn.query(`SELECT id, title FROM micro_programmes ORDER BY title`),
     conn.query(
       `SELECT mc.id, mc.code,
@@ -224,10 +233,7 @@ export async function analyticsFilterOptions(conn: Queryable = db): Promise<Anal
     organisations: (organisations.rows as { organisation_name: string }[]).map(
       (r) => r.organisation_name,
     ),
-    projects: (projects.rows as { id: string; name: string }[]).map((r) => ({
-      id: r.id,
-      name: r.name,
-    })),
+    projects: (projects.rows as { name: string }[]).map((r) => r.name),
     programmes: (programmes.rows as { id: string; title: string }[]).map((r) => ({
       id: r.id,
       title: r.title,

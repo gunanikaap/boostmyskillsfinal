@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 type Options = {
   learners: { id: string; name: string }[];
   organisations: string[];
-  projects: { id: string; name: string }[];
+  projects: string[];
   programmes: { id: string; title: string }[];
   credentials: { id: string; label: string }[];
 };
@@ -21,7 +21,7 @@ type Options = {
 type Current = {
   userId?: string;
   organisation?: string;
-  projectId?: string;
+  project?: string;
   programmeId?: string;
   credentialId?: string;
   from?: string;
@@ -58,7 +58,7 @@ export default function AnalyticsFilters({
   const active =
     current.userId ||
     current.organisation ||
-    current.projectId ||
+    current.project ||
     current.programmeId ||
     current.credentialId ||
     current.from ||
@@ -104,11 +104,11 @@ export default function AnalyticsFilters({
 
       <label className="admin-filters__field">
         <span>Project</span>
-        <select name="projectId" defaultValue={current.projectId ?? ""} className="account-input">
+        <select name="project" defaultValue={current.project ?? ""} className="account-input">
           <option value="">All projects</option>
           {options.projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+            <option key={p} value={p}>
+              {p}
             </option>
           ))}
         </select>

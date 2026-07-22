@@ -22,7 +22,7 @@ export default async function AdminAnalyticsPage({
   const filter: AnalyticsFilter = {
     userId: first(sp.userId),
     organisationName: first(sp.organisation),
-    projectId: first(sp.projectId),
+    projectName: first(sp.project),
     programmeId: first(sp.programmeId),
     credentialId: first(sp.credentialId),
     from: first(sp.from),
@@ -40,7 +40,7 @@ export default async function AdminAnalyticsPage({
   const map: Record<string, string | undefined> = {
     userId: filter.userId,
     organisation: filter.organisationName,
-    projectId: filter.projectId,
+    project: filter.projectName,
     programmeId: filter.programmeId,
     credentialId: filter.credentialId,
     from: filter.from,
@@ -53,7 +53,7 @@ export default async function AdminAnalyticsPage({
   const current = {
     userId: filter.userId,
     organisation: filter.organisationName,
-    projectId: filter.projectId,
+    project: filter.projectName,
     programmeId: filter.programmeId,
     credentialId: filter.credentialId,
     from: filter.from,
@@ -75,13 +75,13 @@ export default async function AdminAnalyticsPage({
       <div className="admin-metrics">
         <Metric label="Enrolments" value={summary.enrolments} />
         <Metric label="Learners" value={summary.learners} />
-        <Metric label="Completed" value={summary.completed} sub={`${summary.completionRate}%`} />
-        <Metric label="Avg. progress" value={`${summary.averageProgress}%`} />
         <Metric
-          label="Passed"
-          value={`${summary.passed}/${summary.graded}`}
-          sub={`${summary.passRate}% of graded`}
+          label="Completed"
+          value={summary.completed}
+          sub={`${summary.completionRate}% of enrolments`}
         />
+        <Metric label="In progress" value={summary.inProgress} />
+        <Metric label="Avg. progress" value={`${summary.averageProgress}%`} />
       </div>
 
       <div className="admin-analytics__bar">
