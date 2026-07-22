@@ -19,7 +19,6 @@ export default async function AdminProjectsPage() {
           <tr style={{ textAlign: "left", borderBottom: "1px solid var(--bms-border)" }}>
             <th style={{ padding: 8 }}>Name</th>
             <th style={{ padding: 8 }}>Slug</th>
-            <th style={{ padding: 8 }}>Organisation</th>
           </tr>
         </thead>
         <tbody>
@@ -29,7 +28,6 @@ export default async function AdminProjectsPage() {
                 <a href={`/admin/projects/${p.id}`}>{p.name}</a>
               </td>
               <td style={{ padding: 8 }}>{p.slug}</td>
-              <td style={{ padding: 8 }}>{p.organisation_name}</td>
             </tr>
           ))}
         </tbody>
