@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getPublishedCredentialBySlug } from "@/lib/catalogue/queries";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
+import { isSignedIn, signInHref } from "@/lib/auth/session";
 import { EnrolButton } from "./EnrolButton";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,8 @@ export default async function CredentialDetailPage({
   const detail = await getPublishedCredentialBySlug(slug);
   if (!detail) notFound(); // draft/hidden are indistinguishable from missing
 
+  const signedIn = await isSignedIn();
+
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
   // "Sections" outline: prefer the OLX-style chapter list (source_metadata), and
   // fall back to the flattened content units. Titles only — never answers.
@@ -98,7 +101,11 @@ export default async function CredentialDetailPage({
             <h1>{detail.title}</h1>
             <p className="course-hero__by">by {detail.organisationName}</p>
             <div className="course-hero__cta">
-              <EnrolButton credentialId={detail.id} />
+              <EnrolButton
+                credentialId={detail.id}
+                signedIn={signedIn}
+                signInHref={signInHref(`/courses/${detail.slug}`)}
+              />
             </div>
           </div>
         </section>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
 
 /**
@@ -27,16 +27,12 @@ export default function AuthControls() {
   return (
     <>
       <SignedOut>
-        <SignUpButton mode="modal">
-          <button className="btn btn-outline btn-lg" type="button">
-            Register for free
-          </button>
-        </SignUpButton>
-        <SignInButton mode="modal">
-          <button className="btn btn-lg" type="button">
-            Sign in
-          </button>
-        </SignInButton>
+        <Link href="/sign-up" className="btn btn-outline btn-lg">
+          Register for free
+        </Link>
+        <Link href="/sign-in" className="btn btn-lg">
+          Sign in
+        </Link>
       </SignedOut>
       <SignedIn>
         <Link href="/dashboard" className="btn btn-outline btn-lg">

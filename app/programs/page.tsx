@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { ProgrammeCard } from "@/components/CatalogueCards";
 import { listPublishedProgrammesWithMembers } from "@/lib/catalogue/queries";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
+import { isSignedIn } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Micro-programmes" };
@@ -11,6 +12,7 @@ export const metadata = { title: "Micro-programmes" };
 export default async function ProgramsPage() {
   await enforceMaintenanceForPage();
   const programmes = await listPublishedProgrammesWithMembers();
+  const signedIn = await isSignedIn();
   return (
     <>
       <SiteHeader />
@@ -31,7 +33,7 @@ export default async function ProgramsPage() {
               </p>
               <div className="catalogue-grid">
                 {programmes.map((p, i) => (
-                  <ProgrammeCard key={p.id} p={p} i={i} />
+                  <ProgrammeCard key={p.id} p={p} i={i} signedIn={signedIn} />
                 ))}
               </div>
             </>

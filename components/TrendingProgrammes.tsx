@@ -4,6 +4,7 @@ import {
   type CatalogueProgrammeWithMembers,
 } from "@/lib/catalogue/queries";
 import { ProgrammeCard } from "@/components/CatalogueCards";
+import { isSignedIn } from "@/lib/auth/session";
 
 function Arrow() {
   return (
@@ -33,6 +34,7 @@ export default async function TrendingProgrammes() {
     programmes = [];
   }
   if (programmes.length === 0) return null;
+  const signedIn = await isSignedIn();
 
   return (
     <section className="container trending">
@@ -47,7 +49,7 @@ export default async function TrendingProgrammes() {
       </div>
       <div className="carousel">
         {programmes.map((p, i) => (
-          <ProgrammeCard key={p.id} p={p} i={i} />
+          <ProgrammeCard key={p.id} p={p} i={i} signedIn={signedIn} />
         ))}
       </div>
     </section>

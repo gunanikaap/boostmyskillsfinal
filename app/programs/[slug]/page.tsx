@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { getPublishedProgrammeBySlug } from "@/lib/programmes/queries";
 import { RegisterButton } from "./RegisterButton";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
+import { isSignedIn, signInHref } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function ProgrammeDetailPage({
 
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
   const count = detail.credentials.length;
+  const signedIn = await isSignedIn();
 
   return (
     <>
@@ -63,7 +65,11 @@ export default async function ProgrammeDetailPage({
             <p className="course-hero__eyebrow">Micro-programme</p>
             <h1>{detail.title}</h1>
             <div className="course-hero__cta">
-              <RegisterButton programmeId={detail.id} />
+              <RegisterButton
+                programmeId={detail.id}
+                signedIn={signedIn}
+                signInHref={signInHref(`/programs/${detail.slug}`)}
+              />
             </div>
           </div>
         </section>

@@ -20,6 +20,11 @@ function artFor(bannerObjectKey: string | null, i: number): string {
   return bannerObjectKey ? `/media/${bannerObjectKey}` : FALLBACK[i % FALLBACK.length]!;
 }
 
+/** Anonymous visitors are sent to sign in (and returned to the detail page). */
+function enrolHref(detailHref: string, signedIn: boolean): string {
+  return signedIn ? detailHref : `/sign-in?redirect_url=${encodeURIComponent(detailHref)}`;
+}
+
 export interface CredentialCardData {
   slug: string;
   code: string;
@@ -30,7 +35,15 @@ export interface CredentialCardData {
   bannerObjectKey: string | null;
 }
 
-export function CredentialCard({ c, i = 0 }: { c: CredentialCardData; i?: number }) {
+export function CredentialCard({
+  c,
+  i = 0,
+  signedIn = false,
+}: {
+  c: CredentialCardData;
+  i?: number;
+  signedIn?: boolean;
+}) {
   const img = artFor(c.bannerObjectKey, i);
   const href = `/courses/${c.slug}`;
   return (
@@ -54,7 +67,7 @@ export function CredentialCard({ c, i = 0 }: { c: CredentialCardData; i?: number
           <Link href={href}>{c.title}</Link>
         </h3>
         <div className="pcard__footer">
-          <Link href={href} className="btn pcard__enrol">
+          <Link href={enrolHref(href, signedIn)} className="btn pcard__enrol">
             Enrol <Arrow />
           </Link>
           <Link href={href} className="pcard__more">
@@ -75,7 +88,15 @@ export interface ProgrammeCardData {
   memberTitles: string[];
 }
 
-export function ProgrammeCard({ p, i = 0 }: { p: ProgrammeCardData; i?: number }) {
+export function ProgrammeCard({
+  p,
+  i = 0,
+  signedIn = false,
+}: {
+  p: ProgrammeCardData;
+  i?: number;
+  signedIn?: boolean;
+}) {
   const img = artFor(p.bannerObjectKey, i);
   const href = `/programs/${p.slug}`;
   const code = `MP${i + 1}`;
@@ -109,7 +130,7 @@ export function ProgrammeCard({ p, i = 0 }: { p: ProgrammeCardData; i?: number }
           </>
         )}
         <div className="pcard__footer">
-          <Link href={href} className="btn pcard__enrol">
+          <Link href={enrolHref(href, signedIn)} className="btn pcard__enrol">
             Enrol <Arrow />
           </Link>
           <Link href={href} className="pcard__more">

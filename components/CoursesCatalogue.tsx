@@ -15,7 +15,13 @@ interface Item extends CredentialCardData {
  * mirroring the live boostmyskills.eu/courses layout. All filtering is
  * client-side.
  */
-export default function CoursesCatalogue({ items }: { items: Item[] }) {
+export default function CoursesCatalogue({
+  items,
+  signedIn,
+}: {
+  items: Item[];
+  signedIn: boolean;
+}) {
   const [q, setQ] = useState("");
   const [project, setProject] = useState("");
   const [org, setOrg] = useState("");
@@ -88,7 +94,7 @@ export default function CoursesCatalogue({ items }: { items: Item[] }) {
         ) : (
           <div className="catalogue-grid catalogue-grid--main">
             {filtered.map((c, i) => (
-              <CredentialCard key={c.slug} c={c} i={i} />
+              <CredentialCard key={c.slug} c={c} i={i} signedIn={signedIn} />
             ))}
           </div>
         )}
