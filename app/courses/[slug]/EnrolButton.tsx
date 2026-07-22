@@ -46,6 +46,7 @@ export function EnrolButton({
 }) {
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
   // Anonymous visitors are sent to sign in (and returned here afterwards).
@@ -57,35 +58,61 @@ export function EnrolButton({
     );
   }
 
-  // Already enrolled (directly or via a programme): show state + continue link.
+  // Already enrolled (directly or via a programme): the badge toggles to unenrol.
   if (enrolled) {
+    if (confirming) {
+      return (
+        <div className="enrol-confirm">
+          <span className="enrol-confirm__q">Unenrol from this micro-credential?</span>
+          <div className="enrol-confirm__actions">
+            <button
+              type="button"
+              className="btn btn-lg enrol-confirm__yes"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const res = await unenrolFromCredentialAction(credentialId);
+                  if (res.ok) {
+                    setConfirming(false);
+                    router.refresh();
+                  } else {
+                    setMessage(res.message);
+                  }
+                })
+              }
+            >
+              {pending ? "Unenrolling…" : "Yes, unenrol"}
+            </button>
+            <button
+              type="button"
+              className="enrol-state__undo"
+              disabled={pending}
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </div>
+          {message && (
+            <p style={{ margin: "8px 0 0", color: "var(--bms-muted)" }} role="status">
+              {message}
+            </p>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="enrol-state">
-        <span className="btn btn-lg enrol-state__badge" aria-disabled="true">
+        <button
+          type="button"
+          className="btn btn-lg enrol-state__toggle"
+          title="Click to unenrol"
+          onClick={() => setConfirming(true)}
+        >
           <Check /> Enrolled
-        </span>
+        </button>
         <Link href={`/learn/${credentialId}`} className="enrol-state__go">
           Go to course <Arrow />
         </Link>
-        <button
-          type="button"
-          className="enrol-state__undo"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              const res = await unenrolFromCredentialAction(credentialId);
-              setMessage(res.ok ? null : res.message);
-              if (res.ok) router.refresh();
-            })
-          }
-        >
-          {pending ? "Unenrolling…" : "Unenrol"}
-        </button>
-        {message && (
-          <p style={{ marginTop: 8, color: "var(--bms-muted)" }} role="status">
-            {message}
-          </p>
-        )}
       </div>
     );
   }

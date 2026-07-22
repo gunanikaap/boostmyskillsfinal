@@ -1184,17 +1184,44 @@ a {
   gap: 16px;
   flex-wrap: wrap;
 }
-.enrol-state__badge {
+/* The "Enrolled"/"Registered" badge is a toggle: hover hints the destructive
+   action, click opens the confirmation. */
+.enrol-state__toggle {
   background: var(--bms-green-soft);
   color: var(--bms-green-dark);
   border-color: transparent;
-  cursor: default;
   gap: 8px;
+  cursor: pointer;
 }
-.enrol-state__badge:hover {
-  background: var(--bms-green-soft);
+.enrol-state__toggle:hover {
+  background: #fdecea;
+  color: #b3261e;
   border-color: transparent;
   box-shadow: none;
+}
+.enrol-confirm {
+  display: grid;
+  gap: 12px;
+}
+.enrol-confirm__q {
+  font-weight: 700;
+  color: var(--bms-ink);
+  font-size: 16px;
+}
+.enrol-confirm__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.enrol-confirm__yes {
+  background: #b3261e;
+  border-color: #b3261e;
+}
+.enrol-confirm__yes:hover {
+  background: #8f1e18;
+  border-color: #8f1e18;
+  box-shadow: 0 6px 16px rgba(179, 38, 30, 0.28);
 }
 .enrol-state__undo,
 .enrol-state__go {
