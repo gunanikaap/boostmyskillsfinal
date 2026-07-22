@@ -1,0 +1,32 @@
+source_system,source_entity,source_field,target_table,target_field,transformation,required_optional,matching_key,validation,unresolved_decision
+Open edX LMS,auth_user (equivalent),id,app_users,external_ref,cast to text; store source user id,required,external_ref,unique; not null after import,"Confirm exact user table name/version"
+Open edX LMS,auth_user (equivalent),username,app_users,username,trim + lowercase; NULL if empty,optional,lower(username),CI-unique; chk_username_normalized,"Duplicate username policy (report, never merge)"
+Open edX LMS,auth_user (equivalent),email,app_users,email,trim + lowercase,required,lower(email),CI-unique; chk_email_normalized,"Duplicate email policy (report, never merge)"
+Open edX LMS,auth_user (equivalent),first_name,app_users,first_name,copy,optional,external_ref,length sane,-
+Open edX LMS,auth_user (equivalent),last_name,app_users,last_name,copy,optional,external_ref,length sane,-
+Open edX LMS,auth_user (equivalent),is_active,app_users,deactivated_at,"if inactive set deactivated_at = source deactivation date else NULL",optional,external_ref,tombstone rules preserved,"Map to account_deletion_requests only where appropriate"
+Open edX LMS,auth_user (equivalent),date_joined,app_users,created_at,copy timestamp (UTC),optional,external_ref,timestamptz,-
+Clerk (target env),Clerk user,clerk_user_id,app_users,clerk_user_id,created in TARGET environment; never copied from source/UAT,required,email/external_ref,unique; not null,"Password strategy: import-hash | invite | claim | forced-reset (approve before cutover)"
+Business mapping,Project list,organisation name,projects,organisation_name,copy,required,slug,not null,"Confirm project/organisation list"
+Business mapping,Project list,project name,projects,name,copy,required,slug,not null,-
+Business mapping,Certificate template,template config,projects,certificate_template,map to certificate_template JSON schema,required,slug,jsonb valid,"Confirm template fields per project"
+Open edX,Course (course key),display_name,micro_credentials,code/slug,derive code + slug from course key; keep stable,required,external_ref,code/slug unique,"Test/dummy course exclusion policy"
+Open edX,Course (course key),org/run,credential_versions,source_metadata,store course key/org/run as provenance,required,source_metadata,jsonb valid,-
+OLX archive,course structure,chapter/sequential/vertical/components,credential_versions,content_document,parse OLX -> Section/Subsection/Unit tree; preserve sourceKey,required,sourceKey,Zod content contract; no answers,"Unsupported XBlock policy (reject | placeholder | archive-only)"
+OLX archive,problem/MCQ,choicegroup + correctness,credential_versions,grading_document,extract correct option ids + points into server-only doc,required,sourceKey,Zod grading contract; server-only,"Confirm grading policy per course"
+OLX archive,static assets,PDF/image/media files,object storage,logical object key,rewrite /static refs to content/<credentialId>/<revisionId>/<uuid>.<ext>,required,object key,archive-safety validated,"Media rewrite rules"
+Business mapping,Programme definition,programme title/slug,micro_programmes,title/slug,copy,optional,slug,slug unique,"Programme source + mapping"
+Business mapping,Programme membership,credential order,programme_credentials,programme_id+credential_id+position+is_required,ordered membership; contiguous position,optional,"(programme_id,credential_id)",unique position; no duplicates,"Confirm required flags"
+Open edX LMS,student_courseenrollment (equivalent),user+course,enrollments,user_id+credential_id+credential_version_id,credential enrolment; bind to imported published revision,required,"(user_id,credential_id)",chk_enrolment_kind; version-match trigger,"Confirm enrolment table/version"
+Open edX LMS,student_courseenrollment (equivalent),status/mode,enrollments,status,map to enrolled|in_progress|completed|suspended|withdrawn,optional,"(user_id,credential_id)",status CHECK,"Map enrolment modes"
+Open edX LMS,courseware_studentmodule (equivalent),usage key + state,unit_progress,enrollment_id+unit_id+status+progress_percent,map usage key -> content sourceKey -> unit_id; only if resolved,optional,"(enrollment_id,unit_id)",unique; 0..100; report unresolved keys,"Unresolved usage keys reported, not fabricated"
+Open edX LMS,persistent grades (equivalent),final grade/pass,enrollments,final_percentage+passed,preserve final grade/pass when no detailed attempts,optional,"(user_id,credential_id)",0..100,"No synthetic attempts invented"
+Open edX LMS,detailed attempts (if present),answers+score,assessment_attempts,submitted_answers+score+percentage+passed,only when question-level detail exists,optional,"(enrollment_id,unit_id,attempt_number)",unique attempt; chk_score_within_max,"Confirm attempt-level data availability"
+Open edX,certificates_generatedcertificate (equivalent),certificate record,certificates,enrollment_id+certificate_snapshot+status,one per eligible credential enrolment; immutable snapshot,required,enrollment_id,enrollment_id unique,"Zero missing issued certificates (hard threshold)"
+Open edX,certificates_generatedcertificate (equivalent),verification key,certificates,verification_code OR external_ref,per verified conflict policy,required,verification_code,unique,"Verification-code conflict policy"
+Open edX Credentials/Parchment,badge/assertion,assertion URL/revocation,certificates,external_ref,store legacy reference; do not fabricate,optional,external_ref,unique,"Parchment/Open Badges handling"
+Local (DO NOT MIGRATE),platform_settings,maintenance state,-,-,excluded,n/a,-,-,"Never migrate live maintenance state"
+Local (DO NOT MIGRATE),schema_migrations,applied migrations,-,-,excluded (operational),n/a,-,-,"Never migrate"
+Local (DO NOT MIGRATE),test-auth identities,local test users,-,-,excluded,n/a,-,-,"Never migrate"
+Local (DO NOT MIGRATE),demo/seed data,seeded rows,-,-,excluded,n/a,-,-,"Never migrate"
+Local (DO NOT MIGRATE),filesystem paths,absolute paths,-,-,excluded (logical keys only),n/a,-,-,"Never store absolute paths"
