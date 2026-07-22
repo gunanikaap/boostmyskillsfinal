@@ -49,6 +49,8 @@ export async function GET(
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="certificate-${code}.pdf"`,
+      // Owner-only document — never cached by shared/proxy caches.
+      "Cache-Control": "private, no-store",
     },
   });
 }

@@ -27,6 +27,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="enrolment-analytics.csv"`,
+      // Learner PII — never cached by shared/proxy caches.
+      "Cache-Control": "private, no-store",
     },
   });
 }

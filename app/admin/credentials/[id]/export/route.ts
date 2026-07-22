@@ -48,6 +48,8 @@ export async function GET(
     headers: {
       "Content-Type": "application/gzip",
       "Content-Disposition": `attachment; filename="${r.slug}.tar.gz"`,
+      // Contains the grading document (answer keys) — never cache anywhere.
+      "Cache-Control": "private, no-store",
     },
   });
 }

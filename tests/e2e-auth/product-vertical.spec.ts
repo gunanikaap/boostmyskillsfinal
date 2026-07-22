@@ -703,6 +703,8 @@ test.describe("actual product vertical (test-auth)", () => {
     const dl = await page.request.get(`/account/certificates/${S.verificationCode}/download`);
     expect(dl.status()).toBe(200);
     expect((await dl.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    // Owner-only document — must never be cached by shared/proxy caches.
+    expect(dl.headers()["cache-control"]).toBe("private, no-store");
 
     // Anonymous + another learner are denied.
     const anonDl = await S.anonPage!.request.get(
