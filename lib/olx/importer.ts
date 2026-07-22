@@ -10,6 +10,7 @@ import { type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { createCredentialWithDraft, saveDraft } from "@/lib/credentials/service";
 import { getStorage } from "@/lib/storage/factory";
+import type { StorageProvider, PutOptions } from "@/lib/storage/types";
 import { olxArchiveKey, contentAssetKey } from "@/lib/storage/keys";
 
 export interface PdfAsset {
@@ -387,6 +388,8 @@ export async function importOlxToDraft(
     projectId: string;
     adminId: string;
     archiveObjectKey?: string;
+    /** Injectable storage boundary (defaults to the configured provider). */
+    storage?: StorageProvider;
   },
   limits: ArchiveLimits = DEFAULT_LIMITS,
   conn?: Queryable,
@@ -395,6 +398,18 @@ export async function importOlxToDraft(
   const archiveSha256 = createHash("sha256").update(input.gz).digest("hex");
   const parsed = parseCourse(entries);
   const staticFiles = fileMap(entries);
+  const storage = input.storage ?? getStorage();
+  const opId = archiveSha256.slice(0, 8); // safe, non-secret operation id (checksum prefix)
+
+  // Object storage cannot participate in the DB transaction, so track every key
+  // THIS operation writes and owns; on any failure we roll back the DB and
+  // best-effort delete exactly those objects (never a caller-supplied key).
+  const ownedKeys: string[] = [];
+  const ownsArchiveKey = input.archiveObjectKey === undefined;
+  const putOwned = async (key: string, bytes: Buffer, opts: PutOptions): Promise<void> => {
+    await storage.putObject(key, bytes, opts);
+    ownedKeys.push(key);
+  };
 
   const run = async (tx: Queryable): Promise<ImportResult> => {
     const uniqueSuffix = archiveSha256.slice(0, 8);
@@ -429,7 +444,7 @@ export async function importOlxToDraft(
           continue;
         }
         const key = contentAssetKey(credentialId, revisionId, asset.staticName);
-        await getStorage().putObject(key, bytes, {
+        await putOwned(key, bytes, {
           contentType: "application/pdf",
           maxBytes: limits.maxFileBytes,
         });
@@ -448,13 +463,20 @@ export async function importOlxToDraft(
     );
 
     // Persist the original OLX archive privately through the storage provider
-    // (server-generated key; never a filesystem path). If storage fails, the
-    // whole transaction rolls back — no orphan draft is created.
+    // (server-generated key; never a filesystem path). We own (and would clean
+    // up) a key we generated, but NOT a caller-supplied archive key.
     const archiveObjectKey = input.archiveObjectKey ?? olxArchiveKey(credentialId);
-    await getStorage().putObject(archiveObjectKey, input.gz, {
-      contentType: "application/gzip",
-      maxBytes: limits.maxCompressedBytes,
-    });
+    if (ownsArchiveKey) {
+      await putOwned(archiveObjectKey, input.gz, {
+        contentType: "application/gzip",
+        maxBytes: limits.maxCompressedBytes,
+      });
+    } else {
+      await storage.putObject(archiveObjectKey, input.gz, {
+        contentType: "application/gzip",
+        maxBytes: limits.maxCompressedBytes,
+      });
+    }
 
     // Record source metadata on the draft revision.
     await tx.query(
@@ -481,5 +503,28 @@ export async function importOlxToDraft(
       archiveObjectKey,
     };
   };
-  return conn ? run(conn) : withTransaction(run);
+
+  try {
+    return await (conn ? run(conn) : withTransaction(run));
+  } catch (err) {
+    // The DB transaction has rolled back; compensate the (non-transactional)
+    // object writes this operation owns. Best-effort — a cleanup failure is
+    // surfaced as a warning and never hides the original import error.
+    let failures = 0;
+    for (const key of ownedKeys) {
+      try {
+        await storage.deleteObject(key);
+      } catch {
+        failures += 1;
+      }
+    }
+    if (ownedKeys.length > 0) {
+      // Safe log: operation id + counts only — no paths, filenames or contents.
+      // eslint-disable-next-line no-console
+      console.warn(
+        `olx-import ${opId}: rolled back; cleaned ${ownedKeys.length - failures}/${ownedKeys.length} object(s), ${failures} cleanup failure(s)`,
+      );
+    }
+    throw err;
+  }
 }
