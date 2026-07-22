@@ -168,24 +168,32 @@ async function clickSaveDraft(page: Page): Promise<void> {
   await expect(page.getByText("Draft saved.")).toBeVisible();
 }
 
-/**
- * Mark a non-MCQ unit complete (by its h4 title). The action revalidates the RSC,
- * so we assert the server-rendered "✓ completed" state (the transient client
- * message is replaced by the refresh).
- */
+/** Open a unit in the one-unit-per-page player via its sidebar link (the current
+ * unit's title becomes the page h1). */
+async function openUnit(page: Page, title: string): Promise<void> {
+  await page.getByRole("link", { name: title, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+}
+
+/** Navigate to a non-MCQ unit and mark it complete; assert the completed state. */
 async function markUnitComplete(page: Page, title: string): Promise<void> {
-  const card = page
-    .locator(".card")
-    .filter({ has: page.getByRole("heading", { level: 4, name: title }) });
-  await card.getByRole("button", { name: "Mark complete" }).click();
-  await expect(card.getByText("✓ completed")).toBeVisible();
+  await openUnit(page, title);
+  await page.getByRole("button", { name: "Mark complete" }).click();
+  await expect(page.getByText(/Completed/)).toBeVisible();
+}
+
+/** The player progress line, e.g. "33% · 1 of 3 units". */
+function progressLabel(page: Page) {
+  return page.locator(".player-progress__label");
 }
 
 /**
- * Answer both MCQ questions correctly and submit. The action revalidates, so the
- * unit locks and shows the score — we assert that server-rendered locked state.
+ * Navigate to the MCQ unit, answer both questions correctly and submit. The
+ * action revalidates, so the unit locks and shows the score — we assert that
+ * server-rendered locked state.
  */
 async function passMcq(page: Page): Promise<void> {
+  await openUnit(page, "Knowledge check quiz");
   // Answer-secrecy: the learner response must not serialise any internal answer key,
   // and no option may carry a correctness marker before submission.
   const html = await page.content();
@@ -258,7 +266,6 @@ test.describe("actual product vertical (test-auth)", () => {
     if (!(await inline.isChecked())) await inline.check();
     await page.getByPlaceholder("New project name").fill(PROJECT_NAME);
     await page.getByPlaceholder("New project slug").fill(PROJECT_SLUG);
-    await page.getByPlaceholder("Organisation name").fill(ORG);
     await page.getByPlaceholder("Certificate issuer name (optional)").fill(ISSUER);
     await page.getByPlaceholder("Certificate signatory name (optional)").fill(SIGNATORY);
     await page.getByPlaceholder("Certificate signatory role (optional)").fill(SIGNATORY_ROLE);
@@ -266,6 +273,8 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.getByPlaceholder("slug", { exact: true }).fill(CRED_A.slug);
     await page.getByPlaceholder("Title", { exact: true }).fill(CRED_A.title);
     await page.getByPlaceholder("Author name").fill("UAT Author");
+    // Organisation is now captured per micro-credential (required), not on the project.
+    await page.getByPlaceholder("Organisation (delivering university/partner)").fill(ORG);
     await page
       .getByPlaceholder("Short description (optional)")
       .fill("Credential A short description");
@@ -374,7 +383,7 @@ test.describe("actual product vertical (test-auth)", () => {
     await expect(S.anonPage!.getByRole("link", { name: new RegExp(CRED_A.title) })).toBeVisible();
     await S.anonPage!.goto(`/courses/${CRED_A.slug}`);
     await expect(S.anonPage!.getByRole("heading", { name: CRED_A.title })).toBeVisible();
-    await expect(S.anonPage!.getByText(ORG, { exact: false })).toBeVisible();
+    await expect(S.anonPage!.getByText(`by ${ORG}`)).toBeVisible();
     await expect(S.anonPage!.getByText("About credential A context.")).toBeVisible();
 
     // §8 — published banner is public, correct content type, and a REAL decodable image.
@@ -411,6 +420,8 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.getByPlaceholder("slug", { exact: true }).fill(CRED_B.slug);
     await page.getByPlaceholder("Title", { exact: true }).fill(CRED_B.title);
     await page.getByPlaceholder("Author name").fill("UAT Author");
+    // Organisation is required per micro-credential (same as Credential A).
+    await page.getByPlaceholder("Organisation (delivering university/partner)").fill(ORG);
     await page
       .getByPlaceholder("Short description (optional)")
       .fill("Credential B short description");
@@ -442,6 +453,8 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.locator('select[name="projectId"]').selectOption({ label: PROJECT_NAME });
     await page.getByPlaceholder("Title").fill(PROG.title);
     await page.getByPlaceholder("slug").fill(PROG.slug);
+    // Organisation is required on the programme too.
+    await page.getByPlaceholder("Organisation (delivering partner)").fill(ORG);
     await page
       .getByPlaceholder("Short description (optional)")
       .fill("UAT programme short description");
@@ -510,24 +523,29 @@ test.describe("actual product vertical (test-auth)", () => {
     const page = S.learnerPage!;
     await page.goto(`/courses/${CRED_A.slug}`);
     await page.getByRole("button", { name: "Enrol" }).click();
-    await expect(page.getByText("Enrolled successfully.")).toBeVisible();
+    // Success flips the control to the enrolled state (the new UI shows no toast).
+    await expect(page.getByRole("button", { name: "Enrolled" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Go to course/ })).toBeVisible();
 
     S.learnerUserId = (await one<{ id: string }>(
       `SELECT id FROM app_users WHERE clerk_user_id=$1`,
       [LEARNER.clerkUserId],
     ))!.id;
 
-    // Access the learning structure.
+    // Access the learning structure (one-unit-per-page: the sidebar lists every unit
+    // of the section, and one lesson opens by default).
     await page.goto(`/learn/${S.credAId}`);
-    await expect(page.getByRole("heading", { level: 2, name: "Introduction" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 4, name: "Introduction reading" }),
-    ).toBeVisible();
+    for (const t of ["Introduction reading", "Introduction video", "Knowledge check quiz"]) {
+      await expect(page.getByRole("link", { name: t, exact: true })).toBeVisible();
+    }
+    await expect(page.locator(".player__section-title", { hasText: "Introduction" })).toBeVisible();
 
-    // Re-enrol through the UI is idempotent.
+    // Idempotent: reloading the detail page keeps the enrolled state (the server
+    // action de-dupes; the UI offers no second "Enrol" button), and the DB below
+    // confirms exactly one enrolment row.
     await page.goto(`/courses/${CRED_A.slug}`);
-    await page.getByRole("button", { name: "Enrol" }).click();
-    await expect(page.getByText("You are already enrolled.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enrolled" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enrol", exact: true })).toHaveCount(0);
 
     const enr = await all<{ id: string; status: string }>(
       `SELECT e.id, cv.status FROM enrollments e
@@ -545,7 +563,8 @@ test.describe("actual product vertical (test-auth)", () => {
     const page = S.learnerPage!;
     await page.goto(`/programs/${PROG.slug}`);
     await page.getByRole("button", { name: "Register for programme" }).click();
-    await expect(page.getByText("Registered for the programme.")).toBeVisible();
+    // Success flips the control to the registered state (no toast in the new UI).
+    await expect(page.getByRole("button", { name: "Registered" })).toBeVisible();
 
     const progEnr = await all<{ id: string; metadata: unknown }>(
       `SELECT id, metadata FROM enrollments WHERE user_id=$1 AND programme_id=$2`,
@@ -574,10 +593,13 @@ test.describe("actual product vertical (test-auth)", () => {
     expect(snap).toContain(S.credAEnrolmentId!);
     expect(snap).toContain(S.credBEnrolmentId!);
 
-    // Idempotent re-registration — no new rows.
+    // Idempotent: the detail page keeps the registered state on reload (the server
+    // action de-dupes; the UI offers no second "Register" button) — no new rows.
     await page.goto(`/programs/${PROG.slug}`);
-    await page.getByRole("button", { name: "Register for programme" }).click();
-    await expect(page.getByText(/Registered for the programme|already/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Registered" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Register for programme" }),
+    ).toHaveCount(0);
     expect(
       await count(`SELECT 1 FROM enrollments WHERE user_id=$1 AND programme_id=$2`, [
         S.learnerUserId,
@@ -599,38 +621,31 @@ test.describe("actual product vertical (test-auth)", () => {
   test("player renders every type; hierarchy status updates; MCQ-then-required-reading issues cert", async () => {
     const page = S.learnerPage!;
     await page.goto(`/learn/${S.credAId}`);
-    // Each supported unit type renders in the browser.
+    // One-unit-per-page: after the earlier reorder the video is the first lesson and
+    // opens by default; the sidebar lists all three units.
     await expect(
-      page.getByRole("heading", { level: 4, name: "Introduction reading" }),
+      page.getByRole("heading", { level: 1, name: "Introduction video" }),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { level: 4, name: "Introduction video" })).toBeVisible();
-    await expect(page.locator('iframe[title="video"]')).toBeVisible();
-    await expect(
-      page.getByRole("heading", { level: 4, name: "Knowledge check quiz" }),
-    ).toBeVisible();
+    for (const t of ["Introduction reading", "Introduction video", "Knowledge check quiz"]) {
+      await expect(page.getByRole("link", { name: t, exact: true })).toBeVisible();
+    }
+    // §3.1 — initially nothing complete.
+    await expect(progressLabel(page)).toHaveText(/0%\s*·\s*0 of 3 units/);
 
-    // §3.1 — initially Not started / 0% at every level.
-    await expect(page.getByLabel(/Overall credential: Not started, 0% complete/)).toBeVisible();
-    await expect(page.getByLabel(/Section Introduction: Not started, 0% complete/)).toBeVisible();
-    await expect(page.getByLabel(/Subsection Welcome: Not started, 0% complete/)).toBeVisible();
-    await expect(
-      page.getByLabel(/Subsection Knowledge Check: Not started, 0% complete/),
-    ).toBeVisible();
+    // Each supported unit type renders when opened — the video embeds its player.
+    await openUnit(page, "Introduction video");
+    await expect(page.locator('iframe[title="video"]')).toBeVisible();
 
     // §6 + §7 — pass the MCQ FIRST (neutral labels, answer-secrecy asserted in passMcq).
     // The Reading is required for certification, so no certificate is issued yet.
     await passMcq(page);
     expect(await certCount()).toBe(0);
 
-    // §3.2/§3.3 — completing that one unit updates its subsection + overall; the OTHER
-    // subsection stays Not started.
-    await page.reload();
-    await expect(
-      page.getByLabel(/Subsection Knowledge Check: Completed, 100% complete/),
-    ).toBeVisible();
-    await expect(page.getByLabel(/Subsection Welcome: Not started, 0% complete/)).toBeVisible();
-    await expect(page.getByLabel(/Overall credential: In progress, 33% complete/)).toBeVisible();
-    // one-attempt policy: locked, no resubmit.
+    // §3.2/§3.3 — completing that one unit advances overall progress to 1 of 3.
+    await page.goto(`/learn/${S.credAId}`);
+    await expect(progressLabel(page)).toHaveText(/33%\s*·\s*1 of 3 units/);
+    // one-attempt policy: the quiz is locked, with no resubmit control.
+    await openUnit(page, "Knowledge check quiz");
     await expect(page.getByRole("button", { name: "Submit answers" })).toHaveCount(0);
 
     // Completing the video still does not certify (required reading outstanding).
@@ -641,14 +656,10 @@ test.describe("actual product vertical (test-auth)", () => {
     await markUnitComplete(page, "Introduction reading");
     expect(await certCount()).toBe(1);
 
-    // §3.4/§3.5 — reload preserves; Completed / 100% at every level.
+    // §3.4/§3.5 — reload preserves 100% and surfaces the issued-certificate banner.
     await page.reload();
-    await expect(page.getByLabel(/Overall credential: Completed, 100% complete/)).toBeVisible();
-    await expect(page.getByLabel(/Section Introduction: Completed, 100% complete/)).toBeVisible();
-    await expect(page.getByLabel(/Subsection Welcome: Completed, 100% complete/)).toBeVisible();
-    await expect(
-      page.getByLabel(/Subsection Knowledge Check: Completed, 100% complete/),
-    ).toBeVisible();
+    await expect(progressLabel(page)).toHaveText(/100%\s*·\s*3 of 3 units/);
+    await expect(page.getByText(/certificate issued/i)).toBeVisible();
 
     // Exactly one attempt, passed; grading snapshot lives in the DB only.
     const att = await all<{ passed: boolean; percentage: string; grading_snapshot: unknown }>(
@@ -664,9 +675,9 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.goto("/dashboard");
     await expect(
       page
-        .locator(".card")
+        .locator(".dash-card")
         .filter({ hasText: CRED_A.code })
-        .getByText(/Progress:\s*100%/),
+        .getByText(/100% complete/),
     ).toBeVisible();
   });
 
@@ -726,23 +737,24 @@ test.describe("actual product vertical (test-auth)", () => {
     await page.goto("/dashboard");
 
     // Per-credential cards (scoped by their own heading, not the programme card).
-    const aCard = page.locator(".card").filter({
+    const aCard = page.locator(".dash-card").filter({
       has: page.getByRole("heading", { level: 3, name: CRED_A.title }),
     });
-    const bCard = page.locator(".card").filter({
+    const bCard = page.locator(".dash-card").filter({
       has: page.getByRole("heading", { level: 3, name: CRED_B.title }),
     });
-    await expect(aCard.getByText(/Progress:\s*100%/)).toBeVisible();
-    await expect(bCard.getByText(/Progress:\s*50%/)).toBeVisible();
+    await expect(aCard.getByText(/100% complete/)).toBeVisible();
+    await expect(bCard.getByText(/50% complete/)).toBeVisible();
 
     // §4 — programme aggregate card: mean(A 100, B 50) = 75%, 1 of 2 completed, members shown.
-    const progCard = page.locator(".card").filter({
+    const progCard = page.locator(".dash-prog").filter({
       has: page.getByRole("heading", { level: 3, name: PROG.title }),
     });
-    await expect(progCard.getByText(/Programme progress:\s*75%/)).toBeVisible();
-    await expect(progCard.getByText(/1 of 2 credentials completed/)).toBeVisible();
-    await expect(progCard.getByText(new RegExp(`${CRED_A.code}.*100%`))).toBeVisible();
-    await expect(progCard.getByText(new RegExp(`${CRED_B.code}.*50%`))).toBeVisible();
+    await expect(
+      progCard.getByLabel(/Programme progress: 75% complete, 1 of 2 credentials completed/),
+    ).toBeVisible();
+    await expect(progCard.locator(".dash-member", { hasText: CRED_A.code })).toContainText("100%");
+    await expect(progCard.locator(".dash-member", { hasText: CRED_B.code })).toContainText("50%");
 
     // Shared Credential A counted once (single enrolment across direct + programme).
     expect(
@@ -794,11 +806,11 @@ test.describe("actual product vertical (test-auth)", () => {
     // Dashboard shows Temporarily unavailable and no Resume link (credential card,
     // scoped by its own heading so the programme card's member row is not matched).
     await S.learnerPage!.goto("/dashboard");
-    const aCard = S.learnerPage!.locator(".card").filter({
+    const aCard = S.learnerPage!.locator(".dash-card").filter({
       has: S.learnerPage!.getByRole("heading", { level: 3, name: CRED_A.title }),
     });
     await expect(aCard.getByText("Temporarily unavailable", { exact: true })).toBeVisible();
-    await expect(aCard.getByRole("link", { name: /Resume|Start/ })).toHaveCount(0);
+    await expect(aCard.getByRole("link", { name: /Resume|Start|Review/ })).toHaveCount(0);
 
     // Admin can still open it.
     await S.adminPage!.goto(`/admin/credentials/${S.credAId}`);
@@ -836,9 +848,9 @@ test.describe("actual product vertical (test-auth)", () => {
     expect(await count(`SELECT 1 FROM certificates WHERE id=$1`, [cert.id])).toBe(1);
     await S.learnerPage!.goto("/dashboard");
     await expect(
-      S.learnerPage!.locator(".card")
+      S.learnerPage!.locator(".dash-card")
         .filter({ has: S.learnerPage!.getByRole("heading", { level: 3, name: CRED_A.title }) })
-        .getByRole("link", { name: /Resume|Start/ }),
+        .getByRole("link", { name: /Resume|Start|Review/ }),
     ).toBeVisible();
   });
 
@@ -877,12 +889,12 @@ test.describe("actual product vertical (test-auth)", () => {
     // §4 hidden-programme dashboard: the learner's programme card stays as read-only
     // "Temporarily unavailable" with no Open link, preserving the aggregate.
     await S.learnerPage!.goto("/dashboard");
-    const progCard = S.learnerPage!.locator(".card").filter({
+    const progCard = S.learnerPage!.locator(".dash-prog").filter({
       has: S.learnerPage!.getByRole("heading", { level: 3, name: PROG.title }),
     });
     await expect(progCard.getByText("Temporarily unavailable", { exact: true })).toBeVisible();
     await expect(progCard.getByRole("link", { name: "Open programme" })).toHaveCount(0);
-    await expect(progCard.getByText(/Programme progress:\s*\d+%/)).toBeVisible(); // still shown
+    await expect(progCard.getByLabel(/Programme progress: \d+% complete/)).toBeVisible(); // still shown
 
     // Unhide restores public detail + the Open link.
     await S.adminPage!.getByRole("button", { name: "Unhide", exact: true }).click();
@@ -890,7 +902,7 @@ test.describe("actual product vertical (test-auth)", () => {
     expect((await S.anonPage!.goto(`/programs/${PROG.slug}`))!.status()).toBe(200);
     await S.learnerPage!.goto("/dashboard");
     await expect(
-      S.learnerPage!.locator(".card")
+      S.learnerPage!.locator(".dash-prog")
         .filter({ has: S.learnerPage!.getByRole("heading", { level: 3, name: PROG.title }) })
         .getByRole("link", { name: "Open programme" }),
     ).toBeVisible();
@@ -941,7 +953,7 @@ test.describe("actual product vertical (test-auth)", () => {
     expect(csvRes.headers()["content-disposition"]).toContain("enrolment-analytics.csv");
     const csv = await csvRes.text();
     expect(csv.split("\r\n")[0]).toBe(
-      "learner_name,credential_code,credential_title,progress_percent,completed,last_access,final_percentage,passed,enrolled_at",
+      "learner_name,organisation,project,credential_code,credential_title,progress_percent,completed,last_access,final_percentage,passed,enrolled_at",
     );
     expect(csv).toContain("Prod Learner");
     expect(csv).toContain(CRED_A.code);

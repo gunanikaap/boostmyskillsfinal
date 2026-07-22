@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The authenticated E2E suite (npm run test:e2e:auth) builds + serves a
+  // production bundle to avoid the dev server's growing on-demand webpack cache
+  // (which can exhaust memory across the long serial run). It sets this env so the
+  // build lands in an isolated dir and never clobbers the interactive dev `.next`.
+  ...(process.env.E2E_AUTH_DIST ? { distDir: ".next-e2e-auth" } : {}),
   // `pg` is a Node-only package; keep it external to the server bundle.
   serverExternalPackages: ["pg"],
   experimental: {

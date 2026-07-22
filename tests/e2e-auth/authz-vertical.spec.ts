@@ -77,7 +77,8 @@ test.describe("authenticated authorization vertical (test-auth)", () => {
     const { context, page } = await pageAs(browser, ADMIN_ACTOR);
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: "Admin dashboard" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "BMS Admin" })).toBeVisible();
+    // Admin top bar nav (the brand is now a logo + "Admin" tag; assert a stable nav link).
+    await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
     await page.goto("/admin/programmes");
     await expect(page).toHaveURL(/\/admin\/programmes$/);
     await context.close();

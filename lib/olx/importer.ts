@@ -520,7 +520,6 @@ export async function importOlxToDraft(
     }
     if (ownedKeys.length > 0) {
       // Safe log: operation id + counts only — no paths, filenames or contents.
-      // eslint-disable-next-line no-console
       console.warn(
         `olx-import ${opId}: rolled back; cleaned ${ownedKeys.length - failures}/${ownedKeys.length} object(s), ${failures} cleanup failure(s)`,
       );

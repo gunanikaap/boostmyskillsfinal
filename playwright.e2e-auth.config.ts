@@ -24,7 +24,9 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npx next dev -p 3101",
+    // Production server built by scripts/e2e/run-auth-e2e.mts (into the isolated
+    // .next-e2e-auth distDir) — flat, low memory profile for the long serial run.
+    command: "npx next start -p 3101",
     url: "http://localhost:3101",
     reuseExistingServer: false,
     timeout: 120_000,
