@@ -97,7 +97,10 @@ export async function cancelMyDeletionRequest(userId: string, conn: Queryable = 
 export async function listDeletionRequests(conn: Queryable = db): Promise<AdminDeletionRequest[]> {
   const { rows } = await conn.query(
     `SELECT r.id, r.status, r.reason, r.admin_note, r.requested_at, r.resolved_at,
-            r.user_id, u.email, u.username, u.first_name, u.last_name, u.deactivated_at
+            r.user_id,
+            COALESCE(u.profile->>'deletedEmail', u.email) AS email,
+            COALESCE(u.username, u.profile->>'deletedUsername') AS username,
+            u.first_name, u.last_name, u.deactivated_at
      FROM account_deletion_requests r
      JOIN app_users u ON u.id = r.user_id
      ORDER BY (r.status = 'pending') DESC, r.requested_at DESC`,
@@ -152,8 +155,21 @@ export async function approveDeletionRequest(
        WHERE id = $1`,
       [requestId, note?.trim() || null, adminUserId],
     );
+    // Deactivate AND release the email/username so the person can register again
+    // with the same address later. The app_users row is kept (certificates and
+    // enrolments reference it), but its unique identifiers are tombstoned; the
+    // originals are stashed in `profile` for the admin audit trail.
     await tx.query(
-      `UPDATE app_users SET deactivated_at = now() WHERE id = $1 AND deactivated_at IS NULL`,
+      `UPDATE app_users
+       SET deactivated_at = now(),
+           profile = profile
+             || jsonb_build_object('deletedEmail', email)
+             || CASE WHEN username IS NOT NULL
+                     THEN jsonb_build_object('deletedUsername', username)
+                     ELSE '{}'::jsonb END,
+           email = 'deleted+' || id::text || '@deleted.invalid',
+           username = NULL
+       WHERE id = $1 AND deactivated_at IS NULL`,
       [row.user_id],
     );
     return row.clerk_user_id;
