@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/access/guards";
 import { AccessError } from "@/lib/access/errors";
 import StaticPage from "@/components/StaticPage";
+import AdminBar from "@/components/admin/AdminBar";
 
 export const dynamic = "force-dynamic";
 
@@ -31,46 +32,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div>
-      <header style={{ background: "var(--bms-green-dark)", color: "#fff" }}>
-        <div
-          className="container"
-          style={{ display: "flex", gap: 18, padding: "12px 20px", alignItems: "center" }}
-        >
-          <Link href="/admin" style={{ color: "#fff", fontWeight: 800, textDecoration: "none" }}>
-            BMS Admin
-          </Link>
-          <nav style={{ display: "flex", gap: 16, marginLeft: "auto" }}>
-            <Link href="/admin/projects" style={{ color: "#fff" }}>
-              Projects
-            </Link>
-            <Link href="/admin/credentials" style={{ color: "#fff" }}>
-              Credentials
-            </Link>
-            <Link href="/admin/programmes" style={{ color: "#fff" }}>
-              Programmes
-            </Link>
-            <Link href="/admin/imports" style={{ color: "#fff" }}>
-              Imports
-            </Link>
-            <Link href="/admin/contact" style={{ color: "#fff" }}>
-              Contact messages
-            </Link>
-            <Link href="/admin/account-deletions" style={{ color: "#fff" }}>
-              Account deletions
-            </Link>
-            <Link href="/admin/analytics" style={{ color: "#fff" }}>
-              Analytics
-            </Link>
-            <Link href="/admin/maintenance" style={{ color: "#fff" }}>
-              Maintenance
-            </Link>
-          </nav>
-        </div>
-      </header>
-      <div className="container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-        {children}
-      </div>
+    <div className="admin-shell">
+      <AdminBar />
+      <main className="container admin-page">{children}</main>
     </div>
   );
 }
