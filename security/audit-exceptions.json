@@ -1,0 +1,15 @@
+{
+  "_comment": "Machine-readable, EXPIRING allowlist for `npm run security:audit`. Each entry suppresses a specific high/critical advisory that has no non-regressive fix yet. `npm run security:audit:raw` always shows the unfiltered truth. An expired entry FAILS the gate (forces re-evaluation). Never add an exception without an expiry and a concrete reason.",
+  "exceptions": [
+    {
+      "ghsa": "GHSA-f88m-g3jw-g9cj",
+      "packages": ["sharp", "next"],
+      "severity": "high",
+      "advisory": "sharp <0.35.0 inherits libvips CVEs (CVE-2026-33327/33328/35590/35591)",
+      "reason": "sharp is pulled in transitively by next@15.5.20; npm's only offered remediation is a DOWNGRADE to next@14.2.35 (breaking and older). No stable Next on the 15.x line yet declares sharp>=0.35. In this UAT build sharp is used only by Next's optional image optimizer at build time; BMS serves all images through the controlled /media route and never transcodes untrusted image bytes at runtime. Re-pin Next as soon as a release bumps sharp>=0.35.",
+      "expires": "2026-08-21",
+      "expiresNote": "Earlier of 2026-08-21 or the first cloud UAT deployment — whichever comes first; revisit then.",
+      "addedOn": "2026-07-22"
+    }
+  ]
+}

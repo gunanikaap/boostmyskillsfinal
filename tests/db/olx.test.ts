@@ -4,6 +4,7 @@ import { exportCredentialToOlx } from "@/lib/olx/exporter";
 import { importOlxToDraft, parseCourse } from "@/lib/olx/importer";
 import { inspectTarGz } from "@/lib/olx/archiveSafety";
 import { writeTarGz } from "@/lib/olx/tarWriter";
+import { OlxArchiveError } from "@/lib/olx/errors";
 import { resetDb, teardown } from "@/tests/helpers/db";
 import { makeProject, makeUser } from "@/tests/helpers/factories";
 import type { ContentDocument, GradingDocument } from "@/lib/content/schema";
@@ -248,5 +249,71 @@ describe("raw OLX (no BMS manifest) import", () => {
     const gUnit = parsed.grading.units.find((u) => u.unitId === "p1")!;
     expect(gUnit.questions[0]!.correctOptionIds).toEqual(["ob"]);
     expect(JSON.stringify(parsed.content)).not.toMatch(/correctOptionIds/);
+  });
+});
+
+describe("OLX XML entity hardening (XXE / entity expansion)", () => {
+  function courseArchive(courseXml: string) {
+    return inspectTarGz(
+      writeTarGz([
+        { path: "course/course.xml", content: courseXml },
+        {
+          path: "course/chapter/ch1.xml",
+          content: `<chapter display_name="Ch"><sequential url_name="sq1"/></chapter>`,
+        },
+      ]),
+    );
+  }
+
+  it("rejects a billion-laughs DOCTYPE/ENTITY before parsing (no expansion)", () => {
+    const bomb =
+      `<?xml version="1.0"?>\n` +
+      `<!DOCTYPE course [\n<!ENTITY lol "lol">\n<!ENTITY lol2 "&lol;&lol;&lol;&lol;">\n]>\n` +
+      `<course display_name="&lol2;" course="X"><chapter url_name="ch1"/></course>`;
+    let err: unknown;
+    try {
+      parseCourse(courseArchive(bomb));
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(OlxArchiveError);
+    expect((err as OlxArchiveError).code).toBe("xml_entity");
+  });
+
+  it("rejects an external-entity (XXE) DOCTYPE referencing a local file", () => {
+    const xxe =
+      `<!DOCTYPE course [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n` +
+      `<course display_name="&xxe;" course="X"><chapter url_name="ch1"/></course>`;
+    let err: unknown;
+    try {
+      parseCourse(courseArchive(xxe));
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(OlxArchiveError);
+    expect((err as OlxArchiveError).code).toBe("xml_entity");
+  });
+
+  it("still parses a benign course that has no DOCTYPE (guard does not over-reject)", () => {
+    const entries = inspectTarGz(
+      writeTarGz([
+        {
+          path: "course/course.xml",
+          content: `<course display_name="Clean Course" course="X"><chapter url_name="ch1"/></course>`,
+        },
+        {
+          path: "course/chapter/ch1.xml",
+          content: `<chapter display_name="Ch"><sequential url_name="sq1"/></chapter>`,
+        },
+        {
+          path: "course/sequential/sq1.xml",
+          content: `<sequential display_name="Sq"><html url_name="h1"/></sequential>`,
+        },
+        { path: "course/html/h1.xml", content: `<html filename="h1" display_name="Reading"/>` },
+        { path: "course/html/h1.html", content: `<p>Hello</p>` },
+      ]),
+    );
+    const parsed = parseCourse(entries);
+    expect(parsed.meta.title).toBe("Clean Course");
   });
 });

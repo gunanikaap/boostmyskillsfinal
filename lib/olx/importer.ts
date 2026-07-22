@@ -41,11 +41,26 @@ const PENDING_PDF_KEY = "pending-pdf-asset";
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  // Do not allow entity expansion attacks; fast-xml-parser does not process DTDs.
-  processEntities: true,
+  // Disable entity processing entirely. OLX has no legitimate need for custom
+  // entities, and leaving expansion on invites billion-laughs / entity-reference
+  // attacks. DOCTYPE/ENTITY declarations are additionally rejected pre-parse below.
+  processEntities: false,
 });
 
 type XmlNode = Record<string, unknown>;
+
+/**
+ * Parse an OLX XML fragment defensively: reject any DOCTYPE or ENTITY
+ * declaration outright (XXE / entity-expansion vectors) before parsing, and rely
+ * on the parser having entity processing disabled. Untrusted archive bytes never
+ * reach a DTD-aware parse path.
+ */
+function parseXml(xml: string): XmlNode {
+  if (/<!DOCTYPE/i.test(xml) || /<!ENTITY/i.test(xml)) {
+    throw new OlxArchiveError("xml_entity", "XML DOCTYPE/ENTITY declarations are not allowed");
+  }
+  return parser.parse(xml) as XmlNode;
+}
 
 function fileMap(entries: { path: string; content: Buffer }[]): Map<string, Buffer> {
   const m = new Map<string, Buffer>();
@@ -135,13 +150,13 @@ interface ParseCtx {
 function resolveCourseRoot(files: Map<string, Buffer>): { chapters: XmlNode; attrs: XmlNode } {
   const rootXml = files.get("course/course.xml");
   if (!rootXml) throw new OlxArchiveError("invalid_archive", "missing course/course.xml");
-  const root = (parser.parse(rootXml.toString("utf8")).course ?? {}) as XmlNode;
+  const root = (parseXml(rootXml.toString("utf8")).course ?? {}) as XmlNode;
   if (root.chapter) return { chapters: root, attrs: root };
 
   const run = clean(root["@_url_name"]);
   const runXml = run ? files.get(`course/course/${run}.xml`) : undefined;
   if (runXml) {
-    const runDoc = (parser.parse(runXml.toString("utf8")).course ?? {}) as XmlNode;
+    const runDoc = (parseXml(runXml.toString("utf8")).course ?? {}) as XmlNode;
     return { chapters: runDoc, attrs: { ...root, ...runDoc } };
   }
   return { chapters: root, attrs: root };
@@ -159,7 +174,7 @@ function collectComponents(
   for (const ref of asArray(container.html)) {
     const id = clean((ref as XmlNode)["@_url_name"]);
     if (!id) continue;
-    const metaDoc = (parser.parse(files.get(`course/html/${id}.xml`)?.toString("utf8") ?? "<html/>")
+    const metaDoc = (parseXml(files.get(`course/html/${id}.xml`)?.toString("utf8") ?? "<html/>")
       .html ?? {}) as XmlNode;
     const filename = clean(metaDoc["@_filename"]) || id;
     const raw = files.get(`course/html/${filename}.html`)?.toString("utf8") ?? "";
@@ -191,7 +206,7 @@ function collectComponents(
   for (const ref of asArray(container.video)) {
     const id = clean((ref as XmlNode)["@_url_name"]);
     if (!id) continue;
-    const vDoc = (parser.parse(files.get(`course/video/${id}.xml`)?.toString("utf8") ?? "<video/>")
+    const vDoc = (parseXml(files.get(`course/video/${id}.xml`)?.toString("utf8") ?? "<video/>")
       .video ?? {}) as XmlNode;
     const yt = youtubeId(vDoc);
     units.push({
@@ -207,9 +222,8 @@ function collectComponents(
   for (const ref of asArray(container.problem)) {
     const id = clean((ref as XmlNode)["@_url_name"]);
     if (!id) continue;
-    const pDoc = (parser.parse(
-      files.get(`course/problem/${id}.xml`)?.toString("utf8") ?? "<problem/>",
-    ).problem ?? {}) as XmlNode;
+    const pDoc = (parseXml(files.get(`course/problem/${id}.xml`)?.toString("utf8") ?? "<problem/>")
+      .problem ?? {}) as XmlNode;
     const questions: { id: string; text: string; options: { id: string; text: string }[] }[] = [];
     const gQuestions: GradingUnit["questions"] = [];
     for (const mc of asArray(pDoc.multiplechoiceresponse)) {
@@ -287,14 +301,14 @@ export function parseCourse(entries: { path: string; content: Buffer }[]): Parse
     const chapId = clean((chapterRef as XmlNode)["@_url_name"]);
     const chapDoc = files.get(`course/chapter/${chapId}.xml`);
     if (!chapDoc) continue;
-    const chapter = (parser.parse(chapDoc.toString("utf8")).chapter ?? {}) as XmlNode;
+    const chapter = (parseXml(chapDoc.toString("utf8")).chapter ?? {}) as XmlNode;
     const subsections: ContentDocument["sections"][number]["subsections"] = [];
 
     for (const seqRef of asArray(chapter.sequential)) {
       const seqId = clean((seqRef as XmlNode)["@_url_name"]);
       const seqDoc = files.get(`course/sequential/${seqId}.xml`);
       if (!seqDoc) continue;
-      const seq = (parser.parse(seqDoc.toString("utf8")).sequential ?? {}) as XmlNode;
+      const seq = (parseXml(seqDoc.toString("utf8")).sequential ?? {}) as XmlNode;
       const units: Unit[] = [];
 
       // Components may sit directly under the sequential (simple OLX) or inside
@@ -304,7 +318,7 @@ export function parseCourse(entries: { path: string; content: Buffer }[]): Parse
         const vertId = clean((vertRef as XmlNode)["@_url_name"]);
         const vertDoc = files.get(`course/vertical/${vertId}.xml`);
         if (!vertDoc) continue;
-        const vert = (parser.parse(vertDoc.toString("utf8")).vertical ?? {}) as XmlNode;
+        const vert = (parseXml(vertDoc.toString("utf8")).vertical ?? {}) as XmlNode;
         collectComponents(vert, clean(vert["@_display_name"]), ctx, units);
       }
 

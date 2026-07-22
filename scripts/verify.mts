@@ -2,7 +2,8 @@ import { spawnSync } from "node:child_process";
 
 /**
  * Single top-level verification pipeline (`npm run verify`).
- * Runs, in order: format check → lint → typecheck → tests (unit + DB) → production build.
+ * Runs, in order: format check → lint → typecheck → security audit → tests
+ * (unit + DB) → production build.
  * Stops at the first failing step and reports a concise summary.
  *
  * The DB and build steps require external services (PostgreSQL). If those are
@@ -16,6 +17,11 @@ const steps: { name: string; cmd: string; args: string[] }[] = [
   },
   { name: "lint", cmd: "npx", args: ["next", "lint"] },
   { name: "typecheck", cmd: "npx", args: ["tsc", "--noEmit"] },
+  {
+    name: "security:audit",
+    cmd: "node",
+    args: ["--experimental-strip-types", "scripts/security/audit.mts"],
+  },
   { name: "test", cmd: "npx", args: ["vitest", "run", "--no-file-parallelism"] },
   { name: "build", cmd: "npx", args: ["next", "build"] },
 ];

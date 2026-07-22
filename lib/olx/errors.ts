@@ -11,6 +11,7 @@ export type OlxErrorCode =
   | "hardlink"
   | "special_file"
   | "duplicate_path"
+  | "xml_entity"
   | "unsupported";
 
 export class OlxArchiveError extends Error {
