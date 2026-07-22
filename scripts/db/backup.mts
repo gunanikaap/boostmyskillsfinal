@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadEnv } from "../_loadEnv.mts";
+import { HANDOFF } from "./selectBackup.ts";
 
 /**
  * Create a compressed pg_dump backup of the local development database under the
@@ -35,4 +36,8 @@ if (res.status !== 0) {
   process.exit(1);
 }
 writeFileSync(outFile, res.stdout);
+// Handoff pointer so db:restore:verify can pick the EXACT dump this run created
+// (in addition to its newest-by-mtime fallback). Lives under the git-ignored
+// .data tree; never contains credentials.
+writeFileSync(resolve(dir, HANDOFF), outFile, "utf8");
 console.log(`Backup written: ${outFile} (${res.stdout.length} bytes)`);

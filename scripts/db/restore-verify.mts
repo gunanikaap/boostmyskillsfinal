@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadEnv } from "../_loadEnv.mts";
+import { selectBackupFile } from "./selectBackup.ts";
 
 /**
  * Restore the latest (or a given) backup into a SEPARATE temporary verification
@@ -28,16 +29,14 @@ const container = process.env.PG_CONTAINER ?? "bms-local-db";
 const keep = process.argv.includes("--keep");
 
 const dir = resolve(process.cwd(), ".data", "backups");
-let dumpFile = process.argv.find((a) => a.endsWith(".dump"));
-if (!dumpFile) {
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".dump"))
-    .sort();
-  if (files.length === 0) {
-    console.error("No backup .dump found. Run `npm run db:backup` first.");
-    process.exit(1);
-  }
-  dumpFile = resolve(dir, files[files.length - 1]!);
+const explicit = process.argv.find((a) => a.endsWith(".dump"));
+let dumpFile: string;
+try {
+  // Explicit arg > db:backup handoff pointer > newest valid dump by mtime.
+  dumpFile = selectBackupFile(dir, explicit);
+} catch (e) {
+  console.error((e as Error).message);
+  process.exit(1);
 }
 
 const verifyDb = `${sourceDb}_verify_${Date.now()}`;
