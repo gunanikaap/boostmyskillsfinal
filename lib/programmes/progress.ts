@@ -54,7 +54,7 @@ export async function listMyProgrammeProgress(
             mp.id AS programme_id, mp.title, mp.slug, mp.status
        FROM enrollments e
        JOIN micro_programmes mp ON mp.id = e.programme_id
-      WHERE e.user_id = $1 AND e.programme_id IS NOT NULL
+      WHERE e.user_id = $1 AND e.programme_id IS NOT NULL AND e.status <> 'withdrawn'
       ORDER BY mp.title`,
     [userId],
   );

@@ -1218,6 +1218,18 @@ a {
   border-color: transparent;
   box-shadow: none;
 }
+/* Completed: a solid, non-interactive "done" badge (no unenrol/unregister). */
+.enrol-state__done {
+  background: var(--bms-green);
+  color: #fff;
+  border-color: var(--bms-green);
+  gap: 8px;
+  cursor: default;
+}
+.enrol-state__done:hover {
+  background: var(--bms-green);
+  box-shadow: none;
+}
 .enrol-confirm {
   display: grid;
   gap: 12px;

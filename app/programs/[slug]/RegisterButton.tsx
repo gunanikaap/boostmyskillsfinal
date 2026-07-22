@@ -37,11 +37,13 @@ export function RegisterButton({
   programmeId,
   signedIn,
   registered,
+  completed,
   signInHref,
 }: {
   programmeId: string;
   signedIn: boolean;
   registered: boolean;
+  completed: boolean;
   signInHref: string;
 }) {
   const [pending, start] = useTransition();
@@ -53,9 +55,11 @@ export function RegisterButton({
     ? "signin"
     : !registered
       ? "register"
-      : confirming
-        ? "confirm"
-        : "registered";
+      : completed
+        ? "completed"
+        : confirming
+          ? "confirm"
+          : "registered";
 
   // key={view} replays the .enrol-anim transition on every state change.
   return (
@@ -107,6 +111,12 @@ export function RegisterButton({
         >
           <Check /> Registered
         </button>
+      )}
+
+      {view === "completed" && (
+        <span className="btn btn-lg enrol-state__done" aria-disabled="true">
+          <Check /> Completed
+        </span>
       )}
 
       {view === "confirm" && (

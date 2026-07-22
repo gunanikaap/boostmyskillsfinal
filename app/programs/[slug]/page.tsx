@@ -6,7 +6,7 @@ import { getPublishedProgrammeBySlug } from "@/lib/programmes/queries";
 import { RegisterButton } from "./RegisterButton";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { signInHref } from "@/lib/auth/session";
-import { isRegisteredForProgramme } from "@/lib/enrolments/service";
+import { getMyProgrammeState } from "@/lib/enrolments/service";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +46,9 @@ export default async function ProgrammeDetailPage({
   const count = detail.credentials.length;
   const user = await getCurrentAppUser();
   const signedIn = user !== null;
-  const registered = user ? await isRegisteredForProgramme(user.id, detail.id) : false;
+  const { registered, completed } = user
+    ? await getMyProgrammeState(user.id, detail.id)
+    : { registered: false, completed: false };
 
   return (
     <>
@@ -73,6 +75,7 @@ export default async function ProgrammeDetailPage({
                 programmeId={detail.id}
                 signedIn={signedIn}
                 registered={registered}
+                completed={completed}
                 signInHref={signInHref(`/programs/${detail.slug}`)}
               />
             </div>

@@ -182,7 +182,10 @@ export async function unregisterFromProgramme(
   );
 }
 
-/** Withdraw from a single micro-credential (progress/certificate preserved). */
+/**
+ * Withdraw from a single micro-credential. A COMPLETED credential cannot be
+ * unenrolled (the WHERE excludes it). Progress/certificate are preserved.
+ */
 export async function unenrolFromCredential(
   userId: string,
   credentialId: string,
@@ -190,35 +193,65 @@ export async function unenrolFromCredential(
 ): Promise<void> {
   await conn.query(
     `UPDATE enrollments SET status = 'withdrawn'
-     WHERE user_id = $1 AND credential_id = $2 AND status <> 'withdrawn'`,
+     WHERE user_id = $1 AND credential_id = $2 AND status NOT IN ('withdrawn', 'completed')`,
     [userId, credentialId],
   );
 }
 
-/** Is the user currently enrolled (non-withdrawn) in this credential? */
-export async function isEnrolledInCredential(
+export interface CredentialEnrolState {
+  enrolled: boolean;
+  completed: boolean;
+}
+
+/** The learner's enrolment state for a credential (enrolled / completed). */
+export async function getMyCredentialState(
   userId: string,
   credentialId: string,
   conn: Queryable = db,
-): Promise<boolean> {
+): Promise<CredentialEnrolState> {
   const { rows } = await conn.query(
-    `SELECT 1 FROM enrollments
-     WHERE user_id = $1 AND credential_id = $2 AND status <> 'withdrawn' LIMIT 1`,
+    `SELECT status FROM enrollments WHERE user_id = $1 AND credential_id = $2`,
     [userId, credentialId],
   );
-  return rows.length > 0;
+  const status = (rows[0] as { status: string } | undefined)?.status;
+  return {
+    enrolled: status !== undefined && status !== "withdrawn",
+    completed: status === "completed",
+  };
 }
 
-/** Is the user currently registered (non-withdrawn) for this programme? */
-export async function isRegisteredForProgramme(
+export interface ProgrammeEnrolState {
+  registered: boolean;
+  completed: boolean;
+}
+
+/**
+ * The learner's registration state for a programme. "completed" = every
+ * published member credential is completed (a programme carries no completed
+ * status of its own).
+ */
+export async function getMyProgrammeState(
   userId: string,
   programmeId: string,
   conn: Queryable = db,
-): Promise<boolean> {
-  const { rows } = await conn.query(
-    `SELECT 1 FROM enrollments
-     WHERE user_id = $1 AND programme_id = $2 AND status <> 'withdrawn' LIMIT 1`,
+): Promise<ProgrammeEnrolState> {
+  const progRes = await conn.query(
+    `SELECT status FROM enrollments WHERE user_id = $1 AND programme_id = $2`,
     [userId, programmeId],
   );
-  return rows.length > 0;
+  const status = (progRes.rows[0] as { status: string } | undefined)?.status;
+  const registered = status !== undefined && status !== "withdrawn";
+  if (!registered) return { registered: false, completed: false };
+
+  const memRes = await conn.query(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE ce.status = 'completed')::int AS done
+       FROM programme_credentials pc
+       JOIN micro_credentials mc ON mc.id = pc.credential_id AND mc.status = 'published'
+       LEFT JOIN enrollments ce ON ce.user_id = $1 AND ce.credential_id = pc.credential_id
+      WHERE pc.programme_id = $2`,
+    [userId, programmeId],
+  );
+  const { total, done } = memRes.rows[0] as { total: number; done: number };
+  return { registered: true, completed: total > 0 && done === total };
 }

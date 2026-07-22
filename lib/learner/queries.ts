@@ -33,7 +33,7 @@ export async function listMyLearning(
      FROM enrollments e
      JOIN micro_credentials mc ON mc.id = e.credential_id
      JOIN credential_versions cv ON cv.id = e.credential_version_id
-     WHERE e.user_id = $1 AND e.credential_id IS NOT NULL
+     WHERE e.user_id = $1 AND e.credential_id IS NOT NULL AND e.status <> 'withdrawn'
      ORDER BY cv.title`,
     [userId],
   );

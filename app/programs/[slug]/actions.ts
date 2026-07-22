@@ -1,7 +1,11 @@
 "use server";
 
 import { requireAuthenticatedUser, requireProgrammeAccess } from "@/lib/access/guards";
-import { registerForProgramme, unregisterFromProgramme } from "@/lib/enrolments/service";
+import {
+  registerForProgramme,
+  unregisterFromProgramme,
+  getMyProgrammeState,
+} from "@/lib/enrolments/service";
 import { AccessError } from "@/lib/access/errors";
 
 export interface RegisterResult {
@@ -28,6 +32,10 @@ export async function registerForProgrammeAction(programmeId: string): Promise<R
 export async function unregisterFromProgrammeAction(programmeId: string): Promise<RegisterResult> {
   try {
     const user = await requireAuthenticatedUser();
+    const { completed } = await getMyProgrammeState(user.id, programmeId);
+    if (completed) {
+      return { ok: false, message: "A completed programme can't be unregistered." };
+    }
     await unregisterFromProgramme(user.id, programmeId);
     return { ok: true, message: "You have unregistered from this programme." };
   } catch (err) {

@@ -37,11 +37,13 @@ export function EnrolButton({
   credentialId,
   signedIn,
   enrolled,
+  completed,
   signInHref,
 }: {
   credentialId: string;
   signedIn: boolean;
   enrolled: boolean;
+  completed: boolean;
   signInHref: string;
 }) {
   const [pending, start] = useTransition();
@@ -49,7 +51,15 @@ export function EnrolButton({
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
 
-  const view = !signedIn ? "signin" : !enrolled ? "enrol" : confirming ? "confirm" : "enrolled";
+  const view = !signedIn
+    ? "signin"
+    : !enrolled
+      ? "enrol"
+      : completed
+        ? "completed"
+        : confirming
+          ? "confirm"
+          : "enrolled";
 
   // key={view} replays the .enrol-anim transition on every state change.
   return (
@@ -102,6 +112,17 @@ export function EnrolButton({
           >
             <Check /> Enrolled
           </button>
+          <Link href={`/learn/${credentialId}`} className="enrol-state__go">
+            Go to course <Arrow />
+          </Link>
+        </div>
+      )}
+
+      {view === "completed" && (
+        <div className="enrol-state">
+          <span className="btn btn-lg enrol-state__done" aria-disabled="true">
+            <Check /> Completed
+          </span>
           <Link href={`/learn/${credentialId}`} className="enrol-state__go">
             Go to course <Arrow />
           </Link>

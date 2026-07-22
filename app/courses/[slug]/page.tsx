@@ -6,7 +6,7 @@ import { getPublishedCredentialBySlug } from "@/lib/catalogue/queries";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { signInHref } from "@/lib/auth/session";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
-import { isEnrolledInCredential } from "@/lib/enrolments/service";
+import { getMyCredentialState } from "@/lib/enrolments/service";
 import { EnrolButton } from "./EnrolButton";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +70,9 @@ export default async function CredentialDetailPage({
 
   const user = await getCurrentAppUser();
   const signedIn = user !== null;
-  const enrolled = user ? await isEnrolledInCredential(user.id, detail.id) : false;
+  const { enrolled, completed } = user
+    ? await getMyCredentialState(user.id, detail.id)
+    : { enrolled: false, completed: false };
 
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
   // "Sections" outline: prefer the OLX-style chapter list (source_metadata), and
@@ -109,6 +111,7 @@ export default async function CredentialDetailPage({
                 credentialId={detail.id}
                 signedIn={signedIn}
                 enrolled={enrolled}
+                completed={completed}
                 signInHref={signInHref(`/courses/${detail.slug}`)}
               />
             </div>

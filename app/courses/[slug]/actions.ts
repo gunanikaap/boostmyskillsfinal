@@ -2,7 +2,11 @@
 
 import { requireAuthenticatedUser } from "@/lib/access/guards";
 import { requirePublishedCredentialAccess } from "@/lib/access/guards";
-import { enrolInCredential, unenrolFromCredential } from "@/lib/enrolments/service";
+import {
+  enrolInCredential,
+  unenrolFromCredential,
+  getMyCredentialState,
+} from "@/lib/enrolments/service";
 import { AccessError } from "@/lib/access/errors";
 
 export interface EnrolResult {
@@ -13,6 +17,10 @@ export interface EnrolResult {
 export async function unenrolFromCredentialAction(credentialId: string): Promise<EnrolResult> {
   try {
     const user = await requireAuthenticatedUser();
+    const { completed } = await getMyCredentialState(user.id, credentialId);
+    if (completed) {
+      return { ok: false, message: "A completed micro-credential can't be unenrolled." };
+    }
     await unenrolFromCredential(user.id, credentialId);
     return { ok: true, message: "You have unenrolled from this micro-credential." };
   } catch (err) {
