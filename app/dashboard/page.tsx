@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
@@ -13,6 +14,9 @@ export const metadata = { title: "Dashboard" };
 export default async function DashboardPage() {
   await enforceMaintenanceForPage();
   const user = await getCurrentAppUser();
+  // A deactivated account (deletion approved) has no learner access — send it to
+  // the account page, which shows the closure notice + sign-out.
+  if (user?.deactivated) redirect("/account");
   if (!user) {
     return (
       <>

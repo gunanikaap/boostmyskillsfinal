@@ -37,7 +37,7 @@ export async function enforceMaintenanceGate(): Promise<void> {
   if (allowedDuringMaintenance(pathname)) return;
 
   const user = await getCurrentAppUser();
-  if (user?.role === "admin") return; // admins retain full access
+  if (user?.role === "admin" && !user.deactivated) return; // only an ACTIVE admin bypasses
   redirect("/maintenance");
 }
 
@@ -50,6 +50,6 @@ export async function enforceMaintenanceForPage(): Promise<void> {
   const { maintenanceMode } = await getMaintenance();
   if (!maintenanceMode) return;
   const user = await getCurrentAppUser();
-  if (user?.role === "admin") return;
+  if (user?.role === "admin" && !user.deactivated) return;
   redirect("/maintenance");
 }

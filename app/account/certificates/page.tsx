@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { listMyCertificates } from "@/lib/learner/queries";
@@ -8,6 +9,8 @@ export const metadata = { title: "My certificates" };
 
 export default async function MyCertificatesPage() {
   const user = await getCurrentAppUser();
+  // A deactivated account cannot view its private certificate listing.
+  if (user?.deactivated) redirect("/account");
   if (!user) {
     return (
       <>

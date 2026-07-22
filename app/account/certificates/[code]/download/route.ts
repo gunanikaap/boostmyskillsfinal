@@ -14,7 +14,10 @@ export async function GET(
 ): Promise<NextResponse> {
   const { code } = await ctx.params;
   const user = await getCurrentAppUser();
-  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  // Unauthenticated OR deactivated → deny without revealing the deletion state.
+  if (!user || user.deactivated) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
 
   const { rows } = await db.query(
     `SELECT c.certificate_snapshot, c.status

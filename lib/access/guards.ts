@@ -118,7 +118,7 @@ export async function requireMaintenanceAllowed(
 ): Promise<void> {
   const { maintenanceMode } = await getMaintenance(conn);
   if (!maintenanceMode) return;
-  if (opts.user?.role === "admin") return; // admins bypass entirely
+  if (opts.user?.role === "admin" && !opts.user.deactivated) return; // only an ACTIVE admin bypasses
   if (opts.isHomePath) return; // home stays available to everyone
   if (opts.isAdminPath) throw new AccessError("forbidden");
   throw new AccessError("maintenance");

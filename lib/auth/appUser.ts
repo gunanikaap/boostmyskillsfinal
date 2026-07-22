@@ -139,7 +139,21 @@ export async function getCurrentAppUser(conn: Queryable = db): Promise<AppUser |
   const identity = await resolveExternalIdentity();
   if (!identity) return null;
   // Routine per-request sync: non-authoritative so it never clobbers /account edits.
+  // Note: sync NEVER writes deactivated_at, so a routine sync cannot reactivate a
+  // deactivated account even if a Clerk session is still live.
   return syncAppUser(identity, conn, { authoritative: false });
+}
+
+/**
+ * The current request's user ONLY when the account is active (signed in AND not
+ * deactivated). This is the single boundary protected learner READ pages use to
+ * decide access; a deactivated session resolves to null so those pages deny
+ * access. The /account page deliberately uses getCurrentAppUser instead, so it
+ * can render the "account closed" notice + sign-out for a deactivated user.
+ */
+export async function getActiveAppUser(conn: Queryable = db): Promise<AppUser | null> {
+  const user = await getCurrentAppUser(conn);
+  return user && !user.deactivated ? user : null;
 }
 
 /**

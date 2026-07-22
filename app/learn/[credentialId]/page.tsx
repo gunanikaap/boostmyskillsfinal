@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { getLearnerContent } from "@/lib/player/service";
@@ -55,6 +55,8 @@ export default async function PlayerPage({
   const { credentialId } = await params;
   const { unit: requestedUnit } = await searchParams;
   const user = await getCurrentAppUser();
+  // A deactivated account has no learner access — send it to the closure notice.
+  if (user?.deactivated) redirect("/account");
   if (!user) {
     return (
       <>
