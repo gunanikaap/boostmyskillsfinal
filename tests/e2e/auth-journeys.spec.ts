@@ -22,7 +22,9 @@ test("sign-in page renders the Clerk-backed form", async ({ page }) => {
   await page.goto("/sign-in");
   // Our custom Clerk form: the branded shell + a "Sign in" submit/toggle.
   await expect(page.locator("body")).toContainText(/sign in/i, { timeout: 15_000 });
-  await expect(page.getByLabel("Password")).toBeVisible();
+  // Target the password input by placeholder — the field's label also wraps the
+  // show/hide button, so getByLabel("Password") would be ambiguous.
+  await expect(page.getByPlaceholder("Enter your password")).toBeVisible();
 });
 
 test("sign-up page renders the Clerk-backed register form", async ({ page }) => {
