@@ -2,6 +2,7 @@ import { db, type Queryable } from "@/lib/db/pool";
 import type { ContentDocument } from "@/lib/content/schema";
 import { calculateCredentialProgress } from "@/lib/progress/calculate";
 import { unitProgressRowsByEnrolment } from "@/lib/progress/queries";
+import { csvRow } from "@/lib/export/csv";
 
 export interface AnalyticsFilter {
   userId?: string;
@@ -138,19 +139,11 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
     "passed",
     "enrolled_at",
   ];
-  const esc = (v: unknown): string => {
-    let s = v === null || v === undefined ? "" : String(v);
-    // Neutralise spreadsheet formula injection: a cell starting with =,+,-,@,
-    // tab or CR is treated as a formula by Excel/Sheets. Prefix a single quote
-    // so the value is rendered as literal text. (Learner names / organisation
-    // names are user-controlled and flow into these cells.)
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [header.join(",")];
+  // Central CSV-cell sanitiser: formula-injection guard + RFC-4180 quoting.
+  const lines = [csvRow(header)];
   for (const r of rows) {
     lines.push(
-      [
+      csvRow([
         r.learnerName,
         r.organisationName,
         r.projectName,
@@ -162,9 +155,7 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
         r.finalPercentage ?? "",
         r.passed ?? "",
         r.enrolledAt,
-      ]
-        .map(esc)
-        .join(","),
+      ]),
     );
   }
   return lines.join("\r\n");
