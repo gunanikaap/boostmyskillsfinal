@@ -1,8 +1,17 @@
 import { db, type Queryable } from "@/lib/db/pool";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import {
+  PROFILE_KEYS,
+  type AccountProfile,
+  type AccountView,
+  type AccountPatch,
+} from "@/lib/account/types";
 
 /**
- * Self-service account profile (the /account page).
+ * Self-service account profile (the /account page) — SERVER ONLY.
+ *
+ * Pure types and option lists live in ./types (no `pg`), so the client component
+ * can import them without dragging the database pool into the browser bundle.
  *
  * Identity fields that Clerk owns (username, email) are read-only here. Fields a
  * learner can edit divide into two homes:
@@ -17,105 +26,12 @@ import { clerkConfigured } from "@/lib/auth/clerkConfig";
  * database save.
  */
 
-/** Editable free-form fields kept in the app_users.profile jsonb column. */
-export interface AccountProfile {
-  yearOfBirth: string;
-  education: string;
-  spokenLanguage: string;
-  linkedin: string;
-  facebook: string;
-  twitter: string;
-  siteLanguage: string;
-  timeZone: string;
-}
-
-export interface AccountView {
-  username: string | null;
-  email: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  country: string;
-  gender: string;
-  profile: AccountProfile;
-  deactivated: boolean;
-}
-
-/** A partial update from the account form. Only provided keys are written. */
-export interface AccountPatch {
-  fullName?: string;
-  country?: string;
-  gender?: string;
-  yearOfBirth?: string;
-  education?: string;
-  spokenLanguage?: string;
-  linkedin?: string;
-  facebook?: string;
-  twitter?: string;
-  siteLanguage?: string;
-  timeZone?: string;
-}
-
 export class AccountError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AccountError";
   }
 }
-
-const PROFILE_KEYS = [
-  "yearOfBirth",
-  "education",
-  "spokenLanguage",
-  "linkedin",
-  "facebook",
-  "twitter",
-  "siteLanguage",
-  "timeZone",
-] as const;
-
-export const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Prefer not to say"];
-
-export const EDUCATION_OPTIONS = [
-  "No formal education",
-  "Primary / elementary school",
-  "Secondary / high school",
-  "Associate degree",
-  "Bachelor's degree",
-  "Master's or professional degree",
-  "Doctorate",
-];
-
-export const LANGUAGE_OPTIONS = [
-  "English",
-  "Spanish",
-  "French",
-  "German",
-  "Italian",
-  "Portuguese",
-  "Dutch",
-  "Greek",
-  "Polish",
-  "Romanian",
-  "Other",
-];
-
-export const SITE_LANGUAGE_OPTIONS = ["English"];
-
-export const TIME_ZONE_OPTIONS = [
-  "Default (browser time zone)",
-  "Europe/Dublin",
-  "Europe/London",
-  "Europe/Madrid",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Europe/Athens",
-  "Europe/Bucharest",
-  "UTC",
-  "America/New_York",
-  "America/Los_Angeles",
-  "Asia/Kolkata",
-];
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";

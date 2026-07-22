@@ -1,9 +1,12 @@
 import { db, type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import type { DeletionStatus, DeletionRequest, AdminDeletionRequest } from "@/lib/account/types";
+
+export type { DeletionStatus, DeletionRequest, AdminDeletionRequest } from "@/lib/account/types";
 
 /**
- * Admin-approved account deletion.
+ * Admin-approved account deletion — SERVER ONLY (pure types live in ./types).
  *
  * A learner can't delete their own account outright. They raise a request, which
  * an administrator reviews and either approves or rejects. On approval the
@@ -12,25 +15,6 @@ import { clerkConfigured } from "@/lib/auth/clerkConfig";
  * intact. When Clerk is configured we also best-effort remove the Clerk user so
  * the person can no longer authenticate; a Clerk failure never blocks approval.
  */
-
-export type DeletionStatus = "pending" | "approved" | "rejected" | "cancelled";
-
-export interface DeletionRequest {
-  id: string;
-  status: DeletionStatus;
-  reason: string | null;
-  adminNote: string | null;
-  requestedAt: string;
-  resolvedAt: string | null;
-}
-
-export interface AdminDeletionRequest extends DeletionRequest {
-  userId: string;
-  email: string;
-  username: string | null;
-  fullName: string;
-  deactivated: boolean;
-}
 
 export class DeletionError extends Error {
   constructor(message: string) {

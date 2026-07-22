@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireAuthenticatedUser } from "@/lib/access/guards";
 import { AccessError } from "@/lib/access/errors";
-import { updateAccountProfile, AccountError, type AccountPatch } from "@/lib/account/profile";
+import { updateAccountProfile, AccountError } from "@/lib/account/profile";
+import type { AccountPatch } from "@/lib/account/types";
 import {
   requestAccountDeletion,
   cancelMyDeletionRequest,

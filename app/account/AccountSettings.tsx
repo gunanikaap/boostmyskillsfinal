@@ -10,27 +10,17 @@ import {
   LANGUAGE_OPTIONS,
   SITE_LANGUAGE_OPTIONS,
   TIME_ZONE_OPTIONS,
+  PROFILE_KEYS,
   type AccountView,
   type AccountPatch,
-} from "@/lib/account/profile";
-import type { DeletionRequest } from "@/lib/account/deletion";
+  type DeletionRequest,
+} from "@/lib/account/types";
 import {
   saveAccountAction,
   requestDeletionAction,
   cancelDeletionAction,
   type AccountActionResult,
 } from "./actions";
-
-const PROFILE_KEYS = [
-  "yearOfBirth",
-  "education",
-  "spokenLanguage",
-  "linkedin",
-  "facebook",
-  "twitter",
-  "siteLanguage",
-  "timeZone",
-] as const;
 
 const SECTIONS = [
   { id: "account-information", label: "Account Information" },
