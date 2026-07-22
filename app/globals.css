@@ -2810,6 +2810,78 @@ a {
   color: var(--bms-muted);
 }
 
+/* Analytics filter bar */
+.admin-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  align-items: end;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--bms-border);
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+.admin-filters__field {
+  display: grid;
+  gap: 5px;
+}
+.admin-filters__field > span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bms-muted);
+}
+.admin-filters__field .account-input {
+  font-size: 0.9rem;
+}
+.admin-filters__actions {
+  display: flex;
+  align-items: end;
+}
+
+/* Summary metric cards */
+.admin-metrics {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin-bottom: 20px;
+}
+.admin-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid var(--bms-border);
+  border-radius: 12px;
+}
+.admin-metric__num {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--bms-ink);
+}
+.admin-metric__label {
+  color: var(--bms-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.admin-metric__sub {
+  color: var(--bms-green-dark);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.admin-analytics__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 @media (max-width: 720px) {
   .admin-bar__inner {
     flex-wrap: wrap;

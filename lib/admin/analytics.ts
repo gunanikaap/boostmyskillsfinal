@@ -4,6 +4,8 @@ import { calculateCredentialProgress } from "@/lib/progress/calculate";
 import { unitProgressRowsByEnrolment } from "@/lib/progress/queries";
 
 export interface AnalyticsFilter {
+  userId?: string;
+  organisationName?: string;
   projectId?: string;
   programmeId?: string;
   credentialId?: string;
@@ -13,6 +15,8 @@ export interface AnalyticsFilter {
 
 export interface AnalyticsRow {
   learnerName: string;
+  organisationName: string;
+  projectName: string;
   credentialCode: string;
   credentialTitle: string;
   progressPercent: number;
@@ -21,6 +25,15 @@ export interface AnalyticsRow {
   finalPercentage: number | null;
   passed: boolean | null;
   enrolledAt: string;
+}
+
+/** Option lists for the analytics filter UI. */
+export interface AnalyticsOptions {
+  learners: { id: string; name: string }[];
+  organisations: string[];
+  projects: { id: string; name: string }[];
+  programmes: { id: string; title: string }[];
+  credentials: { id: string; label: string }[];
 }
 
 /**
@@ -38,6 +51,8 @@ export async function adminEnrolmentAnalytics(
     params.push(value);
     where.push(clause.replace("$?", `$${params.length}`));
   };
+  if (filter.userId) add("e.user_id = $?", filter.userId);
+  if (filter.organisationName) add("p.organisation_name = $?", filter.organisationName);
   if (filter.credentialId) add("e.credential_id = $?", filter.credentialId);
   if (filter.projectId) add("mc.project_id = $?", filter.projectId);
   if (filter.programmeId)
@@ -46,12 +61,15 @@ export async function adminEnrolmentAnalytics(
       filter.programmeId,
     );
   if (filter.from) add("e.enrolled_at >= $?", filter.from);
-  if (filter.to) add("e.enrolled_at <= $?", filter.to);
+  // `to` is a calendar day → include the whole day (< next midnight).
+  if (filter.to) add("e.enrolled_at < ($? ::date + interval '1 day')", filter.to);
 
   const { rows } = await conn.query(
     `SELECT
        e.id AS enrollment_id,
        COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email) AS learner_name,
+       p.organisation_name,
+       p.name AS project_name,
        mc.code AS credential_code,
        cv.title AS credential_title,
        cv.content_document,
@@ -63,6 +81,7 @@ export async function adminEnrolmentAnalytics(
      FROM enrollments e
      JOIN app_users u ON u.id = e.user_id
      JOIN micro_credentials mc ON mc.id = e.credential_id
+     JOIN projects p ON p.id = mc.project_id
      JOIN credential_versions cv ON cv.id = e.credential_version_id
      WHERE ${where.join(" AND ")}
      ORDER BY cv.title, learner_name`,
@@ -79,6 +98,8 @@ export async function adminEnrolmentAnalytics(
   );
   return enrolments.map((r) => ({
     learnerName: r.learner_name as string,
+    organisationName: r.organisation_name as string,
+    projectName: r.project_name as string,
     credentialCode: r.credential_code as string,
     credentialTitle: r.credential_title as string,
     progressPercent: calculateCredentialProgress(
@@ -100,6 +121,8 @@ export async function adminEnrolmentAnalytics(
 export function analyticsToCsv(rows: AnalyticsRow[]): string {
   const header = [
     "learner_name",
+    "organisation",
+    "project",
     "credential_code",
     "credential_title",
     "progress_percent",
@@ -118,6 +141,8 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
     lines.push(
       [
         r.learnerName,
+        r.organisationName,
+        r.projectName,
         r.credentialCode,
         r.credentialTitle,
         r.progressPercent,
@@ -132,4 +157,83 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
     );
   }
   return lines.join("\r\n");
+}
+
+/** Aggregate figures for the filtered result set (calculated server-side). */
+export interface AnalyticsSummary {
+  enrolments: number;
+  learners: number;
+  completed: number;
+  completionRate: number; // %
+  averageProgress: number; // %
+  graded: number;
+  passed: number;
+  passRate: number; // % of graded
+}
+
+export function summariseAnalytics(rows: AnalyticsRow[]): AnalyticsSummary {
+  const enrolments = rows.length;
+  const learners = new Set(rows.map((r) => r.learnerName)).size;
+  const completed = rows.filter((r) => r.completed).length;
+  const graded = rows.filter((r) => r.passed !== null);
+  const passed = graded.filter((r) => r.passed).length;
+  const round = (n: number) => Math.round(n);
+  return {
+    enrolments,
+    learners,
+    completed,
+    completionRate: enrolments ? round((completed / enrolments) * 100) : 0,
+    averageProgress: enrolments
+      ? round(rows.reduce((s, r) => s + r.progressPercent, 0) / enrolments)
+      : 0,
+    graded: graded.length,
+    passed,
+    passRate: graded.length ? round((passed / graded.length) * 100) : 0,
+  };
+}
+
+/** Option lists that populate the analytics filter controls. */
+export async function analyticsFilterOptions(conn: Queryable = db): Promise<AnalyticsOptions> {
+  const [learners, organisations, projects, programmes, credentials] = await Promise.all([
+    conn.query(
+      `SELECT u.id,
+              COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email) AS name
+       FROM app_users u
+       WHERE EXISTS (SELECT 1 FROM enrollments e WHERE e.user_id = u.id AND e.credential_id IS NOT NULL)
+       ORDER BY name`,
+    ),
+    conn.query(`SELECT DISTINCT organisation_name FROM projects ORDER BY organisation_name`),
+    conn.query(`SELECT id, name FROM projects ORDER BY name`),
+    conn.query(`SELECT id, title FROM micro_programmes ORDER BY title`),
+    conn.query(
+      `SELECT mc.id, mc.code,
+              (SELECT v.title FROM credential_versions v
+                 WHERE v.credential_id = mc.id
+                 ORDER BY (v.status = 'published') DESC, v.revision_number DESC
+                 LIMIT 1) AS title
+       FROM micro_credentials mc
+       ORDER BY mc.code`,
+    ),
+  ]);
+
+  return {
+    learners: (learners.rows as { id: string; name: string }[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+    })),
+    organisations: (organisations.rows as { organisation_name: string }[]).map(
+      (r) => r.organisation_name,
+    ),
+    projects: (projects.rows as { id: string; name: string }[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+    })),
+    programmes: (programmes.rows as { id: string; title: string }[]).map((r) => ({
+      id: r.id,
+      title: r.title,
+    })),
+    credentials: (credentials.rows as { id: string; code: string; title: string | null }[]).map(
+      (r) => ({ id: r.id, label: `${r.code} — ${r.title ?? "Untitled"}` }),
+    ),
+  };
 }

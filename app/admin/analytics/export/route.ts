@@ -13,6 +13,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
   const p = req.nextUrl.searchParams;
   const rows = await adminEnrolmentAnalytics({
+    userId: p.get("userId") ?? undefined,
+    organisationName: p.get("organisation") ?? undefined,
     projectId: p.get("projectId") ?? undefined,
     programmeId: p.get("programmeId") ?? undefined,
     credentialId: p.get("credentialId") ?? undefined,
