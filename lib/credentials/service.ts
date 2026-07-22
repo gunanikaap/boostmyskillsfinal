@@ -1,7 +1,7 @@
 import { db, type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { validateDraftForPublish } from "@/lib/content/validate";
-import { sanitizeHtml } from "@/lib/content/sanitize";
+import { sanitizeHtml, sanitizeContentDocumentHtml } from "@/lib/content/sanitize";
 import { CONTENT_SCHEMA_VERSION, DEFAULT_CERTIFICATION_THRESHOLD } from "@/lib/content/defaults";
 import { certificateTemplateSchema } from "@/lib/content/schema";
 
@@ -167,8 +167,12 @@ export async function saveDraft(
   const draft = rows[0] as { id: string; status: string } | undefined;
   if (!draft) throw new ServiceError("no_draft", "No editable draft revision exists");
 
-  // Sanitise any HTML that will be persisted.
+  // Sanitise any HTML that will be persisted: About content and — crucially —
+  // every reading unit's HTML inside the content document (the builder saves the
+  // whole document here, so this is the ingest point for builder-authored HTML).
   const about = input.aboutHtml !== undefined ? { html: sanitizeHtml(input.aboutHtml) } : undefined;
+  const content =
+    input.content !== undefined ? sanitizeContentDocumentHtml(input.content) : undefined;
 
   await conn.query(
     `UPDATE credential_versions SET
@@ -188,7 +192,7 @@ export async function saveDraft(
       input.shortDescription ?? null,
       about ? JSON.stringify(about) : null,
       input.bannerObjectKey === undefined ? null : input.bannerObjectKey,
-      input.content ? JSON.stringify(input.content) : null,
+      content !== undefined ? JSON.stringify(content) : null,
       input.grading ? JSON.stringify(input.grading) : null,
       input.certificationRule ? JSON.stringify(input.certificationRule) : null,
     ],

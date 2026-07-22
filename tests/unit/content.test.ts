@@ -4,9 +4,69 @@ import {
   ContentValidationError,
   assertNoGradingLeak,
 } from "@/lib/content/validate";
-import { sanitizeHtml, containsUnsafeHtml } from "@/lib/content/sanitize";
+import {
+  sanitizeHtml,
+  containsUnsafeHtml,
+  sanitizeContentDocumentHtml,
+} from "@/lib/content/sanitize";
 import { contentDocumentSchema } from "@/lib/content/schema";
 import { sampleContent } from "@/tests/helpers/factories";
+
+describe("content document HTML sanitisation (builder ingest)", () => {
+  it("strips script/handlers from a reading unit's HTML in place", () => {
+    const doc = {
+      schemaVersion: 1,
+      sections: [
+        {
+          id: "s1",
+          sourceKey: null,
+          title: "S",
+          subsections: [
+            {
+              id: "sub1",
+              sourceKey: null,
+              title: "Sub",
+              units: [
+                {
+                  id: "r1",
+                  sourceKey: null,
+                  type: "reading",
+                  title: "R",
+                  required: true,
+                  data: {
+                    html: `<p onclick="steal()">ok</p><script>fetch('/x')</script><a href="javascript:alert(1)">x</a>`,
+                  },
+                },
+                {
+                  id: "v1",
+                  sourceKey: null,
+                  type: "video",
+                  title: "V",
+                  required: true,
+                  data: { youtubeId: "abc" },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    sanitizeContentDocumentHtml(doc);
+    const html = (doc.sections[0]!.subsections[0]!.units[0]!.data as { html: string }).html;
+    expect(html).not.toMatch(/script/i);
+    expect(html).not.toMatch(/onclick/i);
+    expect(html).not.toMatch(/javascript:/i);
+    expect(html).toContain("ok");
+    // Non-reading units are left untouched.
+    expect(doc.sections[0]!.subsections[0]!.units[1]!.data).toEqual({ youtubeId: "abc" });
+  });
+
+  it("is a no-op for malformed/partial documents", () => {
+    expect(sanitizeContentDocumentHtml(null)).toBeNull();
+    expect(sanitizeContentDocumentHtml({})).toEqual({});
+    expect(sanitizeContentDocumentHtml({ sections: "nope" })).toEqual({ sections: "nope" });
+  });
+});
 
 describe("content contract validation", () => {
   it("accepts a well-formed draft", () => {

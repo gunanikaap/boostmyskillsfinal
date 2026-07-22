@@ -139,7 +139,12 @@ export function analyticsToCsv(rows: AnalyticsRow[]): string {
     "enrolled_at",
   ];
   const esc = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v);
+    let s = v === null || v === undefined ? "" : String(v);
+    // Neutralise spreadsheet formula injection: a cell starting with =,+,-,@,
+    // tab or CR is treated as a formula by Excel/Sheets. Prefix a single quote
+    // so the value is rendered as literal text. (Learner names / organisation
+    // names are user-controlled and flow into these cells.)
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [header.join(",")];

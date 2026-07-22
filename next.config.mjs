@@ -15,6 +15,30 @@ const nextConfig = {
     // importer, not the middleware, decides what's too big.
     middlewareClientMaxBodySize: "100mb",
   },
+  /**
+   * Baseline security headers applied to every response. These are broadly
+   * compatible and do NOT include a Content-Security-Policy — a strict CSP needs
+   * the deployed Clerk domains and is tracked as a UAT follow-up in
+   * docs/security/security-review.md. HSTS is intentionally omitted here (added
+   * at the HTTPS edge in a real deployment, not in local/dev).
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          },
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

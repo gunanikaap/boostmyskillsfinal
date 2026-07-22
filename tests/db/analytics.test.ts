@@ -58,4 +58,31 @@ describe("enrolment analytics + CSV", () => {
     expect(csv).toContain("Grace Hopper");
     expect(csv).not.toContain("@example.com"); // no email leak in CSV
   });
+
+  it("neutralises spreadsheet formula injection in CSV cells", () => {
+    const csv = analyticsToCsv([
+      {
+        learnerName: '=HYPERLINK("http://evil","click")',
+        organisationName: "+1-800-EVIL",
+        projectName: "@SUM(A1:A9)",
+        credentialCode: "-2+3",
+        credentialTitle: "Safe Title",
+        progressPercent: 100,
+        completed: true,
+        lastAccess: null,
+        finalPercentage: 50,
+        passed: true,
+        enrolledAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+    // Each dangerous leading char is prefixed with a single quote so the cell is
+    // literal text, and comma-bearing quoted values keep the leading quote inside.
+    expect(csv).toContain(`"'=HYPERLINK(""http://evil"",""click"")"`);
+    expect(csv).toContain("'+1-800-EVIL");
+    expect(csv).toContain("'@SUM(A1:A9)");
+    expect(csv).toContain("'-2+3");
+    // A benign value is untouched.
+    expect(csv).toContain("Safe Title");
+    expect(csv).not.toMatch(/(^|,)=HYPERLINK/);
+  });
 });
