@@ -15,7 +15,6 @@ import {
 import { getStorage } from "@/lib/storage/factory";
 import { importOlxToDraft } from "@/lib/olx/importer";
 import { exportCredentialToOlx } from "@/lib/olx/exporter";
-import { GET as olxArchiveGET } from "@/app/admin/credentials/[id]/olx-archive/route";
 import { GET as mediaGET } from "@/app/media/[...key]/route";
 import { resetDb, teardown } from "@/tests/helpers/db";
 import { makePng } from "@/tests/helpers/images";
@@ -111,24 +110,16 @@ describe("private OLX archive access", () => {
     return res.credentialId;
   }
 
-  it("13-15. OLX archive: denied anonymous, denied learner, allowed admin", async () => {
+  it("13-15. OLX archive is stored for audit and never served via /media", async () => {
     const credentialId = await importArchive();
+    // The original archive is still stored on import (for audit/provenance),
+    // resolvable from source_metadata even though the download button was removed.
     const key = await olxArchiveKeyForCredential(credentialId);
     expect(key).toBeTruthy();
-    // stored & retrievable via provider
     expect((await getStorage().getObject(key!)).subarray(0, 2).toString("hex")).toBe("1f8b"); // gzip magic
 
-    const params = { params: Promise.resolve({ id: credentialId }) };
-    actAsAnonymous();
-    expect((await olxArchiveGET(new Request("http://x"), params)).status).toBe(401);
-    await actAs("learner");
-    expect((await olxArchiveGET(new Request("http://x"), params)).status).toBe(403);
+    // OLX keys are never served through the public /media route (even for admin).
     await actAs("admin");
-    const ok = await olxArchiveGET(new Request("http://x"), params);
-    expect(ok.status).toBe(200);
-    expect(ok.headers.get("content-type")).toBe("application/gzip");
-
-    // OLX key is never served through the public /media route (even for admin).
     const viaMedia = await mediaGET(new Request("http://x"), {
       params: Promise.resolve({ key: key!.split("/") }),
     });

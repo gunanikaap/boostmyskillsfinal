@@ -49,9 +49,6 @@ export default async function AdminCredentialDetail({
           <a className="btn" href={`/admin/credentials/${id}/export`}>
             Export OLX (.tar.gz)
           </a>
-          <a className="btn" href={`/admin/credentials/${id}/olx-archive`}>
-            Download source archive
-          </a>
         </div>
       </div>
 

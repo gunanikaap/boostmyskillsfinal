@@ -1017,16 +1017,6 @@ test.describe("actual product vertical (test-auth)", () => {
     // The imported draft opens in Admin and is absent from the learner catalogue.
     await S.adminPage!.goto(`/admin/credentials/${imported.id}`);
     await expect(S.adminPage!.getByRole("heading").first()).toBeVisible();
-    // Original archive is private: admin downloads it; learner + anon are denied.
-    const arch = await S.adminPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`);
-    expect(arch.status()).toBe(200);
-    expect(arch.headers()["content-type"]).toContain("gzip");
-    expect(
-      (await S.learnerPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`)).status(),
-    ).toBe(403);
-    expect(
-      (await S.anonPage!.request.get(`/admin/credentials/${imported.id}/olx-archive`)).status(),
-    ).toBe(401);
     // Supported Sections/Subsections/Units survived the round trip.
     const imp = (await one<{ content_document: { sections: unknown[] } }>(
       `SELECT content_document FROM credential_versions WHERE credential_id=$1 AND status='draft'`,
