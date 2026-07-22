@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { clerkConfigured } from "@/lib/auth/clerkConfig";
+import { getCurrentAppUser } from "@/lib/auth/appUser";
 import UserMenu from "@/components/UserMenu";
 
 /**
@@ -11,8 +12,12 @@ import UserMenu from "@/components/UserMenu";
  * Clerk components (which require ClerkProvider, mounted by the root layout).
  * Without keys (e.g. a keyless CI build), fall back to plain links so the
  * production build still succeeds and the app remains usable.
+ *
+ * The "Admin" header button is rendered ONLY for a user whose app_users role is
+ * 'admin'. This is a usability shortcut, not the authorization boundary — the
+ * /admin area still enforces requireAdmin() server-side on every page + action.
  */
-export default function AuthControls() {
+export default async function AuthControls() {
   if (!clerkConfigured()) {
     return (
       <>
@@ -25,6 +30,8 @@ export default function AuthControls() {
       </>
     );
   }
+  const user = await getCurrentAppUser();
+  const isAdmin = user?.role === "admin" && !user.deactivated;
   return (
     <>
       <SignedOut>
@@ -36,6 +43,11 @@ export default function AuthControls() {
         </Link>
       </SignedOut>
       <SignedIn>
+        {isAdmin && (
+          <Link href="/admin" className="btn btn-outline btn-lg">
+            Admin
+          </Link>
+        )}
         <UserMenu />
       </SignedIn>
     </>
