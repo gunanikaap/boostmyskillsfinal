@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { submitMcqAction, markUnitCompleteAction } from "./actions";
 import type { UnitState } from "@/lib/learner/queries";
 
@@ -22,15 +23,7 @@ export function UnitView({
   state?: UnitState;
 }) {
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h4 style={{ margin: 0 }}>{unit.title}</h4>
-        <span
-          style={{ color: state?.status === "completed" ? "var(--bms-green)" : "var(--bms-muted)" }}
-        >
-          {state?.status === "completed" ? "✓ completed" : (state?.status ?? "not started")}
-        </span>
-      </div>
+    <div className="unit">
       {unit.type === "video" && <VideoUnit data={unit.data} />}
       {unit.type === "reading" && <ReadingUnit data={unit.data} />}
       {unit.type === "mcq" && (
@@ -57,12 +50,11 @@ function VideoUnit({ data }: { data: unknown }) {
   const d = data as { youtubeId?: string; mediaObjectKey?: string };
   if (d.youtubeId) {
     return (
-      <div style={{ position: "relative", paddingTop: "56.25%", marginTop: 10 }}>
+      <div className="unit-video">
         <iframe
           title="video"
           src={`https://www.youtube.com/embed/${encodeURIComponent(d.youtubeId)}`}
           allowFullScreen
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
         />
       </div>
     );
@@ -73,7 +65,7 @@ function VideoUnit({ data }: { data: unknown }) {
 function ReadingUnit({ data }: { data: unknown }) {
   const d = data as { html?: string };
   // html was sanitised server-side at authoring time.
-  return <div style={{ marginTop: 10 }} dangerouslySetInnerHTML={{ __html: d.html ?? "" }} />;
+  return <div className="unit-content" dangerouslySetInnerHTML={{ __html: d.html ?? "" }} />;
 }
 
 function MarkComplete({
@@ -85,21 +77,33 @@ function MarkComplete({
   unitId: string;
   done?: boolean;
 }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
-  if (done) return null;
+
+  if (done) {
+    return (
+      <p className="unit-done" role="status">
+        <span className="unit-done__check" aria-hidden="true">
+          ✓
+        </span>
+        Completed — continue to the next lesson.
+      </p>
+    );
+  }
   return (
-    <div style={{ marginTop: 10 }}>
+    <div className="unit-actions">
       <button
-        className="btn"
+        className="btn btn-lg"
         disabled={pending}
         onClick={() =>
-          start(async () => setMsg((await markUnitCompleteAction(credentialId, unitId)).message))
+          start(async () => {
+            await markUnitCompleteAction(credentialId, unitId);
+            router.refresh();
+          })
         }
       >
-        Mark complete
+        {pending ? "Saving…" : "Mark complete"}
       </button>
-      {msg && <span style={{ marginLeft: 10, color: "var(--bms-muted)" }}>{msg}</span>}
     </div>
   );
 }
@@ -117,6 +121,7 @@ function McqUnit({
   locked: boolean;
   lastPercentage: number | null;
 }) {
+  const router = useRouter();
   const d = data as {
     passMark: number;
     questions: { id: string; text: string; options: { id: string; text: string }[] }[];
@@ -127,7 +132,10 @@ function McqUnit({
 
   if (locked) {
     return (
-      <p style={{ marginTop: 10, color: "var(--bms-muted)" }}>
+      <p className="unit-done" role="status">
+        <span className="unit-done__check" aria-hidden="true">
+          ✓
+        </span>
         Assessment submitted{lastPercentage !== null ? ` — score ${lastPercentage}%` : ""}. No
         further attempts.
       </p>
@@ -135,39 +143,49 @@ function McqUnit({
   }
 
   return (
-    <div style={{ marginTop: 10 }}>
-      {d.questions.map((q) => (
-        <fieldset
-          key={q.id}
-          style={{ border: "1px solid var(--bms-border)", borderRadius: 8, marginBottom: 10 }}
-        >
-          <legend>{q.text}</legend>
-          {q.options.map((o) => (
-            <label key={o.id} style={{ display: "block", padding: "4px 0" }}>
-              <input
-                type="radio"
-                name={q.id}
-                value={o.id}
-                onChange={() => setAnswers((a) => ({ ...a, [q.id]: [o.id] }))}
-              />{" "}
-              {o.text}
-            </label>
-          ))}
+    <div className="mcq">
+      {d.questions.map((q, qi) => (
+        <fieldset key={q.id} className="mcq__q">
+          <legend className="mcq__legend">
+            <span className="mcq__num">{qi + 1}</span> {q.text}
+          </legend>
+          <div className="mcq__options">
+            {q.options.map((o) => {
+              const checked = answers[q.id]?.[0] === o.id;
+              return (
+                <label key={o.id} className={`mcq__option${checked ? " mcq__option--on" : ""}`}>
+                  <input
+                    type="radio"
+                    name={q.id}
+                    value={o.id}
+                    checked={checked}
+                    onChange={() => setAnswers((a) => ({ ...a, [q.id]: [o.id] }))}
+                  />
+                  <span>{o.text}</span>
+                </label>
+              );
+            })}
+          </div>
         </fieldset>
       ))}
-      <button
-        className="btn"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const res = await submitMcqAction(credentialId, unitId, answers);
-            setResult(res.message + (res.percentage !== undefined ? ` (${res.percentage}%)` : ""));
-          })
-        }
-      >
-        Submit answers
-      </button>
-      {result && <p style={{ marginTop: 8 }}>{result}</p>}
+      <div className="unit-actions">
+        <button
+          className="btn btn-lg"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const res = await submitMcqAction(credentialId, unitId, answers);
+              setResult(
+                res.message + (res.percentage !== undefined ? ` (${res.percentage}%)` : ""),
+              );
+              router.refresh();
+            })
+          }
+        >
+          {pending ? "Submitting…" : "Submit answers"}
+        </button>
+        {result && <p className="mcq__result">{result}</p>}
+      </div>
     </div>
   );
 }

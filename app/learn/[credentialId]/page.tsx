@@ -8,17 +8,46 @@ import { getCredentialProgress } from "@/lib/progress/queries";
 import { AccessError } from "@/lib/access/errors";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { UnitView } from "./UnitView";
-import { LevelStatus } from "./LevelStatus";
 
 export const dynamic = "force-dynamic";
 
+const TYPE_LABEL: Record<string, string> = { reading: "Reading", video: "Video", mcq: "Quiz" };
+
+function UnitIcon({ status }: { status?: string }) {
+  if (status === "completed") {
+    return (
+      <span className="player__unit-icon player__unit-icon--done" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M20 6L9 17l-5-5"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+  const inProgress = status === "in_progress";
+  return (
+    <span
+      className={`player__unit-icon${inProgress ? " player__unit-icon--active" : ""}`}
+      aria-hidden="true"
+    />
+  );
+}
+
 export default async function PlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ credentialId: string }>;
+  searchParams: Promise<{ unit?: string }>;
 }) {
   await enforceMaintenanceForPage();
   const { credentialId } = await params;
+  const { unit: requestedUnit } = await searchParams;
   const user = await getCurrentAppUser();
   if (!user) {
     return (
@@ -41,10 +70,8 @@ export default async function PlayerPage({
     enrollmentId = res.enrollmentId;
   } catch (err) {
     if (err instanceof AccessError && (err.kind === "hidden" || err.kind === "not_found")) {
-      // Hidden/draft/missing are indistinguishable — do not leak.
       notFound();
     }
-    // Not enrolled → send to the public detail to enrol.
     return (
       <>
         <SiteHeader />
@@ -58,92 +85,129 @@ export default async function PlayerPage({
 
   const stateMap = await getEnrollmentUnitState(enrollmentId);
   const progress = await getCredentialProgress(enrollmentId);
-  const sectionProgress = new Map((progress?.sections ?? []).map((s) => [s.id, s]));
-  const subProgress = new Map(
-    (progress?.sections ?? []).flatMap((s) => s.subsections.map((ss) => [ss.id, ss] as const)),
+
+  // Flatten every unit into a single ordered lesson list.
+  const flat = content.sections.flatMap((section) =>
+    section.subsections.flatMap((sub) =>
+      sub.units.map((unit) => ({ unit, sectionTitle: section.title, subTitle: sub.title })),
+    ),
   );
+
+  if (flat.length === 0) {
+    return (
+      <>
+        <SiteHeader />
+        <main className="container" style={{ paddingTop: 32 }}>
+          <p>This course has no content yet.</p>
+          <Link href="/dashboard">← Back to dashboard</Link>
+        </main>
+      </>
+    );
+  }
+
+  // Pick the current lesson: the requested one, else the first not-completed, else the first.
+  let currentIndex = requestedUnit ? flat.findIndex((f) => f.unit.id === requestedUnit) : -1;
+  if (currentIndex < 0) {
+    currentIndex = flat.findIndex((f) => stateMap[f.unit.id]?.status !== "completed");
+    if (currentIndex < 0) currentIndex = 0;
+  }
+  const current = flat[currentIndex]!;
+  const prev = flat[currentIndex - 1];
+  const next = flat[currentIndex + 1];
+  const unitHref = (id: string) => `/learn/${credentialId}?unit=${id}`;
 
   return (
     <>
       <SiteHeader />
-      <main className="container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-        <p>
-          <Link href="/dashboard">← Back to dashboard</Link>
-        </p>
-        {progress && (
-          <div
-            className="card"
-            style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
-          >
-            <strong>Overall progress</strong>
-            <LevelStatus
-              status={progress.status}
-              percent={progress.percent}
-              srLabel="Overall credential"
-            />
-            <span style={{ color: "var(--bms-muted)", fontSize: 13 }}>
-              {progress.completedUnits} of {progress.totalUnits} units completed
-            </span>
-          </div>
-        )}
-        {content.sections.map((section) => {
-          const sp = sectionProgress.get(section.id);
-          return (
-            <section key={section.id} style={{ marginBottom: 24 }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "baseline",
-                  flexWrap: "wrap",
-                  justifyContent: "space-between",
-                }}
-              >
-                <h2 style={{ margin: "12px 0" }}>{section.title}</h2>
-                {sp && (
-                  <LevelStatus
-                    status={sp.status}
-                    percent={sp.percent}
-                    srLabel={`Section ${section.title}`}
-                  />
-                )}
+      <main className="container player">
+        <div className="player__top">
+          <Link href="/dashboard" className="crumb">
+            ← Back to dashboard
+          </Link>
+          {progress && (
+            <div className="player-progress">
+              <div className="player-progress__bar">
+                <span style={{ width: `${progress.percent}%` }} />
               </div>
-              {section.subsections.map((sub) => {
-                const ssp = subProgress.get(sub.id);
-                return (
-                  <div key={sub.id} style={{ marginBottom: 12 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        alignItems: "baseline",
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <h3 style={{ color: "var(--bms-muted)", margin: "6px 0" }}>{sub.title}</h3>
-                      {ssp && (
-                        <LevelStatus
-                          status={ssp.status}
-                          percent={ssp.percent}
-                          srLabel={`Subsection ${sub.title}`}
-                        />
-                      )}
-                    </div>
-                    {sub.units.map((unit) => (
-                      <UnitView
-                        key={unit.id}
-                        credentialId={credentialId}
-                        unit={{ id: unit.id, type: unit.type, title: unit.title, data: unit.data }}
-                        state={stateMap[unit.id]}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
-            </section>
-          );
-        })}
+              <span className="player-progress__label">
+                {progress.percent}% · {progress.completedUnits} of {progress.totalUnits} units
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="player__grid">
+          <aside className="player__sidebar" aria-label="Course outline">
+            {content.sections.map((section) => (
+              <div key={section.id} className="player__section">
+                <p className="player__section-title">{section.title}</p>
+                <ol className="player__units">
+                  {section.subsections
+                    .flatMap((sub) => sub.units)
+                    .map((unit) => {
+                      const active = unit.id === current.unit.id;
+                      return (
+                        <li key={unit.id}>
+                          <Link
+                            href={unitHref(unit.id)}
+                            className={`player__unit${active ? " player__unit--active" : ""}`}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <UnitIcon status={stateMap[unit.id]?.status} />
+                            <span className="player__unit-title">{unit.title}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                </ol>
+              </div>
+            ))}
+          </aside>
+
+          <article className="player__main">
+            <p className="player__crumb">
+              {current.sectionTitle}
+              {current.subTitle ? ` › ${current.subTitle}` : ""}
+            </p>
+            <div className="player__unit-head">
+              <h1>{current.unit.title}</h1>
+              <span className="player__type">
+                {TYPE_LABEL[current.unit.type] ?? current.unit.type}
+              </span>
+            </div>
+
+            <UnitView
+              key={current.unit.id}
+              credentialId={credentialId}
+              unit={{
+                id: current.unit.id,
+                type: current.unit.type,
+                title: current.unit.title,
+                data: current.unit.data,
+              }}
+              state={stateMap[current.unit.id]}
+            />
+
+            <nav className="player__nav" aria-label="Lesson navigation">
+              {prev ? (
+                <Link href={unitHref(prev.unit.id)} className="btn btn-outline btn-lg">
+                  ← Previous
+                </Link>
+              ) : (
+                <span />
+              )}
+              {next ? (
+                <Link href={unitHref(next.unit.id)} className="btn btn-lg">
+                  Next →
+                </Link>
+              ) : (
+                <Link href="/dashboard" className="btn btn-lg">
+                  Finish →
+                </Link>
+              )}
+            </nav>
+          </article>
+        </div>
       </main>
     </>
   );
