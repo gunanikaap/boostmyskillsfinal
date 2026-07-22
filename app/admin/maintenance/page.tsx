@@ -6,16 +6,22 @@ export const dynamic = "force-dynamic";
 export default async function AdminMaintenancePage() {
   const m = await getMaintenance();
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <h1>Maintenance mode</h1>
-      <p style={{ color: "var(--bms-muted)" }}>
-        When enabled, non-admin access to every page except the home page is replaced by the
-        maintenance page, and protected writes are rejected server-side. Admins retain full access.
-        No redeployment is required.
-      </p>
+    <div>
+      <div className="admin-head">
+        <h1>Maintenance mode</h1>
+        <p className="admin-head__sub">
+          When enabled, everyone except admins is redirected to the maintenance page — only the home
+          page and the sign-in page stay open, and protected writes are rejected server-side. No
+          redeployment is required.
+        </p>
+      </div>
+
       <MaintenanceToggle initialEnabled={m.maintenanceMode} initialMessage={m.maintenanceMessage} />
+
       {m.updatedBy && (
-        <p style={{ color: "var(--bms-muted)" }}>Last updated by admin {String(m.updatedBy)}.</p>
+        <p className="admin-table__muted" style={{ marginTop: 16 }}>
+          Last updated by admin {String(m.updatedBy)}.
+        </p>
       )}
     </div>
   );
