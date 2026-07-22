@@ -95,7 +95,8 @@ export async function adminGetProgramme(
 ): Promise<AdminProgrammeDetail | null> {
   const progRes = await conn.query(
     `SELECT mp.id, mp.title, mp.slug, mp.status, mp.project_id, p.name AS project_name,
-            mp.short_description, mp.about_content, mp.banner_object_key
+            mp.short_description, mp.about_content, mp.banner_object_key,
+            COALESCE(NULLIF(mp.about_content->>'organisation', ''), p.organisation_name) AS org_effective
      FROM micro_programmes mp JOIN projects p ON p.id = mp.project_id WHERE mp.id = $1`,
     [id],
   );
@@ -110,6 +111,7 @@ export async function adminGetProgramme(
         short_description: string | null;
         about_content: { html?: string; organisation?: string } | null;
         banner_object_key: string | null;
+        org_effective: string;
       }
     | undefined;
   if (!prog) return null;
@@ -127,6 +129,9 @@ export async function adminGetProgramme(
   );
   const memberIds = (members.rows as { credential_id: string }[]).map((m) => m.credential_id);
 
+  // Credentials available to add: those of the SAME organisation as the
+  // programme (a credential's org = its latest revision's source_metadata,
+  // falling back to its project), excluding current members.
   const avail = await conn.query(
     `SELECT mc.id, mc.code,
             (SELECT title FROM credential_versions cv WHERE cv.credential_id = mc.id
@@ -134,9 +139,17 @@ export async function adminGetProgramme(
             (mc.status='published' AND EXISTS(SELECT 1 FROM credential_versions cv
                WHERE cv.credential_id=mc.id AND cv.status='published')) AS publishable
      FROM micro_credentials mc
-     WHERE mc.project_id = $1 AND ($2::uuid[] IS NULL OR NOT (mc.id = ANY($2::uuid[])))
+     JOIN projects p ON p.id = mc.project_id
+     WHERE COALESCE(
+             NULLIF((SELECT cv.source_metadata->>'organisation'
+                     FROM credential_versions cv WHERE cv.credential_id = mc.id
+                     ORDER BY (cv.status='published') DESC, (cv.status='draft') DESC,
+                              cv.revision_number DESC LIMIT 1), ''),
+             p.organisation_name
+           ) = $1
+       AND ($2::uuid[] IS NULL OR NOT (mc.id = ANY($2::uuid[])))
      ORDER BY mc.created_at DESC`,
-    [prog.project_id, memberIds.length ? memberIds : null],
+    [prog.org_effective, memberIds.length ? memberIds : null],
   );
 
   return {

@@ -29,7 +29,7 @@ export function ProgrammeForm({ projects }: { projects: { id: string; name: stri
       </select>
       <input name="title" placeholder="Title" required />
       <input name="slug" placeholder="slug" required />
-      <input name="organisationName" placeholder="Organisation (delivering partner, optional)" />
+      <input name="organisationName" placeholder="Organisation (delivering partner)" required />
       <input name="shortDescription" placeholder="Short description (optional)" />
       <textarea name="aboutHtml" rows={3} placeholder="About / context (optional, sanitised)" />
       <button className="btn" disabled={pending}>

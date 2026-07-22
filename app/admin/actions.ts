@@ -98,6 +98,9 @@ export async function updateProjectAction(id: string, form: FormData): Promise<A
 export async function createCredentialAction(form: FormData): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
+    if (!String(form.get("organisationName") ?? "").trim()) {
+      return { ok: false, message: "Organisation is required." };
+    }
     return await withTransaction(async (tx) => {
       let projectId = String(form.get("projectId") ?? "");
       if (!projectId) {
@@ -151,6 +154,9 @@ export async function updateCredentialMetaAction(
 ): Promise<ActionResult> {
   try {
     await requireAdmin();
+    if (input.organisation !== undefined && !input.organisation.trim()) {
+      return { ok: false, message: "Organisation is required." };
+    }
     await updateCredentialMeta(credentialId, input);
     revalidatePath(`/admin/credentials/${credentialId}`);
     revalidatePath("/courses");
@@ -265,6 +271,9 @@ export async function unhideCredentialAction(credentialId: string): Promise<Acti
 export async function createProgrammeAction(form: FormData): Promise<ActionResult> {
   try {
     const admin = await requireAdmin();
+    if (!String(form.get("organisationName") ?? "").trim()) {
+      return { ok: false, message: "Organisation is required." };
+    }
     const id = await createProgramme({
       projectId: String(form.get("projectId") ?? ""),
       slug: String(form.get("slug") ?? ""),
@@ -287,6 +296,9 @@ export async function updateProgrammeAction(
 ): Promise<ActionResult> {
   try {
     await requireAdmin();
+    if (!String(form.get("organisationName") ?? "").trim()) {
+      return { ok: false, message: "Organisation is required." };
+    }
     await updateProgramme(programmeId, {
       title: String(form.get("title") ?? ""),
       shortDescription: String(form.get("shortDescription") ?? "") || undefined,

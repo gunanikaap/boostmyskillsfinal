@@ -63,6 +63,7 @@ export function CredentialMeta({
           value={organisation}
           onChange={(e) => setOrganisation(e.target.value)}
           placeholder="Delivering university / partner"
+          required
         />
       </label>
       <label style={label}>

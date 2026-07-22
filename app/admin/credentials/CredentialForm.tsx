@@ -53,7 +53,11 @@ export function CredentialForm({
       <input name="slug" placeholder="slug" required />
       <input name="title" placeholder="Title" required />
       <input name="authorName" placeholder="Author name" required />
-      <input name="organisationName" placeholder="Organisation (delivering university/partner)" />
+      <input
+        name="organisationName"
+        placeholder="Organisation (delivering university/partner)"
+        required
+      />
       <input name="shortDescription" placeholder="Short description (optional)" />
       <input
         name="topic"

@@ -35,6 +35,7 @@ export function ProgrammeDetailsEditor({ detail }: { detail: AdminProgrammeDetai
             name="organisationName"
             defaultValue={detail.organisationName}
             placeholder="e.g. University of Coimbra"
+            required
           />
         </label>
         <label>

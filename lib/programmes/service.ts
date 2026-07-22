@@ -92,21 +92,38 @@ export async function setProgrammeCredentials(
     if (new Set(ids).size !== ids.length) {
       throw new ServiceError("duplicate_credential", "Duplicate credential in programme");
     }
-    const progRes = await tx.query(`SELECT project_id FROM micro_programmes WHERE id = $1`, [
-      programmeId,
-    ]);
-    const prog = progRes.rows[0] as { project_id: string } | undefined;
+    const progRes = await tx.query(
+      `SELECT COALESCE(NULLIF(mp.about_content->>'organisation', ''), p.organisation_name) AS org
+       FROM micro_programmes mp JOIN projects p ON p.id = mp.project_id WHERE mp.id = $1`,
+      [programmeId],
+    );
+    const prog = progRes.rows[0] as { org: string } | undefined;
     if (!prog) throw new ServiceError("not_found", "Programme not found");
 
     if (ids.length > 0) {
+      // A programme is built from credentials of the SAME organisation. A
+      // credential's organisation is its published/draft revision's
+      // source_metadata.organisation, falling back to its project's.
       const check = await tx.query(
-        `SELECT id FROM micro_credentials WHERE id = ANY($1::uuid[]) AND project_id = $2`,
-        [ids, prog.project_id],
+        `SELECT mc.id
+         FROM micro_credentials mc
+         JOIN projects p ON p.id = mc.project_id
+         WHERE mc.id = ANY($1::uuid[])
+           AND COALESCE(
+                 NULLIF((SELECT cv.source_metadata->>'organisation'
+                         FROM credential_versions cv
+                         WHERE cv.credential_id = mc.id
+                         ORDER BY (cv.status = 'published') DESC, (cv.status = 'draft') DESC,
+                                  cv.revision_number DESC
+                         LIMIT 1), ''),
+                 p.organisation_name
+               ) = $2`,
+        [ids, prog.org],
       );
       if (check.rows.length !== ids.length) {
         throw new ServiceError(
-          "project_mismatch",
-          "All credentials must belong to the programme's project",
+          "organisation_mismatch",
+          "All credentials must belong to the programme's organisation",
         );
       }
     }
