@@ -73,7 +73,9 @@ function ReadingUnit({ data }: { data: unknown }) {
 
 function PdfUnit({ data }: { data: unknown }) {
   const d = data as { url?: string; objectKey?: string; filename?: string };
-  const src = d.url ?? (d.objectKey ? `/media/${d.objectKey}` : null);
+  // Imported PDFs are stored content assets served (with auth) via /content-asset;
+  // an admin-entered external URL is used directly when present.
+  const src = d.url ?? (d.objectKey ? `/content-asset/${d.objectKey}` : null);
   if (!src) {
     return <p style={{ color: "var(--bms-muted)" }}>PDF unavailable.</p>;
   }

@@ -123,6 +123,97 @@ describe("OLX export/import round trip", () => {
   });
 });
 
+describe("standard edX OLX import (pointer course.xml + verticals + PDFs)", () => {
+  // Mirrors the real exports in olx_samples: course.xml is a pointer to the run
+  // file, chapter -> sequential -> vertical -> components, choices under
+  // <choicegroup>, and PDF "readings" embedded as /static iframes.
+  function standardArchive() {
+    return writeTarGz([
+      { path: "course/course.xml", content: `<course url_name="run1" org="ORG" course="SYN-1"/>` },
+      {
+        path: "course/course/run1.xml",
+        content: `<course display_name="Synthetic Course"><chapter url_name="ch1"/></course>`,
+      },
+      {
+        path: "course/chapter/ch1.xml",
+        content: `<chapter display_name="Chapter A"><sequential url_name="sq1"/></chapter>`,
+      },
+      {
+        path: "course/sequential/sq1.xml",
+        content: `<sequential display_name="Seq A"><vertical url_name="v1"/><vertical url_name="v2"/><vertical url_name="v3"/></sequential>`,
+      },
+      {
+        path: "course/vertical/v1.xml",
+        content: `<vertical display_name="Reading"><html url_name="h1"/></vertical>`,
+      },
+      {
+        path: "course/vertical/v2.xml",
+        content: `<vertical display_name="Watch"><video url_name="vid1"/></vertical>`,
+      },
+      {
+        path: "course/vertical/v3.xml",
+        content: `<vertical display_name="Exercise"><problem url_name="p1"/></vertical>`,
+      },
+      { path: "course/html/h1.xml", content: `<html filename="h1" display_name="Raw HTML"/>` },
+      {
+        path: "course/html/h1.html",
+        content: `<p><iframe src="/static/doc.pdf" width="100%"></iframe></p>`,
+      },
+      { path: "course/static/doc.pdf", content: `%PDF-1.4 fake pdf bytes` },
+      {
+        path: "course/video/vid1.xml",
+        content: `<video youtube="1.00:abc123" youtube_id_1_0="abc123" display_name="Intro"/>`,
+      },
+      {
+        path: "course/problem/p1.xml",
+        content: `<problem display_name="Multiple Choice"><p><strong>Q1</strong></p><p>Pick one</p><multiplechoiceresponse><choicegroup><choice correct="false">Wrong</choice><choice correct="true">Right</choice></choicegroup></multiplechoiceresponse></problem>`,
+      },
+    ]);
+  }
+
+  it("walks pointer/vertical structure into readings, videos, MCQs and PDF units", () => {
+    const parsed = parseCourse(inspectTarGz(standardArchive()));
+    expect(parsed.source).toBe("olx");
+    expect(parsed.meta.title).toBe("Synthetic Course");
+    expect(parsed.content.sections[0]!.title).toBe("Chapter A");
+    const units = parsed.content.sections[0]!.subsections[0]!.units;
+    const byType = units.map((u) => u.type).sort();
+    expect(byType).toEqual(["mcq", "pdf", "video"]);
+
+    const video = units.find((u) => u.type === "video")!;
+    expect((video.data as { youtubeId: string }).youtubeId).toBe("abc123");
+
+    const pdf = units.find((u) => u.type === "pdf")!;
+    expect(pdf.title).toBe("Reading");
+    expect(parsed.pdfAssets).toEqual([{ unitId: "h1", staticName: "doc.pdf" }]);
+
+    // Correct answer lives only in grading, never in learner content.
+    const g = parsed.grading.units.find((u) => u.unitId === "p1")!;
+    expect(g.questions[0]!.correctOptionIds).toHaveLength(1);
+    expect(JSON.stringify(parsed.content)).not.toMatch(/correct/i);
+  });
+
+  it("stores the PDF asset and gives the pdf unit a real objectKey", async () => {
+    const admin = await makeUser("admin");
+    const project = await makeProject();
+    const res = await importOlxToDraft({
+      gz: standardArchive(),
+      originalFilename: "synthetic.tar.gz",
+      projectId: project,
+      adminId: admin,
+    });
+    const ver = await getPool().query(
+      `SELECT content_document FROM credential_versions WHERE credential_id=$1 AND status='draft'`,
+      [res.credentialId],
+    );
+    const content = ver.rows[0]!.content_document as ContentDocument;
+    const pdf = content.sections[0]!.subsections[0]!.units.find((u) => u.type === "pdf")!;
+    const key = (pdf.data as { objectKey: string }).objectKey;
+    expect(key).toContain("content/");
+    expect(key).not.toContain("pending");
+  });
+});
+
 describe("raw OLX (no BMS manifest) import", () => {
   it("parses a minimal OLX course tree and sanitises reading HTML", () => {
     const gz = writeTarGz([

@@ -15,12 +15,24 @@ export function ImportForm({ projects }: { projects: { id: string; name: string 
         setBusy(true);
         setMsg(null);
         const fd = new FormData(e.currentTarget);
-        const res = await fetch("/admin/imports/upload", { method: "POST", body: fd });
-        const data = await res.json();
-        setBusy(false);
-        setMsg(
-          res.ok ? `Imported draft ${data.credentialId} (source: ${data.source}).` : data.error,
-        );
+        try {
+          const res = await fetch("/admin/imports/upload", { method: "POST", body: fd });
+          let data: { credentialId?: string; source?: string; error?: string } = {};
+          try {
+            data = await res.json();
+          } catch {
+            /* non-JSON response */
+          }
+          setMsg(
+            res.ok
+              ? `Imported draft ${data.credentialId} (source: ${data.source}). Review it under Credentials.`
+              : (data.error ?? `Import failed (HTTP ${res.status}).`),
+          );
+        } catch {
+          setMsg("Import failed — the upload could not be completed. Please try again.");
+        } finally {
+          setBusy(false);
+        }
       }}
     >
       <h3 style={{ margin: 0 }}>Import OLX archive (.tar.gz)</h3>

@@ -10,7 +10,13 @@ import { type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { createCredentialWithDraft, saveDraft } from "@/lib/credentials/service";
 import { getStorage } from "@/lib/storage/factory";
-import { olxArchiveKey } from "@/lib/storage/keys";
+import { olxArchiveKey, contentAssetKey } from "@/lib/storage/keys";
+
+export interface PdfAsset {
+  unitId: string;
+  /** Static file name referenced from the OLX `/static/<name>` (URL-decoded). */
+  staticName: string;
+}
 
 export interface ParsedCourse {
   content: ContentDocument;
@@ -24,7 +30,12 @@ export interface ParsedCourse {
   };
   unsupportedBlocks: string[];
   source: "bms-manifest" | "olx";
+  /** PDF `/static` assets referenced by pdf units, resolved by the importer. */
+  pdfAssets: PdfAsset[];
 }
+
+/** Placeholder objectKey for a pdf unit until the importer stores the asset. */
+const PENDING_PDF_KEY = "pending-pdf-asset";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -32,6 +43,8 @@ const parser = new XMLParser({
   // Do not allow entity expansion attacks; fast-xml-parser does not process DTDs.
   processEntities: true,
 });
+
+type XmlNode = Record<string, unknown>;
 
 function fileMap(entries: { path: string; content: Buffer }[]): Map<string, Buffer> {
   const m = new Map<string, Buffer>();
@@ -42,6 +55,202 @@ function fileMap(entries: { path: string; content: Buffer }[]): Map<string, Buff
 function asArray<T>(v: T | T[] | undefined): T[] {
   if (v === undefined) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+/** Recursively extract readable text from a parsed XML node (skips attributes). */
+function textOf(node: unknown): string {
+  if (node == null) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join(" ");
+  if (typeof node === "object") {
+    let s = "";
+    for (const [k, v] of Object.entries(node as XmlNode)) {
+      if (k.startsWith("@_")) continue;
+      s += ` ${textOf(v)}`;
+    }
+    return s;
+  }
+  return "";
+}
+
+function clean(s: unknown): string {
+  return typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "";
+}
+
+// Generic, non-descriptive OLX display names we prefer to replace with the
+// enclosing unit's (vertical) name when one is available.
+const GENERIC_TITLES = new Set(["", "raw html", "multiple choice", "problem", "text", "html"]);
+function meaningful(s: unknown): string {
+  const c = clean(s);
+  return c && !GENERIC_TITLES.has(c.toLowerCase()) ? c : "";
+}
+function pickTitle(candidates: unknown[], fallback: string): string {
+  for (const c of candidates) {
+    const m = clean(c);
+    if (m) return m;
+  }
+  return fallback;
+}
+
+/** First `<strong>` label inside a problem's `<p>` children (e.g. "Final Exam Q2"). */
+function problemLabel(pDoc: XmlNode): string {
+  for (const p of asArray(pDoc.p)) {
+    if (p && typeof p === "object" && "strong" in (p as XmlNode)) {
+      const t = clean(textOf((p as XmlNode).strong));
+      if (t) return t;
+    }
+  }
+  return "";
+}
+
+/** Extract a YouTube id from an edX `<video>` node (`youtube_id_1_0` or `youtube`). */
+function youtubeId(video: XmlNode): string {
+  const direct = clean(video["@_youtube_id_1_0"]);
+  if (direct) return direct;
+  // `youtube="1.00:ID[,speed:ID...]"` — take the first id after the colon.
+  const combined = clean(video["@_youtube"]);
+  const m = /(?:^|,)\s*[\d.]+:([\w-]+)/.exec(combined);
+  return m?.[1] ?? "";
+}
+
+const PDF_SRC_RE = /(?:src|href)\s*=\s*["']\/static\/([^"']+\.pdf)["']/i;
+
+type Unit = ContentDocument["sections"][number]["subsections"][number]["units"][number];
+type GradingUnit = GradingDocument["units"][number];
+
+interface ParseCtx {
+  files: Map<string, Buffer>;
+  gradingUnits: GradingUnit[];
+  pdfAssets: PdfAsset[];
+  unsupportedBlocks: string[];
+}
+
+/**
+ * Resolve the course root. `course/course.xml` may hold the chapters inline
+ * (simple OLX) OR be a pointer `<course url_name="RUN" .../>` to the real
+ * structure in `course/course/<RUN>.xml` (standard edX export). Returns the node
+ * that actually carries `<chapter>` refs, plus the merged attributes.
+ */
+function resolveCourseRoot(files: Map<string, Buffer>): { chapters: XmlNode; attrs: XmlNode } {
+  const rootXml = files.get("course/course.xml");
+  if (!rootXml) throw new OlxArchiveError("invalid_archive", "missing course/course.xml");
+  const root = (parser.parse(rootXml.toString("utf8")).course ?? {}) as XmlNode;
+  if (root.chapter) return { chapters: root, attrs: root };
+
+  const run = clean(root["@_url_name"]);
+  const runXml = run ? files.get(`course/course/${run}.xml`) : undefined;
+  if (runXml) {
+    const runDoc = (parser.parse(runXml.toString("utf8")).course ?? {}) as XmlNode;
+    return { chapters: runDoc, attrs: { ...root, ...runDoc } };
+  }
+  return { chapters: root, attrs: root };
+}
+
+/** Collect html/video/problem components from a container (a sequential or a vertical). */
+function collectComponents(
+  container: XmlNode,
+  containerTitle: string,
+  ctx: ParseCtx,
+  units: Unit[],
+): void {
+  const { files } = ctx;
+
+  for (const ref of asArray(container.html)) {
+    const id = clean((ref as XmlNode)["@_url_name"]);
+    if (!id) continue;
+    const metaDoc = (parser.parse(files.get(`course/html/${id}.xml`)?.toString("utf8") ?? "<html/>")
+      .html ?? {}) as XmlNode;
+    const filename = clean(metaDoc["@_filename"]) || id;
+    const raw = files.get(`course/html/${filename}.html`)?.toString("utf8") ?? "";
+    const pdf = PDF_SRC_RE.exec(raw);
+    const title = pickTitle([meaningful(metaDoc["@_display_name"]), containerTitle], "Reading");
+    if (pdf) {
+      const staticName = decodeURIComponent(pdf[1]!);
+      units.push({
+        id,
+        sourceKey: id,
+        type: "pdf",
+        title: pickTitle([meaningful(metaDoc["@_display_name"]), containerTitle], "Document"),
+        required: true,
+        data: { objectKey: PENDING_PDF_KEY, filename: staticName.split("/").pop() ?? staticName },
+      });
+      ctx.pdfAssets.push({ unitId: id, staticName });
+    } else {
+      units.push({
+        id,
+        sourceKey: id,
+        type: "reading",
+        title,
+        required: true,
+        data: { html: sanitizeHtml(raw) },
+      });
+    }
+  }
+
+  for (const ref of asArray(container.video)) {
+    const id = clean((ref as XmlNode)["@_url_name"]);
+    if (!id) continue;
+    const vDoc = (parser.parse(files.get(`course/video/${id}.xml`)?.toString("utf8") ?? "<video/>")
+      .video ?? {}) as XmlNode;
+    const yt = youtubeId(vDoc);
+    units.push({
+      id,
+      sourceKey: id,
+      type: "video",
+      title: pickTitle([meaningful(vDoc["@_display_name"]), containerTitle], "Video"),
+      required: true,
+      data: yt ? { youtubeId: yt } : { mediaObjectKey: `imported/${id}` },
+    });
+  }
+
+  for (const ref of asArray(container.problem)) {
+    const id = clean((ref as XmlNode)["@_url_name"]);
+    if (!id) continue;
+    const pDoc = (parser.parse(
+      files.get(`course/problem/${id}.xml`)?.toString("utf8") ?? "<problem/>",
+    ).problem ?? {}) as XmlNode;
+    const questions: { id: string; text: string; options: { id: string; text: string }[] }[] = [];
+    const gQuestions: GradingUnit["questions"] = [];
+    for (const mc of asArray(pDoc.multiplechoiceresponse)) {
+      const m = mc as XmlNode;
+      const qid = clean(m["@_url_name"]) || `${id}-q${questions.length + 1}`;
+      const qText = clean(textOf(m.label)) || clean(textOf(pDoc.p)) || "Question";
+      // Choices sit under <choicegroup> (standard edX) or directly (simple OLX).
+      const choicegroup = m.choicegroup as XmlNode | undefined;
+      const choiceList = asArray(choicegroup?.choice ?? m.choice);
+      const options: { id: string; text: string }[] = [];
+      const correct: string[] = [];
+      choiceList.forEach((c, i) => {
+        const ch = c as XmlNode;
+        const oid = clean(ch["@_url_name"]) || `${qid}-o${i + 1}`;
+        options.push({ id: oid, text: clean(textOf(ch)) });
+        if (clean(ch["@_correct"]).toLowerCase() === "true") correct.push(oid);
+      });
+      if (options.length === 0) continue;
+      questions.push({ id: qid, text: qText, options });
+      gQuestions.push({
+        questionId: qid,
+        correctOptionIds: correct.length ? correct : [options[0]!.id],
+        points: 1,
+      });
+    }
+    if (questions.length === 0) {
+      ctx.unsupportedBlocks.push(`problem:${id}`);
+      continue;
+    }
+    units.push({
+      id,
+      sourceKey: id,
+      type: "mcq",
+      title: pickTitle(
+        [problemLabel(pDoc), meaningful(pDoc["@_display_name"]), containerTitle],
+        "Assessment",
+      ),
+      required: true,
+      data: { passMark: 50, questions },
+    });
+    ctx.gradingUnits.push({ unitId: id, passMark: 50, maxAttempts: 1, questions: gQuestions });
+  }
 }
 
 /** Parse a safe set of OLX entries into our content + grading model. */
@@ -60,127 +269,64 @@ export function parseCourse(entries: { path: string; content: Buffer }[]): Parse
       meta: parsed.meta,
       unsupportedBlocks: [],
       source: "bms-manifest",
+      pdfAssets: [],
     };
   }
 
-  // Best-effort OLX path.
-  const courseXml = files.get("course/course.xml");
-  if (!courseXml) throw new OlxArchiveError("invalid_archive", "missing course/course.xml");
-  const unsupportedBlocks: string[] = [];
-  const course = parser.parse(courseXml.toString("utf8")).course ?? {};
-  const title = String(course["@_display_name"] ?? "Imported course");
-  const code = String(course["@_course"] ?? `IMP-${title}`.slice(0, 40));
+  // Best-effort OLX path (handles standard edX exports: pointer course.xml,
+  // chapter -> sequential -> vertical -> components).
+  const { chapters, attrs } = resolveCourseRoot(files);
+  const title = clean(attrs["@_display_name"]) || "Imported course";
+  const code = clean(attrs["@_course"]) || `IMP-${title}`.slice(0, 40);
 
+  const ctx: ParseCtx = { files, gradingUnits: [], pdfAssets: [], unsupportedBlocks: [] };
   const sections: ContentDocument["sections"] = [];
-  const gradingUnits: GradingDocument["units"] = [];
 
-  for (const chapterRef of asArray(course.chapter)) {
-    const chapId = String((chapterRef as Record<string, unknown>)["@_url_name"] ?? "");
+  for (const chapterRef of asArray(chapters.chapter)) {
+    const chapId = clean((chapterRef as XmlNode)["@_url_name"]);
     const chapDoc = files.get(`course/chapter/${chapId}.xml`);
     if (!chapDoc) continue;
-    const chapter = parser.parse(chapDoc.toString("utf8")).chapter ?? {};
+    const chapter = (parser.parse(chapDoc.toString("utf8")).chapter ?? {}) as XmlNode;
     const subsections: ContentDocument["sections"][number]["subsections"] = [];
 
     for (const seqRef of asArray(chapter.sequential)) {
-      const seqId = String((seqRef as Record<string, unknown>)["@_url_name"] ?? "");
+      const seqId = clean((seqRef as XmlNode)["@_url_name"]);
       const seqDoc = files.get(`course/sequential/${seqId}.xml`);
       if (!seqDoc) continue;
-      const seq = parser.parse(seqDoc.toString("utf8")).sequential ?? {};
-      const units: ContentDocument["sections"][number]["subsections"][number]["units"] = [];
+      const seq = (parser.parse(seqDoc.toString("utf8")).sequential ?? {}) as XmlNode;
+      const units: Unit[] = [];
 
-      const addComponents = (tag: "html" | "video" | "problem") => {
-        for (const ref of asArray(seq[tag])) {
-          const id = String((ref as Record<string, unknown>)["@_url_name"] ?? "");
-          if (tag === "html") {
-            const html = files.get(`course/html/${id}.html`)?.toString("utf8") ?? "";
-            const metaDoc =
-              parser.parse(files.get(`course/html/${id}.xml`)?.toString("utf8") ?? "<html/>")
-                .html ?? {};
-            units.push({
-              id,
-              sourceKey: id,
-              type: "reading",
-              title: String(metaDoc["@_display_name"] ?? "Reading"),
-              required: true,
-              data: { html: sanitizeHtml(html) },
-            });
-          } else if (tag === "video") {
-            const vDoc =
-              parser.parse(files.get(`course/video/${id}.xml`)?.toString("utf8") ?? "<video/>")
-                .video ?? {};
-            const yt = String(vDoc["@_youtube_id_1_0"] ?? "");
-            units.push({
-              id,
-              sourceKey: id,
-              type: "video",
-              title: String(vDoc["@_display_name"] ?? "Video"),
-              required: true,
-              data: yt ? { youtubeId: yt } : { mediaObjectKey: `imported/${id}` },
-            });
-          } else {
-            const pDoc =
-              parser.parse(files.get(`course/problem/${id}.xml`)?.toString("utf8") ?? "<problem/>")
-                .problem ?? {};
-            const questions: {
-              id: string;
-              text: string;
-              options: { id: string; text: string }[];
-            }[] = [];
-            const gQuestions: { questionId: string; correctOptionIds: string[]; points: number }[] =
-              [];
-            for (const mc of asArray(pDoc.multiplechoiceresponse)) {
-              const m = mc as Record<string, unknown>;
-              const qid = String(m["@_url_name"] ?? `${id}-q${questions.length + 1}`);
-              const qText = String(m.label ?? "Question");
-              const options: { id: string; text: string }[] = [];
-              const correct: string[] = [];
-              asArray(m.choice).forEach((c, i) => {
-                const ch = c as Record<string, unknown>;
-                const oid = String(ch["@_url_name"] ?? `${qid}-o${i + 1}`);
-                const text = String(ch["#text"] ?? ch ?? "");
-                options.push({ id: oid, text });
-                if (String(ch["@_correct"]) === "true") correct.push(oid);
-              });
-              questions.push({ id: qid, text: qText, options });
-              gQuestions.push({
-                questionId: qid,
-                correctOptionIds: correct.length ? correct : [options[0]?.id ?? "o1"],
-                points: 1,
-              });
-            }
-            units.push({
-              id,
-              sourceKey: id,
-              type: "mcq",
-              title: String(pDoc["@_display_name"] ?? "Assessment"),
-              required: true,
-              data: { passMark: 50, questions },
-            });
-            gradingUnits.push({ unitId: id, passMark: 50, maxAttempts: 1, questions: gQuestions });
-          }
-        }
-      };
-      addComponents("html");
-      addComponents("video");
-      addComponents("problem");
+      // Components may sit directly under the sequential (simple OLX) or inside
+      // verticals (standard edX). Handle both, in document order.
+      collectComponents(seq, "", ctx, units);
+      for (const vertRef of asArray(seq.vertical)) {
+        const vertId = clean((vertRef as XmlNode)["@_url_name"]);
+        const vertDoc = files.get(`course/vertical/${vertId}.xml`);
+        if (!vertDoc) continue;
+        const vert = (parser.parse(vertDoc.toString("utf8")).vertical ?? {}) as XmlNode;
+        collectComponents(vert, clean(vert["@_display_name"]), ctx, units);
+      }
 
       subsections.push({
         id: seqId,
         sourceKey: seqId,
-        title: String(seq["@_display_name"] ?? "Subsection"),
+        title: clean(seq["@_display_name"]) || "Subsection",
         units,
       });
     }
     sections.push({
       id: chapId,
       sourceKey: chapId,
-      title: String(chapter["@_display_name"] ?? "Section"),
+      title: clean(chapter["@_display_name"]) || "Section",
       subsections,
     });
   }
 
   const content: ContentDocument = { schemaVersion: CONTENT_SCHEMA_VERSION, sections };
-  const grading: GradingDocument = { schemaVersion: CONTENT_SCHEMA_VERSION, units: gradingUnits };
+  const grading: GradingDocument = {
+    schemaVersion: CONTENT_SCHEMA_VERSION,
+    units: ctx.gradingUnits,
+  };
 
   return {
     content,
@@ -192,9 +338,33 @@ export function parseCourse(entries: { path: string; content: Buffer }[]): Parse
       authorName: "Imported",
       certificationRule: { thresholdPercent: 50, requiredUnitIds: [] },
     },
-    unsupportedBlocks,
+    unsupportedBlocks: ctx.unsupportedBlocks,
     source: "olx",
+    pdfAssets: ctx.pdfAssets,
   };
+}
+
+/**
+ * Point a parsed pdf unit at its stored asset key, or — if the asset was missing
+ * from the archive — degrade it to a short reading note so the draft stays valid.
+ */
+function setPdfUnit(content: ContentDocument, unitId: string, objectKey: string | null): void {
+  for (const section of content.sections) {
+    for (const sub of section.subsections) {
+      for (const unit of sub.units) {
+        if (unit.id !== unitId || unit.type !== "pdf") continue;
+        if (objectKey) {
+          (unit.data as { objectKey?: string }).objectKey = objectKey;
+        } else {
+          const filename = (unit.data as { filename?: string }).filename ?? "document";
+          const u = unit as unknown as { type: string; data: unknown };
+          u.type = "reading";
+          u.data = { html: `<p><em>Imported PDF unavailable: ${filename}</em></p>` };
+        }
+        return;
+      }
+    }
+  }
 }
 
 export interface ImportResult {
@@ -224,6 +394,7 @@ export async function importOlxToDraft(
   const entries = inspectTarGz(input.gz, limits); // throws OlxArchiveError on danger
   const archiveSha256 = createHash("sha256").update(input.gz).digest("hex");
   const parsed = parseCourse(entries);
+  const staticFiles = fileMap(entries);
 
   const run = async (tx: Queryable): Promise<ImportResult> => {
     const uniqueSuffix = archiveSha256.slice(0, 8);
@@ -238,6 +409,34 @@ export async function importOlxToDraft(
       },
       tx,
     );
+
+    // Store each referenced /static PDF as its own content asset and point the
+    // pdf unit at it (served, authorised, through /content-asset). A missing
+    // asset is recorded as unsupported rather than failing the whole import.
+    if (parsed.pdfAssets.length > 0) {
+      const revId = (
+        await tx.query(
+          `SELECT id FROM credential_versions WHERE credential_id = $1 AND status='draft'`,
+          [credentialId],
+        )
+      ).rows[0] as { id: string } | undefined;
+      const revisionId = revId?.id ?? credentialId;
+      for (const asset of parsed.pdfAssets) {
+        const bytes = staticFiles.get(`course/static/${asset.staticName}`);
+        if (!bytes) {
+          parsed.unsupportedBlocks.push(`pdf-missing:${asset.staticName}`);
+          setPdfUnit(parsed.content, asset.unitId, null);
+          continue;
+        }
+        const key = contentAssetKey(credentialId, revisionId, asset.staticName);
+        await getStorage().putObject(key, bytes, {
+          contentType: "application/pdf",
+          maxBytes: limits.maxFileBytes,
+        });
+        setPdfUnit(parsed.content, asset.unitId, key);
+      }
+    }
+
     await saveDraft(
       {
         credentialId,
