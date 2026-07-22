@@ -5,6 +5,7 @@ import { getCurrentAppUser } from "@/lib/auth/appUser";
 import { getLearnerContent } from "@/lib/player/service";
 import { getEnrollmentUnitState, getMcqReview } from "@/lib/learner/queries";
 import { getCredentialProgress } from "@/lib/progress/queries";
+import { computeCredentialResult, getEnrollmentCertificate } from "@/lib/certificates/service";
 import { AccessError } from "@/lib/access/errors";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { UnitView } from "./UnitView";
@@ -127,6 +128,13 @@ export default async function PlayerPage({
       ? await getMcqReview(enrollmentId, current.unit.id)
       : null;
 
+  // Finish state: once every unit is done, tell the learner whether they earned
+  // the certificate — or, if the pass criteria wasn't met, that they didn't.
+  const contentComplete = (progress?.percent ?? 0) >= 100;
+  const certificate = contentComplete ? await getEnrollmentCertificate(enrollmentId) : null;
+  const result =
+    contentComplete && !certificate ? await computeCredentialResult(enrollmentId) : null;
+
   return (
     <>
       <SiteHeader />
@@ -176,6 +184,29 @@ export default async function PlayerPage({
           </aside>
 
           <article className="player__main">
+            {contentComplete && certificate && (
+              <div className="finish-banner finish-banner--ok" role="status">
+                <strong>🎉 Course complete — certificate issued!</strong>
+                <p>
+                  Congratulations on finishing this micro-credential.{" "}
+                  <Link href="/account/certificates">View your certificate</Link>.
+                </p>
+              </div>
+            )}
+            {contentComplete && result && !result.passed && (
+              <div className="finish-banner finish-banner--warn" role="status">
+                <strong>Not eligible for a certificate</strong>
+                <p>
+                  You&rsquo;ve completed all the lessons, but the pass criteria wasn&rsquo;t met, so
+                  a certificate couldn&rsquo;t be issued
+                  {result.threshold > 0
+                    ? ` — you scored ${result.percentage}%, and ${result.threshold}% is required`
+                    : ""}
+                  {!result.requiredUnitsComplete ? ", and not all required units are complete" : ""}
+                  .
+                </p>
+              </div>
+            )}
             <p className="player__crumb">
               {current.sectionTitle}
               {current.subTitle ? ` › ${current.subTitle}` : ""}

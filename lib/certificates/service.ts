@@ -111,6 +111,19 @@ export async function computeCredentialResult(
   };
 }
 
+/** The issued certificate for an enrolment, if any. */
+export async function getEnrollmentCertificate(
+  enrollmentId: string,
+  conn: Queryable = db,
+): Promise<{ verificationCode: string } | null> {
+  const { rows } = await conn.query(
+    `SELECT verification_code FROM certificates WHERE enrollment_id = $1 AND status = 'issued'`,
+    [enrollmentId],
+  );
+  const r = rows[0] as { verification_code: string } | undefined;
+  return r ? { verificationCode: r.verification_code } : null;
+}
+
 export interface IssueOutcome {
   issued: boolean;
   reused: boolean;
