@@ -1177,6 +1177,50 @@ a {
   display: inline-flex;
 }
 
+/* ---- Enrolled / registered state -------------------------------------- */
+.enrol-state {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.enrol-state__badge {
+  background: var(--bms-green-soft);
+  color: var(--bms-green-dark);
+  border-color: transparent;
+  cursor: default;
+  gap: 8px;
+}
+.enrol-state__badge:hover {
+  background: var(--bms-green-soft);
+  border-color: transparent;
+  box-shadow: none;
+}
+.enrol-state__undo,
+.enrol-state__go {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bms-muted);
+}
+.enrol-state__undo:hover {
+  color: #b3261e;
+}
+.enrol-state__go {
+  color: var(--bms-green-dark);
+}
+.enrol-state__go:hover {
+  color: var(--bms-ink);
+}
+
 /* ---- Contact ---------------------------------------------------------- */
 .contact {
   display: grid;

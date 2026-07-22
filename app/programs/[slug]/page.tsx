@@ -5,7 +5,9 @@ import SiteFooter from "@/components/SiteFooter";
 import { getPublishedProgrammeBySlug } from "@/lib/programmes/queries";
 import { RegisterButton } from "./RegisterButton";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
-import { isSignedIn, signInHref } from "@/lib/auth/session";
+import { signInHref } from "@/lib/auth/session";
+import { isRegisteredForProgramme } from "@/lib/enrolments/service";
+import { getCurrentAppUser } from "@/lib/auth/appUser";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,9 @@ export default async function ProgrammeDetailPage({
 
   const about = (detail.aboutContent as { html?: string } | null)?.html ?? "";
   const count = detail.credentials.length;
-  const signedIn = await isSignedIn();
+  const user = await getCurrentAppUser();
+  const signedIn = user !== null;
+  const registered = user ? await isRegisteredForProgramme(user.id, detail.id) : false;
 
   return (
     <>
@@ -68,6 +72,7 @@ export default async function ProgrammeDetailPage({
               <RegisterButton
                 programmeId={detail.id}
                 signedIn={signedIn}
+                registered={registered}
                 signInHref={signInHref(`/programs/${detail.slug}`)}
               />
             </div>

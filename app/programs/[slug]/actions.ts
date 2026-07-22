@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuthenticatedUser, requireProgrammeAccess } from "@/lib/access/guards";
-import { registerForProgramme } from "@/lib/enrolments/service";
+import { registerForProgramme, unregisterFromProgramme } from "@/lib/enrolments/service";
 import { AccessError } from "@/lib/access/errors";
 
 export interface RegisterResult {
@@ -22,5 +22,18 @@ export async function registerForProgrammeAction(programmeId: string): Promise<R
       return { ok: false, message: "This programme is not available." };
     }
     return { ok: false, message: "Registration failed. Please try again." };
+  }
+}
+
+export async function unregisterFromProgrammeAction(programmeId: string): Promise<RegisterResult> {
+  try {
+    const user = await requireAuthenticatedUser();
+    await unregisterFromProgramme(user.id, programmeId);
+    return { ok: true, message: "You have unregistered from this programme." };
+  } catch (err) {
+    if (err instanceof AccessError && err.kind === "unauthenticated") {
+      return { ok: false, message: "Please sign in." };
+    }
+    return { ok: false, message: "Could not unregister. Please try again." };
   }
 }

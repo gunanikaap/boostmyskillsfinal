@@ -1,4 +1,4 @@
-import { type Queryable } from "@/lib/db/pool";
+import { db, type Queryable } from "@/lib/db/pool";
 import { withTransaction } from "@/lib/db/tx";
 import { ServiceError } from "@/lib/credentials/service";
 
@@ -46,7 +46,8 @@ export async function enrolInCredential(
       `INSERT INTO enrollments (user_id, credential_id, credential_version_id, status)
        VALUES ($1,$2,$3,'enrolled')
        ON CONFLICT (user_id, credential_id) WHERE credential_id IS NOT NULL
-       DO NOTHING
+       DO UPDATE SET status = 'enrolled', credential_version_id = EXCLUDED.credential_version_id
+       WHERE enrollments.status = 'withdrawn'
        RETURNING id`,
       [userId, credentialId, versionId],
     );
@@ -120,7 +121,9 @@ export async function registerForProgramme(
       `INSERT INTO enrollments (user_id, programme_id, status)
        VALUES ($1,$2,'enrolled')
        ON CONFLICT (user_id, programme_id) WHERE programme_id IS NOT NULL
-       DO NOTHING RETURNING id`,
+       DO UPDATE SET status = 'enrolled'
+       WHERE enrollments.status = 'withdrawn'
+       RETURNING id`,
       [userId, programmeId],
     );
     let programmeEnrollmentId: string;
@@ -158,4 +161,64 @@ export async function registerForProgramme(
     return { programmeEnrollmentId };
   };
   return conn ? run(conn) : withTransaction(run);
+}
+
+/**
+ * Withdraw from a programme and every one of its member credentials. Uses the
+ * 'withdrawn' status (not DELETE) so progress/certificates are preserved and a
+ * later re-registration reactivates the same enrolments.
+ */
+export async function unregisterFromProgramme(
+  userId: string,
+  programmeId: string,
+  conn?: Queryable,
+): Promise<void> {
+  const run = async (tx: Queryable) => {
+    const mem = await tx.query(
+      `SELECT credential_id FROM programme_credentials WHERE programme_id = $1`,
+      [programmeId],
+    );
+    const credIds = (mem.rows as { credential_id: string }[]).map((r) => r.credential_id);
+    if (credIds.length) {
+      await tx.query(
+        `UPDATE enrollments SET status = 'withdrawn'
+         WHERE user_id = $1 AND credential_id = ANY($2::uuid[]) AND status <> 'withdrawn'`,
+        [userId, credIds],
+      );
+    }
+    await tx.query(
+      `UPDATE enrollments SET status = 'withdrawn'
+       WHERE user_id = $1 AND programme_id = $2 AND status <> 'withdrawn'`,
+      [userId, programmeId],
+    );
+  };
+  return conn ? run(conn) : withTransaction(run);
+}
+
+/** Is the user currently enrolled (non-withdrawn) in this credential? */
+export async function isEnrolledInCredential(
+  userId: string,
+  credentialId: string,
+  conn: Queryable = db,
+): Promise<boolean> {
+  const { rows } = await conn.query(
+    `SELECT 1 FROM enrollments
+     WHERE user_id = $1 AND credential_id = $2 AND status <> 'withdrawn' LIMIT 1`,
+    [userId, credentialId],
+  );
+  return rows.length > 0;
+}
+
+/** Is the user currently registered (non-withdrawn) for this programme? */
+export async function isRegisteredForProgramme(
+  userId: string,
+  programmeId: string,
+  conn: Queryable = db,
+): Promise<boolean> {
+  const { rows } = await conn.query(
+    `SELECT 1 FROM enrollments
+     WHERE user_id = $1 AND programme_id = $2 AND status <> 'withdrawn' LIMIT 1`,
+    [userId, programmeId],
+  );
+  return rows.length > 0;
 }
