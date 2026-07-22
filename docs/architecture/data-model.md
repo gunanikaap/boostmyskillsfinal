@@ -44,7 +44,7 @@ added or removed.
 ## Supporting tables (not application catalogue tables)
 
 - **account_deletion_requests** (migration 005) — a learner-initiated request to
-  close an account. `status` CHECK in (`pending`,`approved`,`rejected`); partial-
+  close an account. `status` CHECK in (`pending`,`approved`,`rejected`,`cancelled`); partial-
   unique one `pending` request per user. Approval deactivates + tombstones the
   target `app_users` row (above); the request row is the audit trail. Admin-only
   resolution, no self-approval. Tests: `account-deletion.test.ts`.

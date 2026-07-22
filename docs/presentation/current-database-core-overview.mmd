@@ -1,0 +1,58 @@
+%% BoostMySkills — Current Database, simplified presentation view.
+%% Colour groups: Identity & Users · Catalogue & Content · Learning & Activity ·
+%% Certification · Supporting / Operational. Editable Mermaid flowchart.
+flowchart LR
+  classDef identity fill:#e8f0ff,stroke:#3b6db3,color:#10233f,stroke-width:1px;
+  classDef catalogue fill:#eafaf1,stroke:#2f9e6f,color:#0f3d2a,stroke-width:1px;
+  classDef learning fill:#fff5e6,stroke:#d38b1f,color:#4a3106,stroke-width:1px;
+  classDef cert fill:#f5ecff,stroke:#7d4bc4,color:#2e1650,stroke-width:1px;
+  classDef support fill:#fdeef0,stroke:#c4506a,color:#4a1523,stroke-width:1px;
+  classDef ops fill:#eeeeee,stroke:#888888,color:#333333,stroke-dasharray:4 3;
+  classDef note fill:#fffef2,stroke:#c9b458,color:#4a3f10,stroke-width:1px;
+
+  subgraph IDENT["Identity &amp; Users"]
+    U["app_users<br/><small>Clerk identity → app identity,<br/>role, profile, deactivation</small>"]:::identity
+    PS["platform_settings<br/><small>singleton: maintenance mode</small>"]:::identity
+  end
+
+  subgraph CAT["Catalogue &amp; Content"]
+    PR["projects<br/><small>organisation + certificate template</small>"]:::catalogue
+    MC["micro_credentials<br/><small>stable catalogue identity</small>"]:::catalogue
+    CV["credential_versions<br/><small>immutable revisions +<br/>content/grading JSON</small>"]:::catalogue
+    MP["micro_programmes<br/><small>programme catalogue</small>"]:::catalogue
+    PC["programme_credentials<br/><small>ordered membership</small>"]:::catalogue
+  end
+
+  subgraph LRN["Learning &amp; Activity"]
+    EN["enrollments<br/><small>programme OR credential row</small>"]:::learning
+    UP["unit_progress<br/><small>per-unit progress</small>"]:::learning
+    AA["assessment_attempts<br/><small>graded MCQ attempts</small>"]:::learning
+  end
+
+  subgraph CERT["Certification"]
+    CE["certificates<br/><small>issued + public verification</small>"]:::cert
+  end
+
+  subgraph SUPP["Supporting / Operational"]
+    ADR["account_deletion_requests<br/><small>privacy / account lifecycle</small>"]:::support
+    SM["schema_migrations<br/><small>migration bookkeeping</small>"]:::ops
+  end
+
+  PR --> MC
+  PR --> MP
+  MC --> CV
+  MP --> PC
+  MC --> PC
+  U --> EN
+  MC --> EN
+  MP --> EN
+  CV --> EN
+  EN --> UP
+  EN --> AA
+  EN --> CE
+  U --> ADR
+
+  JSON["JSON content: credential_versions stores the whole<br/>Section → Subsection → Unit tree (content_document) and<br/>server-only answers (grading_document) as JSONB."]:::note
+  STORE["Object storage: file bytes live in a provider (local today,<br/>Backblaze B2 later). PostgreSQL stores only logical object keys.<br/>No assets table; no absolute paths."]:::note
+  CV -.-> JSON
+  CV -.-> STORE

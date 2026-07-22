@@ -1,0 +1,188 @@
+%% BoostMySkills — Current Database Structure (full physical schema)
+%% Source of truth: db/migrations/001..005 + live PostgreSQL 16.14 (database "bms").
+%% Editable Mermaid classDiagram. Render with docs/presentation/render.mjs.
+%% Legend: --> structural FK   ..> authorship/audit FK (created_by/updated_by/etc.)
+%% PK = primary key  FK = foreign key  UK = unique  CI = case-insensitive unique  J = JSONB
+classDiagram
+  direction LR
+
+  class app_users {
+    +uuid id  PK
+    +text clerk_user_id  UK
+    +text email  UK CI
+    +text username  UK CI nullable
+    +text role  «learner|admin»
+    +text external_ref  UK nullable
+    +text country  nullable
+    +text gender  nullable
+    +jsonb profile  J
+    +timestamptz deactivated_at  nullable
+    +timestamptz created_at
+    +timestamptz updated_at
+  }
+
+  class projects {
+    +uuid id  PK
+    +text name
+    +text slug  UK
+    +text organisation_name
+    +jsonb certificate_template  J
+  }
+
+  class micro_credentials {
+    +uuid id  PK
+    +uuid project_id  FK
+    +text code  UK
+    +text slug  UK
+    +text status  «draft|published|hidden»
+    +text external_ref  UK nullable
+    +uuid created_by  FK nullable
+    +uuid hidden_by  FK nullable
+    +timestamptz hidden_at  nullable
+  }
+
+  class credential_versions {
+    +uuid id  PK
+    +uuid credential_id  FK
+    +int revision_number  «UK with credential_id»
+    +text status  «draft|published|retired»
+    +int schema_version
+    +text title
+    +text author_name
+    +jsonb about_content  J
+    +jsonb content_document  J
+    +jsonb grading_document  J server-only
+    +jsonb certification_rule  J
+    +jsonb source_metadata  J
+    +text banner_object_key  nullable
+    +uuid created_by  FK nullable
+    +timestamptz published_at  nullable
+  }
+
+  class micro_programmes {
+    +uuid id  PK
+    +uuid project_id  FK
+    +text slug  UK
+    +text title
+    +jsonb about_content  J
+    +text banner_object_key  nullable
+    +text status  «draft|published|hidden»
+    +uuid created_by  FK nullable
+    +timestamptz published_at  nullable
+    +timestamptz hidden_at  nullable
+  }
+
+  class programme_credentials {
+    +uuid programme_id  PK FK
+    +uuid credential_id  PK FK
+    +int position  «UK per programme, >= 0»
+    +bool is_required
+  }
+
+  class enrollments {
+    +uuid id  PK
+    +uuid user_id  FK
+    +uuid programme_id  FK nullable
+    +uuid credential_id  FK nullable
+    +uuid credential_version_id  FK nullable
+    +text status  «enrolled|in_progress|completed|suspended|withdrawn»
+    +numeric final_percentage  nullable
+    +bool passed  nullable
+    +jsonb metadata  J programme snapshot
+    +text external_ref  UK nullable
+  }
+
+  class unit_progress {
+    +uuid id  PK
+    +uuid enrollment_id  FK
+    +text unit_id  «content sourceKey/unit id»
+    +text status  «not_started|in_progress|completed»
+    +int progress_percent  «0..100»
+    +jsonb state  J
+    +UK enrollment_id + unit_id
+  }
+
+  class assessment_attempts {
+    +uuid id  PK
+    +uuid enrollment_id  FK
+    +text unit_id
+    +int attempt_number  «> 0»
+    +jsonb submitted_answers  J
+    +numeric score
+    +numeric maximum_score
+    +numeric percentage  «0..100»
+    +bool passed
+    +jsonb grading_snapshot  J
+    +UK enrollment_id + unit_id + attempt_number
+  }
+
+  class certificates {
+    +uuid id  PK
+    +text verification_code  UK
+    +uuid enrollment_id  FK UK
+    +text status  «issued|revoked»
+    +jsonb certificate_snapshot  J
+    +text pdf_object_key  nullable
+    +text external_ref  UK nullable
+    +timestamptz issued_at
+    +timestamptz revoked_at  nullable
+  }
+
+  class platform_settings {
+    +smallint id  PK «= 1 singleton»
+    +bool maintenance_mode
+    +text maintenance_message
+    +uuid updated_by  FK nullable
+    +timestamptz updated_at
+  }
+
+  class account_deletion_requests {
+    +uuid id  PK
+    +uuid user_id  FK
+    +text reason  nullable
+    +text status  «pending|approved|rejected|cancelled»
+    +text admin_note  nullable
+    +uuid resolved_by  FK nullable
+    +«UK one pending per user»
+  }
+
+  class schema_migrations {
+    +text filename  PK
+    +timestamptz applied_at
+    «operational bookkeeping — not a domain table»
+  }
+
+  %% ---- Structural relationships (crow's-foot cardinality via labels) ----
+  projects "1" --> "0..*" micro_credentials : project_id
+  projects "1" --> "0..*" micro_programmes : project_id
+  micro_credentials "1" --> "1..*" credential_versions : credential_id
+  micro_programmes "1" --> "0..*" programme_credentials : programme_id (ON DELETE CASCADE)
+  micro_credentials "1" --> "0..*" programme_credentials : credential_id
+  app_users "1" --> "0..*" enrollments : user_id
+  micro_programmes "1" --> "0..*" enrollments : programme_id (programme enrolment)
+  micro_credentials "1" --> "0..*" enrollments : credential_id (credential enrolment)
+  credential_versions "1" --> "0..*" enrollments : credential_version_id
+  enrollments "1" --> "0..*" unit_progress : enrollment_id (CASCADE)
+  enrollments "1" --> "0..*" assessment_attempts : enrollment_id (CASCADE)
+  enrollments "1" --> "0..1" certificates : enrollment_id (UK)
+  app_users "1" --> "0..*" account_deletion_requests : user_id (CASCADE)
+
+  %% ---- Authorship / audit relationships (dashed) ----
+  app_users "1" ..> "0..*" micro_credentials : created_by / hidden_by
+  app_users "1" ..> "0..*" credential_versions : created_by
+  app_users "1" ..> "0..*" micro_programmes : created_by
+  app_users "1" ..> "0..1" platform_settings : updated_by
+  app_users "1" ..> "0..*" account_deletion_requests : resolved_by
+
+  %% ---- Notes (business rules verified from constraints + service code) ----
+  note for enrollments "Exactly ONE kind (chk_enrolment_kind):\n• Programme enrolment: programme_id set; credential_id & credential_version_id NULL\n• Credential enrolment: credential_id + credential_version_id set; programme_id NULL\nPartial-unique: one programme enrolment and one credential enrolment per user.\nTrigger enforces credential_version_id belongs to credential_id.\nmetadata JSONB holds the programme registration snapshot (member credential + enrolment ids)."
+
+  note for credential_versions "Immutable revision model:\n• At most ONE draft and ONE published revision per credential (partial-unique).\n• published/retired revisions are immutable; existing learners stay on their assigned revision.\ncontent_document JSONB: Section → Subsection → Unit (video|reading|pdf|mcq) with stable ids + sourceKey.\ngrading_document JSONB (SERVER-ONLY): correct option ids, points, grading + pass rules — never returned to learners.\ncertification_rule / source_metadata / about_content are JSONB."
+
+  note for certificates "One certificate per eligible credential enrolment (enrollment_id UNIQUE).\nverification_code UNIQUE for public verification.\ncertificate_snapshot is immutable issue-time data; revocation retained (status=revoked)."
+
+  note for programme_credentials "Ordered membership: PK(programme_id, credential_id), UNIQUE(programme_id, position).\nis_required flags credentials required for programme completion. No duplicate credential per programme."
+
+  note for schema_migrations "Applied-migration ledger written by scripts/db/migrate.mts. Operational bookkeeping only — separate from the domain tables above."
+
+  note for app_users "File bytes are NOT stored in PostgreSQL. Banner/PDF/OLX columns hold provider-neutral LOGICAL object keys\n(e.g. content/<credentialId>/<revisionId>/<uuid>.<ext>, olx/<credentialId>/<uuid>.tar.gz).\nLocal provider today; switchable to Backblaze B2 with no schema change. No assets table; no absolute paths."
