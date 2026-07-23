@@ -3041,3 +3041,172 @@ a {
   margin: 0;
   font-size: 0.92rem;
 }
+
+/* ==========================================================================
+   Motion & focus polish
+   --------------------------------------------------------------------------
+   Purely presentational: no markup, copy or component changes. Extends the
+   motion vocabulary that already exists above (.pcard hover, .enrol-anim,
+   progress-bar width transitions) so interactions feel consistent.
+
+   Two deliberate constraints:
+   1. The page entrance animates OPACITY ONLY. `main` contains
+      `position: sticky` descendants (e.g. the player sidebar), and a
+      transformed ancestor would break their stickiness.
+   2. Everything here is disabled by the global prefers-reduced-motion block
+      at the end of this section.
+   ========================================================================== */
+
+:root {
+  --bms-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --bms-dur-fast: 0.15s;
+  --bms-dur: 0.24s;
+  --bms-lift: 0 6px 18px rgba(18, 33, 26, 0.1);
+}
+
+/* Smooth in-page scrolling (anchor links, skip links). */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Gentle content entrance on navigation. Opacity only — see note above. */
+main {
+  animation: bmsFadeIn var(--bms-dur) var(--bms-ease) both;
+}
+@keyframes bmsFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Keyboard focus. The stylesheet previously had no :focus-visible rules at
+   all, so keyboard users relied on the browser default (and none at all on
+   .account-input, which cleared the outline). :focus-visible keeps mouse
+   clicks clean while making tab-navigation clearly visible.
+   -------------------------------------------------------------------------- */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--bms-green);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* This input cleared its outline; give it a visible ring instead of colour alone. */
+.account-input:focus-visible {
+  outline: 2px solid var(--bms-green);
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons — previously colour-only transitions. Add a subtle lift on hover
+   and a tactile press, so actions acknowledge the click.
+   -------------------------------------------------------------------------- */
+.btn {
+  transition:
+    background var(--bms-dur-fast) ease,
+    color var(--bms-dur-fast) ease,
+    border-color var(--bms-dur-fast) ease,
+    box-shadow var(--bms-dur-fast) var(--bms-ease),
+    transform var(--bms-dur-fast) var(--bms-ease);
+}
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(-1px);
+  box-shadow: var(--bms-lift);
+}
+.btn:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: none;
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  transform: none;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   Catalogue cards — .pcard already lifts on hover; let the artwork settle
+   into a slow zoom so the card feels alive rather than static.
+   -------------------------------------------------------------------------- */
+.pcard__art {
+  overflow: hidden;
+}
+.pcard__art img {
+  transition: transform 0.45s var(--bms-ease);
+  will-change: transform;
+}
+.pcard:hover .pcard__art img {
+  transform: scale(1.04);
+}
+
+/* Dashboard cards get the same lift language as catalogue cards. */
+.dash-card {
+  transition:
+    transform var(--bms-dur) var(--bms-ease),
+    box-shadow var(--bms-dur) var(--bms-ease);
+}
+.dash-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bms-lift);
+}
+
+/* Course player: sidebar lessons respond to hover without shifting layout. */
+.player__unit {
+  transition:
+    background var(--bms-dur-fast) ease,
+    color var(--bms-dur-fast) ease,
+    transform var(--bms-dur-fast) var(--bms-ease);
+}
+.player__unit:hover {
+  transform: translateX(2px);
+}
+
+/* Programme member rows in the public programme detail list. */
+.programme-member {
+  transition:
+    background var(--bms-dur-fast) ease,
+    transform var(--bms-dur-fast) var(--bms-ease);
+}
+.programme-member:hover {
+  transform: translateX(3px);
+}
+
+/* Progress bars ease rather than jump when progress updates. */
+.pbar > span,
+.player-progress__bar > span {
+  transition: width 0.45s var(--bms-ease);
+}
+
+/* --------------------------------------------------------------------------
+   Accessibility: honour the OS "reduce motion" setting globally. This is the
+   safety net for every animation/transition in this file, including the ones
+   defined above this section.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+  .btn:hover,
+  .dash-card:hover,
+  .player__unit:hover,
+  .programme-member:hover,
+  .pcard:hover .pcard__art img {
+    transform: none;
+  }
+}
