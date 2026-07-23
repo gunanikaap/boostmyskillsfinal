@@ -53,8 +53,22 @@ export async function saveSubmission(input: NewContactSubmission): Promise<Conta
   return record;
 }
 
-/** All submissions, newest first. Returns [] before the first message arrives. */
-export async function listSubmissions(): Promise<ContactSubmission[]> {
+/**
+ * Newest submissions first, BOUNDED.
+ *
+ * /api/contact is a public unauthenticated endpoint, so this directory can grow
+ * without limit (spam). Reading every file into memory would make the admin page
+ * slower and heavier as it grows, so we bound the read: filenames are prefixed
+ * with the ISO timestamp, which sorts chronologically, so we can pick the newest
+ * `limit` by name and read only those.
+ *
+ * Returns [] before the first message arrives.
+ */
+export const CONTACT_LIST_LIMIT = 500;
+
+export async function listSubmissions(
+  limit: number = CONTACT_LIST_LIMIT,
+): Promise<ContactSubmission[]> {
   const dir = contactDir();
   let files: string[];
   try {
@@ -64,9 +78,14 @@ export async function listSubmissions(): Promise<ContactSubmission[]> {
     throw err;
   }
 
+  // Filename order == chronological order (ISO timestamp prefix); newest first.
+  const newest = files
+    .filter((f) => f.endsWith(".json"))
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, Math.max(0, limit));
+
   const submissions: ContactSubmission[] = [];
-  for (const file of files) {
-    if (!file.endsWith(".json")) continue;
+  for (const file of newest) {
     try {
       const raw = await fs.readFile(path.join(dir, file), "utf8");
       submissions.push(JSON.parse(raw) as ContactSubmission);

@@ -335,8 +335,14 @@ export async function createDraftFromPublished(
 ): Promise<{ versionId: string }> {
   const run = async (tx: Queryable) => {
     const pubRes = await tx.query(
-      `SELECT * FROM credential_versions
-       WHERE credential_id = $1 AND status = 'published'`,
+      // Explicit column list (not SELECT *): these are exactly the fields copied
+      // into the new draft below, so adding a column to credential_versions
+      // surfaces here rather than being silently fetched and dropped.
+      `SELECT schema_version, title, author_name, short_description, about_content,
+              banner_object_key, content_document, grading_document,
+              certification_rule, source_metadata
+         FROM credential_versions
+        WHERE credential_id = $1 AND status = 'published'`,
       [credentialId],
     );
     const pub = pubRes.rows[0] as Record<string, unknown> | undefined;

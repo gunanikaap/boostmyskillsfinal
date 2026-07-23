@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { parseTestActorHeader } from "@/lib/auth/identity";
+import { parseTestActorHeader, setTestActor } from "@/lib/auth/identity";
 import { testAuthEnabled } from "@/lib/env";
 
 /**
@@ -116,12 +116,45 @@ describe("APP_ENV gate around the whole adapter", () => {
   });
 
   it("testAuthEnabled() is false outside APP_ENV=test, making the header path unreachable", () => {
-    for (const env of ["local", "uat", "production"]) {
+    // Full environment matrix: only "test" may ever enable the adapter.
+    for (const env of ["local", "development", "uat", "production"]) {
       process.env.APP_ENV = env;
-      expect(testAuthEnabled()).toBe(false);
+      expect(testAuthEnabled(), `APP_ENV=${env} must not enable test-auth`).toBe(false);
     }
     process.env.APP_ENV = "test";
     // TEST_AUTH_ENABLED is set true by tests/setup.ts.
     expect(testAuthEnabled()).toBe(true);
+  });
+
+  it("requires BOTH gates: APP_ENV=test alone is not enough without TEST_AUTH_ENABLED", () => {
+    const originalFlag = process.env.TEST_AUTH_ENABLED;
+    process.env.APP_ENV = "test";
+    try {
+      for (const flag of [undefined, "", "false", "FALSE", "0", "yes", "1"]) {
+        if (flag === undefined) delete process.env.TEST_AUTH_ENABLED;
+        else process.env.TEST_AUTH_ENABLED = flag;
+        expect(testAuthEnabled(), `TEST_AUTH_ENABLED=${String(flag)} must not enable`).toBe(false);
+      }
+      process.env.TEST_AUTH_ENABLED = "true";
+      expect(testAuthEnabled()).toBe(true);
+    } finally {
+      if (originalFlag === undefined) delete process.env.TEST_AUTH_ENABLED;
+      else process.env.TEST_AUTH_ENABLED = originalFlag;
+    }
+  });
+
+  it("setTestActor() throws outside APP_ENV=test (no impersonation in real environments)", () => {
+    for (const env of ["local", "development", "uat", "production"]) {
+      process.env.APP_ENV = env;
+      expect(() =>
+        setTestActor({
+          clerkUserId: "x",
+          email: "x@example.test",
+          username: null,
+          firstName: null,
+          lastName: null,
+        }),
+      ).toThrow(/APP_ENV=test/);
+    }
   });
 });
