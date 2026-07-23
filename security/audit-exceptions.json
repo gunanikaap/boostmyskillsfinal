@@ -1,14 +1,15 @@
 {
-  "_comment": "Machine-readable, EXPIRING allowlist for `npm run security:audit`. Each entry suppresses a specific high/critical advisory that has no non-regressive fix yet. `npm run security:audit:raw` always shows the unfiltered truth. An expired entry FAILS the gate (forces re-evaluation). Never add an exception without an expiry and a concrete reason.",
+  "_comment": "Machine-readable, EXPIRING allowlist for `npm run security:audit`. Each entry allows exactly ONE advisory (exact GHSA) on ONE package — it is NOT a package-wide mute, so a NEW advisory on the same package fails the gate. Criticals can never be excepted. An expired entry FAILS the gate. `npm run security:audit:raw` always shows the unfiltered truth and remains non-zero while any entry is in effect.",
   "exceptions": [
     {
       "ghsa": "GHSA-f88m-g3jw-g9cj",
-      "packages": ["sharp", "next"],
+      "package": "sharp",
+      "transitivelyAffects": ["next"],
       "severity": "high",
       "advisory": "sharp <0.35.0 inherits libvips CVEs (CVE-2026-33327/33328/35590/35591)",
-      "reason": "sharp is pulled in transitively by next@15.5.20; npm's only offered remediation is a DOWNGRADE to next@14.2.35 (breaking and older). No stable Next on the 15.x line yet declares sharp>=0.35. In this UAT build sharp is used only by Next's optional image optimizer at build time; BMS serves all images through the controlled /media route and never transcodes untrusted image bytes at runtime. Re-pin Next as soon as a release bumps sharp>=0.35.",
+      "reason": "sharp is pulled in transitively by Next. next@15.5.21 (current pin, latest stable 15.5.x) still declares optionalDependencies.sharp ^0.34.3, so no forward stable Next release resolves it; npm's only 'fix' is a downgrade to next@14.2.35 (breaking and older). Not reachable in this build: the application never imports sharp, and all user media is served through the controlled /media route rather than Next's image optimizer. Re-pin Next as soon as a release declares sharp>=0.35.",
       "expires": "2026-08-21",
-      "expiresNote": "Earlier of 2026-08-21 or the first cloud UAT deployment — whichever comes first; revisit then.",
+      "expiresNote": "Earlier of 2026-08-21 or the first cloud UAT deployment, whichever comes first. Cloud UAT remains BLOCKED while this exception is in effect.",
       "addedOn": "2026-07-22"
     }
   ]
