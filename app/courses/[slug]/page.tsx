@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { getPublishedCredentialBySlug } from "@/lib/catalogue/queries";
+import { getCachedPublishedCredentialBySlug } from "@/lib/catalogue/cache";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { signInHref } from "@/lib/auth/session";
 import { getCurrentAppUser } from "@/lib/auth/appUser";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const detail = await getPublishedCredentialBySlug(slug);
+  const detail = await getCachedPublishedCredentialBySlug(slug);
   // Draft/hidden/missing produce no descriptive metadata (no leak).
   if (!detail) return { title: "Not found" };
   return { title: detail.title, description: detail.shortDescription ?? undefined };
@@ -65,7 +65,7 @@ export default async function CredentialDetailPage({
 }) {
   await enforceMaintenanceForPage();
   const { slug } = await params;
-  const detail = await getPublishedCredentialBySlug(slug);
+  const detail = await getCachedPublishedCredentialBySlug(slug);
   if (!detail) notFound(); // draft/hidden are indistinguishable from missing
 
   const user = await getCurrentAppUser();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CoursesCatalogue from "@/components/CoursesCatalogue";
-import { listPublishedCredentials } from "@/lib/catalogue/queries";
+import { getCachedPublishedCredentials } from "@/lib/catalogue/cache";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { isSignedIn } from "@/lib/auth/session";
 
@@ -11,7 +11,7 @@ export const metadata = { title: "Micro-credentials" };
 
 export default async function CoursesPage() {
   await enforceMaintenanceForPage();
-  const credentials = await listPublishedCredentials();
+  const credentials = await getCachedPublishedCredentials();
   const signedIn = await isSignedIn();
   return (
     <>

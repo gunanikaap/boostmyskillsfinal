@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { ProgrammeCard } from "@/components/CatalogueCards";
-import { listPublishedProgrammesWithMembers } from "@/lib/catalogue/queries";
+import { getCachedPublishedProgrammesWithMembers } from "@/lib/catalogue/cache";
 import { enforceMaintenanceForPage } from "@/lib/settings/maintenanceGate";
 import { isSignedIn } from "@/lib/auth/session";
 
@@ -11,7 +11,7 @@ export const metadata = { title: "Micro-programmes" };
 
 export default async function ProgramsPage() {
   await enforceMaintenanceForPage();
-  const programmes = await listPublishedProgrammesWithMembers();
+  const programmes = await getCachedPublishedProgrammesWithMembers();
   const signedIn = await isSignedIn();
   return (
     <>

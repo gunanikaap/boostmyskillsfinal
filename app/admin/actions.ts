@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { CATALOGUE_TAG } from "@/lib/catalogue/cache";
 import { requireAdmin } from "@/lib/access/guards";
 import { AccessError } from "@/lib/access/errors";
 import { withTransaction } from "@/lib/db/tx";
@@ -85,6 +86,8 @@ export async function updateProjectAction(id: string, form: FormData): Promise<A
     });
     revalidatePath(`/admin/projects/${id}`);
     revalidatePath("/admin/projects");
+    // The project's organisation name is shown on public catalogue cards/details.
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Project updated." };
   } catch (err) {
     return fail(err);
@@ -160,6 +163,7 @@ export async function updateCredentialMetaAction(
     await updateCredentialMeta(credentialId, input);
     revalidatePath(`/admin/credentials/${credentialId}`);
     revalidatePath("/courses");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Credential details saved." };
   } catch (err) {
     return fail(err);
@@ -227,6 +231,7 @@ export async function publishCredentialAction(credentialId: string): Promise<Act
     await publishCredential(credentialId);
     revalidatePath(`/admin/credentials/${credentialId}`);
     revalidatePath("/courses");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Published." };
   } catch (err) {
     return fail(err);
@@ -250,6 +255,7 @@ export async function hideCredentialAction(credentialId: string): Promise<Action
     await hideCredential(credentialId, admin.id);
     revalidatePath(`/admin/credentials/${credentialId}`);
     revalidatePath("/courses");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Hidden." };
   } catch (err) {
     return fail(err);
@@ -262,6 +268,7 @@ export async function unhideCredentialAction(credentialId: string): Promise<Acti
     await unhideCredential(credentialId);
     revalidatePath(`/admin/credentials/${credentialId}`);
     revalidatePath("/courses");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Unhidden." };
   } catch (err) {
     return fail(err);
@@ -307,6 +314,7 @@ export async function updateProgrammeAction(
     });
     revalidatePath(`/admin/programmes/${programmeId}`);
     revalidatePath("/programs");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Programme details saved." };
   } catch (err) {
     return fail(err);
@@ -321,6 +329,9 @@ export async function setProgrammeCredentialsAction(
     await requireAdmin();
     await setProgrammeCredentials(programmeId, items);
     revalidatePath(`/admin/programmes/${programmeId}`);
+    // Membership drives the public programme's member list AND each credential's
+    // "part of these programmes" labels in the catalogue.
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Membership updated." };
   } catch (err) {
     return fail(err);
@@ -332,6 +343,7 @@ export async function publishProgrammeAction(programmeId: string): Promise<Actio
     await requireAdmin();
     await publishProgramme(programmeId);
     revalidatePath("/programs");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: "Programme published." };
   } catch (err) {
     return fail(err);
@@ -347,6 +359,7 @@ export async function toggleProgrammeHiddenAction(
     if (hide) await hideProgramme(programmeId);
     else await unhideProgramme(programmeId);
     revalidatePath("/programs");
+    revalidateTag(CATALOGUE_TAG);
     return { ok: true, message: hide ? "Programme hidden." : "Programme unhidden." };
   } catch (err) {
     return fail(err);

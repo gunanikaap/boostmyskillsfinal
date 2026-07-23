@@ -1,8 +1,6 @@
 import Link from "next/link";
-import {
-  listPublishedProgrammesWithMembers,
-  type CatalogueProgrammeWithMembers,
-} from "@/lib/catalogue/queries";
+import { type CatalogueProgrammeWithMembers } from "@/lib/catalogue/queries";
+import { getCachedPublishedProgrammesWithMembers } from "@/lib/catalogue/cache";
 import { ProgrammeCard } from "@/components/CatalogueCards";
 import { isSignedIn } from "@/lib/auth/session";
 
@@ -29,7 +27,7 @@ function Arrow() {
 export default async function TrendingProgrammes() {
   let programmes: CatalogueProgrammeWithMembers[] = [];
   try {
-    programmes = (await listPublishedProgrammesWithMembers()).slice(0, 8);
+    programmes = (await getCachedPublishedProgrammesWithMembers()).slice(0, 8);
   } catch {
     programmes = [];
   }
