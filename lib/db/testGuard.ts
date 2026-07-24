@@ -22,6 +22,14 @@ import { isExactTestEnvironment } from "../env.ts";
  *   4. After connecting, current_database() must equal the database named by
  *      TEST_DATABASE_URL.
  *
+ * TDX-P1-002 adds two INDEPENDENT identity requirements, because URL comparison
+ * alone cannot see through host aliases (localhost / 127.0.0.1 / ::1 / Docker
+ * names), differing usernames, or a missing DATABASE_URL:
+ *   5. a strict repository-owned test-database NAME (`<name>_test`); and
+ *   6. a persistent database MARKER comment; plus
+ *   7. a connected-identity comparison (cluster start time + database OID) that
+ *      rejects the same database however it was addressed.
+ *
  * SERVER/TEST ONLY. Never import from client components. No function here ever
  * returns, logs or embeds a connection string, host, username or password.
  */
@@ -32,6 +40,81 @@ import { isExactTestEnvironment } from "../env.ts";
  * comparison in rule 3 would compare the test URL against itself.
  */
 export const APP_DB_SNAPSHOT_VAR = "BMS_APP_DATABASE_URL";
+
+/**
+ * TDX-P1-002 — URL comparison alone cannot prove isolation (localhost vs
+ * 127.0.0.1 vs ::1, Docker/DNS aliases, differing usernames, or a missing
+ * DATABASE_URL). Two INDEPENDENT properties are therefore required of the test
+ * database itself:
+ *
+ *   A. a strict, repository-owned database NAME rule, and
+ *   B. a persistent database-level MARKER comment.
+ *
+ * The marker is stored with COMMENT ON DATABASE, which lives in the shared
+ * pg_shdescription catalogue — so it SURVIVES `DROP SCHEMA public CASCADE` and
+ * cannot be recreated by a schema reset.
+ *
+ * The test runner REQUIRES the marker and never creates or repairs it;
+ * provisioning is an explicit one-time operator step (`npm run db:test:mark`).
+ */
+export const TEST_DATABASE_MARKER = "boostmyskills:test-only:v1";
+
+/** Names that may never be treated as an isolated test database. */
+const FORBIDDEN_DATABASE_NAMES = new Set([
+  "bms",
+  "boostmyskills",
+  "boostmyskills_local",
+  "postgres",
+  "template0",
+  "template1",
+  "production",
+  "prod",
+  "uat",
+  "staging",
+  "stage",
+  "live",
+  "main",
+  "test",
+  "_test",
+]);
+
+/** Prefixes that must never be "promoted" to a test database by adding _test. */
+const FORBIDDEN_NAME_PREFIXES = new Set(["production", "prod", "uat", "staging", "stage", "live"]);
+
+/**
+ * Strict test-database name rule.
+ *
+ * Requires a lower-case identifier with a MEANINGFUL prefix followed by the
+ * exact suffix `_test` (e.g. `bms_test`). It deliberately does NOT accept a name
+ * that merely contains "test" somewhere, nor a production-ish prefix.
+ */
+export function isStrictTestDatabaseName(name: string): boolean {
+  if (typeof name !== "string") return false;
+  const n = name.trim();
+  if (n.length < 6 || n.length > 63) return false;
+  if (FORBIDDEN_DATABASE_NAMES.has(n)) return false;
+  // <prefix>_test where <prefix> starts with a letter and is at least 1 char.
+  const m = /^([a-z][a-z0-9_]*)_test$/.exec(n);
+  if (!m) return false;
+  const prefix = m[1]!;
+  if (prefix.length === 0) return false;
+  if (FORBIDDEN_NAME_PREFIXES.has(prefix)) return false;
+  return true;
+}
+
+/** Safe connected identity of a live PostgreSQL connection. Never logged. */
+export interface ConnectedIdentity {
+  database: string;
+  /** OID of the connected database within its cluster. */
+  databaseOid: string;
+  /** Cluster identity — same value for every connection to the same server. */
+  postmasterStartTime: string;
+  /** NULL over a unix socket, so only ever supplementary evidence. */
+  serverAddr: string | null;
+  serverPort: string | null;
+  /** The database-level marker comment, or null when absent. */
+  marker: string | null;
+}
 
 export class TestDatabaseSafetyError extends Error {
   constructor(message: string) {
@@ -183,37 +266,206 @@ export function assertIsolatedTestTarget(): string {
   return testUrl;
 }
 
-/**
- * Full guard: the static checks plus a short preflight connection that confirms
- * the server really is the intended test database.
- *
- * Call this before ANY truncate/drop/schema-reset in the automated suites.
- */
-export async function assertSafeTestDatabaseTarget(): Promise<void> {
-  const testUrl = assertIsolatedTestTarget();
-  const expected = parseDatabaseTarget(testUrl, "TEST_DATABASE_URL");
+const CONNECT_TIMEOUT_MS = 5_000;
 
-  const client = new Client(clientConfig(testUrl));
+/** The identity query. `shobj_description(..., 'pg_database')` is PG16-valid. */
+const IDENTITY_SQL = `
+  SELECT current_database()                                   AS database,
+         (SELECT oid::text FROM pg_database
+           WHERE datname = current_database())                AS database_oid,
+         pg_postmaster_start_time()::text                     AS postmaster_start_time,
+         inet_server_addr()::text                             AS server_addr,
+         inet_server_port()::text                             AS server_port,
+         (SELECT shobj_description(oid, 'pg_database') FROM pg_database
+           WHERE datname = current_database())                AS marker
+`;
+
+/**
+ * Read the safe connected identity. `readOnly` sets the session read-only so the
+ * APPLICATION database connection can never write.
+ */
+async function readConnectedIdentity(url: string, readOnly: boolean): Promise<ConnectedIdentity> {
+  const client = new Client({
+    ...clientConfig(url),
+    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+  });
+  await client.connect();
   try {
-    await client.connect();
-  } catch {
-    throw new TestDatabaseSafetyError(
-      "Could not connect to the test database named by TEST_DATABASE_URL. " +
-        "Refusing to run destructive test operations.",
-    );
-  }
-  try {
-    const { rows } = await client.query<{ db: string }>("SELECT current_database() AS db");
-    const actual = rows[0]?.db;
-    if (actual !== expected.database) {
+    if (readOnly) {
+      await client.query("SET default_transaction_read_only = on");
+    }
+    await client.query(`SET statement_timeout = ${CONNECT_TIMEOUT_MS}`);
+    const { rows } = await client.query<{
+      database: string | null;
+      database_oid: string | null;
+      postmaster_start_time: string | null;
+      server_addr: string | null;
+      server_port: string | null;
+      marker: string | null;
+    }>(IDENTITY_SQL);
+    const r = rows[0];
+    if (!r || !r.database || !r.database_oid || !r.postmaster_start_time) {
       throw new TestDatabaseSafetyError(
-        "The connected database does not match the database named by " +
-          "TEST_DATABASE_URL. Refusing to run destructive test operations.",
+        "Connected database identity could not be established. " +
+          "Refusing to run destructive test operations.",
       );
     }
+    return {
+      database: r.database,
+      databaseOid: r.database_oid,
+      postmasterStartTime: r.postmaster_start_time,
+      // NULL over a unix socket — supplementary only, never required.
+      serverAddr: r.server_addr,
+      serverPort: r.server_port,
+      marker: r.marker,
+    };
   } finally {
     await client.end().catch(() => {
       /* closing a preflight connection must never mask the real error */
     });
   }
+}
+
+/**
+ * Are two connections looking at the SAME database?
+ *
+ * Decided on server-reported identity, NOT on the URL — so every alias is
+ * caught: localhost vs 127.0.0.1 vs ::1 vs a Docker/DNS name, differing
+ * usernames or passwords, SSL parameters, and explicit vs implicit port.
+ *
+ * `pg_postmaster_start_time()` identifies the CLUSTER (identical for every
+ * connection to that server); the database OID identifies the database within
+ * it. Equal on both ⇒ the same database, however it was addressed. The database
+ * name is also compared as a defensive second signal.
+ *
+ * Usernames are deliberately NOT part of this decision: connecting as a
+ * different role does not make it a different database.
+ */
+export function isSameConnectedDatabase(a: ConnectedIdentity, b: ConnectedIdentity): boolean {
+  if (a.postmasterStartTime !== b.postmasterStartTime) return false; // different cluster
+  return a.databaseOid === b.databaseOid || a.database === b.database;
+}
+
+/**
+ * An opaque proof that the test target was fully verified.
+ *
+ * Callers cannot fabricate one: the constructor is private to this module via a
+ * module-local brand symbol, so a destructive helper that demands a
+ * VerifiedTestTarget can only receive it from the guard.
+ */
+const VERIFIED_BRAND: unique symbol = Symbol("bms.verifiedTestTarget");
+
+export class VerifiedTestTarget {
+  /** @internal */
+  private readonly [VERIFIED_BRAND] = true;
+  private readonly url: string;
+  readonly database: string;
+
+  /** @internal — constructed only by assertSafeTestDatabaseTarget(). */
+  constructor(brand: typeof VERIFIED_BRAND, url: string, database: string) {
+    if (brand !== VERIFIED_BRAND) {
+      throw new TestDatabaseSafetyError("VerifiedTestTarget cannot be constructed directly.");
+    }
+    this.url = url;
+    this.database = database;
+  }
+
+  /**
+   * The verified connection string, for callers that must hand one to pg or a
+   * child process. Exposed only from an already-verified result.
+   */
+  connectionString(): string {
+    return this.url;
+  }
+}
+
+/**
+ * FULL guard. Performs, in order:
+ *   1. raw APP_ENV === "test"
+ *   2. TEST_DATABASE_URL required
+ *   3. parse it
+ *   4. strict test-database NAME rule
+ *   5. parse DATABASE_URL when present
+ *   6. reject an obviously identical canonical URL target
+ *   7. connect to the test target
+ *   8. verify current_database, strict name and the persistent MARKER
+ *   9. connect READ-ONLY to the application target when DATABASE_URL exists
+ *  10. compare connected identities (alias-proof)
+ *  11. return an opaque VerifiedTestTarget
+ *
+ * Call before ANY truncate / drop / schema-reset / migration in the suites.
+ */
+export async function assertSafeTestDatabaseTarget(): Promise<VerifiedTestTarget> {
+  // 1-3, 6: environment, presence, syntax and canonical-URL distinctness.
+  const testUrl = assertIsolatedTestTarget();
+  const expected = parseDatabaseTarget(testUrl, "TEST_DATABASE_URL");
+
+  // 4. Strict name rule — independent of any URL comparison.
+  if (!isStrictTestDatabaseName(expected.database)) {
+    throw new TestDatabaseSafetyError(
+      "TEST_DATABASE_URL does not name an isolated test database. The database " +
+        "name must be a dedicated '<name>_test' database. " +
+        "Refusing to run destructive test operations.",
+    );
+  }
+
+  // 7-8. Connect and verify identity + marker.
+  let testIdentity: ConnectedIdentity;
+  try {
+    testIdentity = await readConnectedIdentity(testUrl, false);
+  } catch (err) {
+    if (err instanceof TestDatabaseSafetyError) throw err;
+    throw new TestDatabaseSafetyError(
+      "Could not connect to the database named by TEST_DATABASE_URL. " +
+        "Refusing to run destructive test operations.",
+    );
+  }
+
+  if (testIdentity.database !== expected.database) {
+    throw new TestDatabaseSafetyError(
+      "The connected database does not match the database named by " +
+        "TEST_DATABASE_URL. Refusing to run destructive test operations.",
+    );
+  }
+  if (!isStrictTestDatabaseName(testIdentity.database)) {
+    throw new TestDatabaseSafetyError(
+      "The connected database name does not satisfy the isolated-test-database " +
+        "rule. Refusing to run destructive test operations.",
+    );
+  }
+  if (testIdentity.marker !== TEST_DATABASE_MARKER) {
+    throw new TestDatabaseSafetyError(
+      "The target database is not marked as an isolated test database. Provision " +
+        "it once with `npm run db:test:mark` (the test runner never creates this " +
+        "marker automatically). Refusing to run destructive test operations.",
+    );
+  }
+
+  // 9-10. Compare against the application database when one is configured.
+  const appUrl = applicationDatabaseUrl();
+  if (appUrl !== undefined) {
+    let appIdentity: ConnectedIdentity | null = null;
+    try {
+      appIdentity = await readConnectedIdentity(appUrl, true);
+    } catch {
+      // Unreachable application DB is not proof of danger; the strict name +
+      // marker above are independent guarantees. Continue without it.
+      appIdentity = null;
+    }
+    if (appIdentity && isSameConnectedDatabase(testIdentity, appIdentity)) {
+      throw new TestDatabaseSafetyError(
+        "TEST_DATABASE_URL and DATABASE_URL resolve to the SAME database on the " +
+          "same PostgreSQL server (detected from the server's own identity, not " +
+          "the URL). Refusing to run destructive test operations.",
+      );
+    }
+  }
+
+  return new VerifiedTestTarget(VERIFIED_BRAND, testUrl, testIdentity.database);
+}
+
+/** Read the marker of an already-known-safe target (used for post-reset checks). */
+export async function readDatabaseMarker(url: string): Promise<string | null> {
+  const identity = await readConnectedIdentity(url, false);
+  return identity.marker;
 }

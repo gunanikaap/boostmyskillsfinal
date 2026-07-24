@@ -3,6 +3,7 @@ import {
   requireTestDatabaseUrl,
   snapshotApplicationDatabaseUrl,
   assertIsolatedTestTarget,
+  assertSafeTestDatabaseTarget,
 } from "@/lib/db/testGuard";
 
 // Load .env.local/.env, then force the test environment.
@@ -12,7 +13,7 @@ process.env.APP_ENV = "test";
 // This is double-gated: testAuthEnabled() also requires APP_ENV === "test".
 process.env.TEST_AUTH_ENABLED = "true";
 
-// --- Test-database isolation (FDX-P1-001) -----------------------------------
+// --- Test-database isolation (FDX-P1-001 / TDX-P1-002) -----------------------
 //
 // Previously this block was conditional:
 //
@@ -29,6 +30,10 @@ snapshotApplicationDatabaseUrl();
 const testDatabaseUrl = requireTestDatabaseUrl();
 process.env.DATABASE_URL = testDatabaseUrl;
 
-// Fail fast, before any suite opens a connection, if the test target is not
-// provably isolated from the application database.
+// Static, synchronous fail-fast (no I/O) before anything imports the pool.
 assertIsolatedTestTarget();
+
+// Full connected guard (strict test-database name + persistent marker +
+// connected identity distinct from DATABASE_URL) before any suite in this worker
+// touches the database. setupFiles support top-level await.
+await assertSafeTestDatabaseTarget();

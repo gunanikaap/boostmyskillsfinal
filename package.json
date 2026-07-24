@@ -31,7 +31,8 @@
     "test:e2e:auth": "node --experimental-strip-types scripts/e2e/run-auth-e2e.mts",
     "security:audit": "node --experimental-strip-types scripts/security/audit.mts",
     "security:audit:raw": "npm audit --omit=dev --audit-level=high",
-    "security:audit:local": "node --experimental-strip-types scripts/security/audit.mts"
+    "security:audit:local": "node --experimental-strip-types scripts/security/audit.mts",
+    "db:test:mark": "node --experimental-strip-types scripts/db/mark-test-db.mts"
   },
   "overrides": {
     "postcss": ">=8.5.10"
