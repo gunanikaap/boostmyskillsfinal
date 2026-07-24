@@ -1,94 +1,162 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { loadEnv } from "../_loadEnv.mts";
 import {
-  evaluateAudit,
-  validateExceptions,
+  evaluateAuditPolicy,
+  CLOUD_MARKER_VARS,
+  ALLOWED_EXCEPTION_ENVIRONMENTS,
   type AuditException,
-  type AuditVuln,
 } from "./auditPolicy.ts";
 
 /**
- * Exception-aware production dependency audit gate.
+ * LOCAL, exception-aware dependency audit gate (FCX-P1-003).
  *
- * Runs `npm audit --omit=dev --json`, then FAILS on any high/critical advisory
- * not covered by a current entry in security/audit-exceptions.json.
+ * This does NOT report a clean audit. It answers a narrower question:
+ *   "are the only high/critical findings the exact ones we have formally, and
+ *    temporarily, accepted for local development?"
  *
- * An exception allows ONE advisory (exact GHSA) on ONE package, with an expiry.
- * A NEW advisory on an already-excepted package FAILS — the exception is not a
- * package-wide mute. Criticals can never be excepted. Expired exceptions fail.
+ * The unfiltered truth is `npm run security:audit:raw`, which stays non-zero
+ * while any exception is in effect.
  *
- * The unfiltered truth is always one command away: `npm run security:audit:raw`.
- * This gate passing does NOT mean the raw audit is clean.
+ * Fails closed on: unexpected npm exit, empty stdout, invalid/incomplete JSON,
+ * unresolvable advisories, malformed/duplicate exceptions, version or dependency
+ * path drift, expiry, criticals, cloud markers, and non-local APP_ENV.
  *
- * Exit codes: 0 = clean or fully-excepted; 1 = unexpected/expired advisory, or a
- * malformed audit/exceptions file.
+ * Exit codes: 0 = only exactly-excepted findings remain; 1 = anything else.
  */
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+function fail(lines: string[]): never {
+  console.error("\nLOCAL EXCEPTION-AWARE AUDIT: FAILED");
+  for (const l of lines) console.error(`  - ${l}`);
+  console.error("\nRun `npm run security:audit:raw` for the full unfiltered report.");
+  process.exit(1);
 }
 
-function loadExceptions(): AuditException[] {
+function readExceptionsFile(): unknown {
   const p = resolve(process.cwd(), "security", "audit-exceptions.json");
   let raw: string;
   try {
     raw = readFileSync(p, "utf8");
   } catch {
-    return [];
+    return { exceptions: [] };
   }
-  const parsed = JSON.parse(raw) as { exceptions?: AuditException[] };
-  const list = parsed.exceptions ?? [];
-  validateExceptions(list);
-  return list;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (err) {
+    fail([`security/audit-exceptions.json is not valid JSON: ${(err as Error).message}`]);
+  }
 }
 
-function runAudit(): Record<string, unknown> {
+function runAudit(): unknown {
   const res = spawnSync("npm", ["audit", "--omit=dev", "--json"], {
     encoding: "utf8",
     shell: true,
-    maxBuffer: 32 * 1024 * 1024,
+    maxBuffer: 64 * 1024 * 1024,
   });
+  if (res.error) {
+    fail([`npm audit could not be executed: ${res.error.message}`]);
+  }
   const out = res.stdout?.trim();
   if (!out) {
-    console.error("npm audit produced no JSON output.");
-    if (res.stderr) console.error(res.stderr.split("\n").slice(0, 5).join("\n"));
-    process.exit(1);
+    const err = res.stderr?.split("\n").slice(0, 5).join("\n") ?? "";
+    fail(["npm audit produced no JSON output (failing closed)", err].filter(Boolean));
   }
   try {
-    return JSON.parse(out) as Record<string, unknown>;
+    return JSON.parse(out) as unknown;
   } catch {
-    console.error("Could not parse npm audit JSON.");
-    process.exit(1);
+    fail(["npm audit output was not valid JSON (failing closed)"]);
   }
 }
 
-const exceptions = loadExceptions();
-const audit = runAudit();
-const vulns = (audit.vulnerabilities ?? {}) as Record<string, AuditVuln>;
-const { failures, suppressed, unusedExceptions } = evaluateAudit(vulns, exceptions, today());
+/** Resolve installed versions from the real dependency tree (node_modules). */
+function installedVersions(packages: string[]): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  for (const name of packages) {
+    try {
+      const pkgPath = resolve(process.cwd(), "node_modules", name, "package.json");
+      const parsed = JSON.parse(readFileSync(pkgPath, "utf8")) as { version?: string };
+      out[name] = typeof parsed.version === "string" ? parsed.version : undefined;
+    } catch {
+      out[name] = undefined;
+    }
+  }
+  return out;
+}
 
-for (const u of unusedExceptions) {
+// Read the operator's declared environment the same way every other script does
+// (.env.local is gitignored and developer-owned). We deliberately do NOT default
+// or hardcode APP_ENV=local here: a deployment must never be able to masquerade
+// as local, so an unset or non-local value fails closed below, and cloud markers
+// are rejected regardless of what APP_ENV claims.
+loadEnv();
+
+const exceptionsFile = readExceptionsFile();
+const audit = runAudit();
+
+// Collect every package named by the exceptions (and their declared parents) so
+// their installed versions can be verified against the real tree.
+const declared = (
+  Array.isArray((exceptionsFile as { exceptions?: unknown }).exceptions)
+    ? ((exceptionsFile as { exceptions: AuditException[] }).exceptions ?? [])
+    : []
+) as AuditException[];
+const packagesToResolve = new Set<string>();
+for (const e of declared) {
+  if (typeof e?.package === "string") packagesToResolve.add(e.package);
+  for (const p of e?.transitiveParents ?? []) {
+    if (typeof p?.package === "string") packagesToResolve.add(p.package);
+  }
+}
+
+const cloudMarkers: Record<string, string | undefined> = {};
+for (const k of CLOUD_MARKER_VARS) cloudMarkers[k] = process.env[k];
+
+const result = evaluateAuditPolicy({
+  audit,
+  exceptionsFile,
+  now: new Date(),
+  // RAW value — no normalisation (consistent with FCX-P0-001).
+  rawAppEnv: process.env.APP_ENV,
+  cloudMarkers,
+  installedVersions: installedVersions([...packagesToResolve]),
+});
+
+for (const u of result.unusedExceptions) {
   console.warn(`WARNING: exception ${u} matched no current advisory — consider removing it.`);
 }
 
-if (suppressed.length) {
-  console.log("Suppressed (time-boxed, advisory-specific) findings:");
-  for (const s of suppressed) console.log(`  - ${s}`);
-  console.log(
-    "\nNOTE: these remain REAL findings. `npm run security:audit:raw` is still non-zero.",
-  );
-}
+if (!result.ok) fail(result.failures);
 
-if (failures.length) {
-  console.error("\nSecurity audit FAILED:");
-  for (const f of failures) console.error(`  - ${f}`);
-  console.error("\nRun `npm run security:audit:raw` for the full unfiltered report.");
-  process.exit(1);
+if (result.usedException) {
+  console.log("=".repeat(72));
+  console.log("RAW AUDIT IS NOT CLEAN — findings below are ACCEPTED, not fixed.");
+  console.log("=".repeat(72));
+  for (const s of result.suppressed) console.log(`  ${s}`);
+  for (const e of declared) {
+    console.log("");
+    console.log(`  exception id     : ${e.id}`);
+    console.log(`  advisory         : ${e.ghsa} (${e.severity})`);
+    console.log(`  package          : ${e.package}@${e.installedVersion}  ${e.vulnerableRange}`);
+    console.log(`  dependency path  : ${e.dependencyPaths.join(", ")}`);
+    for (const p of e.transitiveParents ?? []) {
+      console.log(`  via parent       : ${p.package}@${p.installedVersion}`);
+    }
+    console.log(`  allowed env      : ${e.allowedEnvironments.join(", ")} (raw APP_ENV only)`);
+    console.log(`  expires (UTC)    : ${e.expiresUtc}`);
+    console.log(`  blocked milestone: ${e.blockedMilestone}`);
+    console.log(`  CLOUD UAT        : BLOCKED`);
+    console.log(`  PRODUCTION       : BLOCKED`);
+  }
+  console.log("");
+  console.log(
+    `Local gate passed under APP_ENV="${String(process.env.APP_ENV)}" ` +
+      `(allowed: ${ALLOWED_EXCEPTION_ENVIRONMENTS.join(", ")}). This is NOT a clean audit.`,
+  );
+  process.exit(0);
 }
 
 console.log(
-  `\nSecurity audit passed: no unexpected high/critical advisories ` +
-    `(${suppressed.length} time-boxed exception(s) in effect).`,
+  "Local exception-aware audit passed with no high/critical findings and no exception in use.",
 );
 process.exit(0);

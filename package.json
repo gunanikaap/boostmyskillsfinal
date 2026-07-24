@@ -30,7 +30,8 @@
     "test:e2e": "playwright test",
     "test:e2e:auth": "node --experimental-strip-types scripts/e2e/run-auth-e2e.mts",
     "security:audit": "node --experimental-strip-types scripts/security/audit.mts",
-    "security:audit:raw": "npm audit --omit=dev --audit-level=high"
+    "security:audit:raw": "npm audit --omit=dev --audit-level=high",
+    "security:audit:local": "node --experimental-strip-types scripts/security/audit.mts"
   },
   "overrides": {
     "postcss": ">=8.5.10"

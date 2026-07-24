@@ -1,16 +1,34 @@
 {
-  "_comment": "Machine-readable, EXPIRING allowlist for `npm run security:audit`. Each entry allows exactly ONE advisory (exact GHSA) on ONE package — it is NOT a package-wide mute, so a NEW advisory on the same package fails the gate. Criticals can never be excepted. An expired entry FAILS the gate. `npm run security:audit:raw` always shows the unfiltered truth and remains non-zero while any entry is in effect.",
+  "_comment": "Machine-enforced, time-boxed allowlist for the LOCAL exception-aware audit gate. Each entry binds to an exact advisory, package, installed version, vulnerable range, severity and dependency path, and applies only when raw APP_ENV is exactly 'local' or 'test' with no cloud/deployment marker present. It NEVER makes the raw audit clean: `npm run security:audit:raw` remains non-zero while any entry is in effect. Criticals can never be excepted. Cloud UAT and Production are machine-blocked.",
   "exceptions": [
     {
+      "id": "EX-SHARP-LIBVIPS-2026-07",
       "ghsa": "GHSA-f88m-g3jw-g9cj",
       "package": "sharp",
-      "transitivelyAffects": ["next"],
+      "installedVersion": "0.34.5",
+      "vulnerableRange": "<0.35.0",
       "severity": "high",
-      "advisory": "sharp <0.35.0 inherits libvips CVEs (CVE-2026-33327/33328/35590/35591)",
-      "reason": "sharp is pulled in transitively by Next. next@15.5.21 (current pin, latest stable 15.5.x) still declares optionalDependencies.sharp ^0.34.3, so no forward stable Next release resolves it; npm's only 'fix' is a downgrade to next@14.2.35 (breaking and older). Not reachable in this build: the application never imports sharp, and all user media is served through the controlled /media route rather than Next's image optimizer. Re-pin Next as soon as a release declares sharp>=0.35.",
-      "expires": "2026-08-21",
-      "expiresNote": "Earlier of 2026-08-21 or the first cloud UAT deployment, whichever comes first. Cloud UAT remains BLOCKED while this exception is in effect.",
-      "addedOn": "2026-07-22"
+      "dependencyPaths": ["node_modules/sharp"],
+      "transitiveParents": [
+        {
+          "package": "next",
+          "installedVersion": "15.5.21",
+          "dependencyPaths": ["node_modules/next"]
+        }
+      ],
+      "created": "2026-07-22",
+      "expiresUtc": "2026-08-21T00:00:00.000Z",
+      "owner": "project owner (BoostMySkills)",
+      "rationale": "sharp <0.35.0 inherits libvips CVE-2026-33327/33328/35590/35591. sharp is reached only transitively through Next's optional image optimizer. next@15.5.21 is the latest STABLE 15.5.x and still declares optionalDependencies.sharp ^0.34.3, so no forward stable Next release resolves it; npm's only offered remediation is a downgrade to next@14.2.35 (breaking and older). Not reachable in this build.",
+      "compensatingControls": [
+        "No application module imports sharp (verified by source scan).",
+        "All user-uploaded media is served through the controlled /media route.",
+        "components/CatalogueCards.tsx sets unoptimized={img.startsWith('/media/')}, so untrusted image bytes never reach Next's image optimizer; only repo-committed brand assets are optimized.",
+        "Raw audit remains visible and non-zero via `npm run security:audit:raw`."
+      ],
+      "allowedEnvironments": ["local", "test"],
+      "blockedMilestone": "first cloud UAT — this exception must be resolved or formally re-approved before any public cloud deployment",
+      "productionProhibited": true
     }
   ]
 }
