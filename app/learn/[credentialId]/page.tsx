@@ -124,7 +124,9 @@ export default async function PlayerPage({
   const next = flat[currentIndex + 1];
   const unitHref = (id: string) => `/learn/${credentialId}?unit=${id}`;
 
-  // For a submitted MCQ, load the review (correct answers + the learner's choices).
+  // For a submitted MCQ, load the learner's own outcome (score, pass/fail and
+  // their own choices). The answer key is server-only and is never loaded here
+  // (FCX-P1-002).
   const review =
     current.unit.type === "mcq" && stateMap[current.unit.id]?.attempted
       ? await getMcqReview(enrollmentId, current.unit.id)

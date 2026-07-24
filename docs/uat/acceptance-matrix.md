@@ -10,9 +10,11 @@ not yet verified), **BLOCKED** (needs an external credential/data/decision),
 > migration, real email delivery, real UAT→Prod OLX promotion, real UAT cloud
 > deployment, real Clerk integration, real B2 integration, real RDS/RDS-Proxy.
 
-Automated evidence lives in `tests/` and runs via `npm test` (**256 Vitest tests**,
-real PostgreSQL) + `npm run test:e2e` (**7 Playwright** auth-agnostic smokes, real
-dev server + Clerk dev keys) + `npm run test:e2e:auth` (**24 Playwright**,
+Automated evidence lives in `tests/` and runs via `npm test` (**404 Vitest tests**
+across 43 files, real PostgreSQL — requires an isolated `TEST_DATABASE_URL`; the
+suite refuses to run against the application database) + `npm run test:e2e`
+(**17 Playwright** auth-agnostic smokes, real dev server + Clerk dev keys) +
+`npm run test:e2e:auth` (**24 Playwright**,
 **test-auth-backed — see below**: 6 authorization + **18 actual product-vertical**
 tests driving the real admin→learner credential-to-certificate journey through the
 browser with DB verification — see `docs/uat/actual-product-vertical-report.md` and
