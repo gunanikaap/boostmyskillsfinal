@@ -219,6 +219,28 @@ async function passMcq(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Submit answers" }).click();
   await expect(page.getByText(/Assessment submitted/)).toBeVisible();
   await expect(page.getByText(/score 100%/)).toBeVisible();
+
+  // FCX-P1-002 — the POST-submission review is where the answer key used to
+  // leak (a derived correctByQuestion map reached the client and was rendered).
+  // Assert the served HTML + serialised RSC payload carry no answer key.
+  const afterHtml = await page.content();
+  for (const leak of [
+    "correctOptionIds",
+    "correctByQuestion",
+    "grading_document",
+    "gradingDocument",
+    "grading_snapshot",
+    "gradingSnapshot",
+  ]) {
+    expect(afterHtml, `submitted review must not contain ${leak}`).not.toContain(leak);
+  }
+  // No markup may identify a correct option (classes, marks or tags).
+  expect(await page.locator("[data-correct], [data-correct-option]").count()).toBe(0);
+  expect(await page.locator(".mcq__option--correct, .mcq__option--wrong").count()).toBe(0);
+  expect(await page.getByText("Correct", { exact: true }).count()).toBe(0);
+  // The learner's own answer IS still shown, with the score and pass mark.
+  await expect(page.getByText("Your answer").first()).toBeVisible();
+  await expect(page.getByText(/pass mark/i)).toBeVisible();
 }
 
 async function uploadBanner(page: Page, buttonName: string, successText: string): Promise<void> {

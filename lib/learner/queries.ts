@@ -113,17 +113,35 @@ export async function getEnrollmentUnitState(
   return out;
 }
 
+/**
+ * Learner-facing MCQ outcome DTO (FCX-P1-002).
+ *
+ * SECURITY: this is an explicit ALLOWLIST. It carries the learner's own result
+ * and their own submitted choices — never the answer key. `grading_snapshot`
+ * (and any correct-option map derived from it) is server-only and must not
+ * appear in learner queries, props, RSC payloads or responses.
+ *
+ * Do NOT add: gradingSnapshot, correctByQuestion, correctOptionIds, per-option
+ * correctness flags, or internal grading rules.
+ */
 export interface McqReview {
+  attemptNumber: number;
   percentage: number | null;
-  correctByQuestion: Record<string, string[]>;
+  score: number | null;
+  maximumScore: number | null;
+  passed: boolean | null;
+  submittedAt: string;
+  /** The learner's OWN selections, for read-only display of what they answered. */
   chosenByQuestion: Record<string, string[]>;
 }
 
 /**
- * Post-submission MCQ review: the correct option ids (from the recorded grading
- * snapshot) and the learner's own answers, for the latest attempt. Only ever
- * exposed AFTER the learner has submitted — the content_document never carries
- * answers. Null if there is no attempt yet.
+ * Post-submission MCQ outcome for the latest attempt: score, pass/fail and the
+ * learner's own answers. Null if there is no attempt yet.
+ *
+ * `grading_snapshot` is deliberately NOT selected — the answer key never leaves
+ * the server. It remains stored in PostgreSQL as the immutable historical
+ * grading record and is still used server-side for certificate eligibility.
  */
 export async function getMcqReview(
   enrollmentId: string,
@@ -131,24 +149,33 @@ export async function getMcqReview(
   conn: Queryable = db,
 ): Promise<McqReview | null> {
   const { rows } = await conn.query(
-    `SELECT percentage, submitted_answers, grading_snapshot
-     FROM assessment_attempts
-     WHERE enrollment_id = $1 AND unit_id = $2
-     ORDER BY attempt_number DESC LIMIT 1`,
+    `SELECT attempt_number, percentage, score, maximum_score, passed,
+            submitted_at, submitted_answers
+       FROM assessment_attempts
+      WHERE enrollment_id = $1 AND unit_id = $2
+      ORDER BY attempt_number DESC LIMIT 1`,
     [enrollmentId, unitId],
   );
   const r = rows[0] as
-    | { percentage: string | null; submitted_answers: unknown; grading_snapshot: unknown }
+    | {
+        attempt_number: number;
+        percentage: string | null;
+        score: string | null;
+        maximum_score: string | null;
+        passed: boolean | null;
+        submitted_at: Date | string;
+        submitted_answers: unknown;
+      }
     | undefined;
   if (!r) return null;
-  const snap = r.grading_snapshot as {
-    questions?: { questionId: string; correctOptionIds: string[] }[];
-  };
-  const correctByQuestion: Record<string, string[]> = {};
-  for (const q of snap.questions ?? []) correctByQuestion[q.questionId] = q.correctOptionIds;
   return {
+    attemptNumber: Number(r.attempt_number),
     percentage: r.percentage !== null ? Number(r.percentage) : null,
-    correctByQuestion,
+    score: r.score !== null ? Number(r.score) : null,
+    maximumScore: r.maximum_score !== null ? Number(r.maximum_score) : null,
+    passed: r.passed,
+    submittedAt:
+      r.submitted_at instanceof Date ? r.submitted_at.toISOString() : String(r.submitted_at),
     chosenByQuestion: (r.submitted_answers as Record<string, string[]>) ?? {},
   };
 }

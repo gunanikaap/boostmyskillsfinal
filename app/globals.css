@@ -1780,13 +1780,13 @@ a {
 .mcq__option--review {
   cursor: default;
 }
-.mcq__option--correct {
+/* FCX-P1-002: the submitted-assessment review highlights only the learner's OWN
+   selection. There are deliberately NO correct/incorrect option styles — the
+   answer key is server-only, so no class, colour or mark may reveal which option
+   was correct. */
+.mcq__option--chosen {
   border-color: var(--bms-green);
   background: var(--bms-green-soft);
-}
-.mcq__option--wrong {
-  border-color: #e6b0aa;
-  background: #fdecea;
 }
 .mcq__mark {
   flex: none;
@@ -1794,11 +1794,8 @@ a {
   text-align: center;
   font-weight: 800;
 }
-.mcq__option--correct .mcq__mark {
+.mcq__option--chosen .mcq__mark {
   color: var(--bms-green-dark);
-}
-.mcq__option--wrong .mcq__mark {
-  color: #b3261e;
 }
 .mcq__tag {
   margin-left: auto;
@@ -1806,9 +1803,6 @@ a {
   font-weight: 700;
   color: var(--bms-muted);
   white-space: nowrap;
-}
-.mcq__tag--correct {
-  color: var(--bms-green-dark);
 }
 .player__nav {
   display: flex;

@@ -153,17 +153,26 @@ function McqUnit({
   const [pending, start] = useTransition();
   const [result, setResult] = useState<string | null>(null);
 
-  // Submitted: show the score and reveal correct answers alongside the learner's.
+  // Submitted: show the outcome (score, pass mark, pass/fail) and the learner's
+  // OWN answers.
+  //
+  // SECURITY (FCX-P1-002): the answer key is server-only. This view must never
+  // identify which option was correct — no correctness marks, classes, tags,
+  // aria-labels or data attributes. Options the learner did not choose are
+  // rendered exactly like any other unchosen option.
   if (locked) {
+    const passed = review?.passed ?? null;
     return (
       <div className="mcq mcq--review">
         <p className="mcq__score">
           Assessment submitted
-          {review?.percentage != null ? ` — score ${review.percentage}%` : ""}. No further attempts.
+          {review?.percentage != null ? ` — score ${review.percentage}%` : ""} (pass mark{" "}
+          {d.passMark}%).
+          {passed === true ? " Passed." : passed === false ? " Not passed." : ""} No further
+          attempts.
         </p>
         {review &&
           d.questions.map((q, qi) => {
-            const correct = review.correctByQuestion[q.id] ?? [];
             const chosen = review.chosenByQuestion[q.id] ?? [];
             return (
               <fieldset key={q.id} className="mcq__q">
@@ -172,21 +181,19 @@ function McqUnit({
                 </div>
                 <div className="mcq__options">
                   {q.options.map((o) => {
-                    const isCorrect = correct.includes(o.id);
                     const isChosen = chosen.includes(o.id);
-                    const cls = isCorrect
-                      ? " mcq__option--correct"
-                      : isChosen
-                        ? " mcq__option--wrong"
-                        : "";
                     return (
-                      <div key={o.id} className={`mcq__option mcq__option--review${cls}`}>
+                      <div
+                        key={o.id}
+                        className={`mcq__option mcq__option--review${
+                          isChosen ? " mcq__option--chosen" : ""
+                        }`}
+                      >
                         <span className="mcq__mark" aria-hidden="true">
-                          {isCorrect ? "✓" : isChosen ? "✗" : ""}
+                          {isChosen ? "•" : ""}
                         </span>
                         <span>{o.text}</span>
-                        {isCorrect && <span className="mcq__tag mcq__tag--correct">Correct</span>}
-                        {isChosen && !isCorrect && <span className="mcq__tag">Your answer</span>}
+                        {isChosen && <span className="mcq__tag">Your answer</span>}
                       </div>
                     );
                   })}
