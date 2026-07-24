@@ -204,3 +204,21 @@ breadth **PARTIAL**.
 
 Cloud-UAT readiness · Production readiness · a clean raw dependency audit ·
 completed historical migration · final approval.
+
+---
+
+## Addendum — Codex verdict on this branch (2026-07-24)
+
+`fix/final-test-database-isolation` (`a9098af`) returned **GO WITH MANDATORY
+FIXES** (TDX-P1-001, TDX-P1-002). Both are fixed on
+`fix/final-test-db-marker-cli-guards`; see
+[final-test-db-marker-cli-guards-report.md](final-test-db-marker-cli-guards-report.md).
+
+- **TDX-P1-001** — `db:reset --test` / `db:migrate --test` now run the full
+  connected guard (exact raw `APP_ENV=test`, marker, strict name, connected
+  identity) before any DDL, and re-verify the marker afterwards.
+- **TDX-P1-002** — isolation no longer relies on URL comparison alone. A strict
+  `<name>_test` name rule, a persistent `boostmyskills:test-only:v1` marker
+  (surviving `DROP SCHEMA`), and a server-reported connected-identity comparison
+  (cluster start + database OID) now catch host aliases, differing usernames, and
+  the missing-`DATABASE_URL` case. Provision once with `npm run db:test:mark`.
