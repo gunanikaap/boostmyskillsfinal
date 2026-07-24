@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { loadEnv } from "../_loadEnv.mts";
 import {
   evaluateAuditPolicy,
   CLOUD_MARKER_VARS,
@@ -84,12 +83,15 @@ function installedVersions(packages: string[]): Record<string, string | undefine
   return out;
 }
 
-// Read the operator's declared environment the same way every other script does
-// (.env.local is gitignored and developer-owned). We deliberately do NOT default
-// or hardcode APP_ENV=local here: a deployment must never be able to masquerade
-// as local, so an unset or non-local value fails closed below, and cloud markers
-// are rejected regardless of what APP_ENV claims.
-loadEnv();
+// The environment is read from the REAL process environment only. We
+// deliberately do NOT load .env files and do NOT default or hardcode
+// APP_ENV=local here: a deployment must never be able to masquerade as local.
+// A missing APP_ENV therefore fails closed, and the operator must state the
+// environment explicitly, e.g.:
+//
+//     APP_ENV=local npm run security:audit:local
+//
+// Cloud/deployment markers are rejected regardless of what APP_ENV claims.
 
 const exceptionsFile = readExceptionsFile();
 const audit = runAudit();

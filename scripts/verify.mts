@@ -8,7 +8,21 @@ import { spawnSync } from "node:child_process";
  *
  * The DB and build steps require external services (PostgreSQL). If those are
  * unavailable the step fails loudly rather than being silently skipped.
+ *
+ * The security:audit step requires the operator to declare the environment
+ * explicitly, because the exception gate must never let a deployment masquerade
+ * as local (FCX-P1-003). Run this pipeline as:
+ *
+ *     APP_ENV=local npm run verify
+ *
+ * An unset or non-local APP_ENV makes that step fail closed by design.
  */
+if (process.env.APP_ENV === undefined) {
+  console.warn(
+    "NOTE: APP_ENV is not set. The security:audit step will fail closed.\n" +
+      "      Run `APP_ENV=local npm run verify` (or `test`) to declare the environment.\n",
+  );
+}
 const steps: { name: string; cmd: string; args: string[] }[] = [
   {
     name: "format:check",
