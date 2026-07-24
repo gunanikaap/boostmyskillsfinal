@@ -58,40 +58,69 @@ export async function runMigrations(connectionString: string): Promise<string[]>
   return applied;
 }
 
-// Run directly: `npm run db:migrate` (optionally `-- --test`)
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("migrate.mts")) {
-  loadEnv();
-  const useTest = process.argv.includes("--test");
-  // FDX-P1-001: `--test` never falls back to DATABASE_URL, so a missing
-  // TEST_DATABASE_URL cannot silently migrate the developer's database.
-  let conn: string | undefined;
-  if (useTest) {
-    conn = process.env.TEST_DATABASE_URL;
-    if (conn === undefined || conn.trim() === "") {
-      console.error(
-        "TEST_DATABASE_URL is required with --test. It must point at an isolated " +
-          "test database and is never inferred from DATABASE_URL.",
-      );
-      process.exit(1);
-    }
+function reportApplied(applied: string[]): void {
+  if (applied.length === 0) {
+    console.log("No pending migrations. Database is up to date.");
   } else {
-    conn = process.env.DATABASE_URL;
+    console.log(`Applied ${applied.length} migration(s):`);
+    for (const f of applied) console.log(`  + ${f}`);
   }
+}
+
+/**
+ * `--test` CLI path (TDX-P1-001). Runs the COMPLETE central connected guard
+ * before any DDL: exact APP_ENV=test, mandatory TEST_DATABASE_URL (no fallback),
+ * strict test-name, persistent marker, and connected identity distinct from
+ * DATABASE_URL. Verifies the marker again after migrating.
+ */
+async function migrateTestCli(): Promise<void> {
+  const { isExactTestEnvironment } = await import("../../lib/env.ts");
+  const {
+    assertSafeTestDatabaseTarget,
+    readDatabaseMarker,
+    TEST_DATABASE_MARKER,
+    TestDatabaseSafetyError,
+  } = await import("../../lib/db/testGuard.ts");
+
+  if (!isExactTestEnvironment()) {
+    console.error("db:migrate --test requires APP_ENV to be exactly 'test'. Refusing to run.");
+    process.exit(1);
+  }
+  let conn: string;
+  try {
+    const verified = await assertSafeTestDatabaseTarget();
+    conn = verified.connectionString();
+  } catch (err) {
+    const message =
+      err instanceof TestDatabaseSafetyError ? err.message : "Test-database validation failed.";
+    console.error(`Refusing to migrate the test database: ${message}`);
+    process.exit(1);
+  }
+  const applied = await runMigrations(conn);
+  const marker = await readDatabaseMarker(conn);
+  if (marker !== TEST_DATABASE_MARKER) {
+    console.error("The isolated-test-database marker is missing after migration. Aborting.");
+    process.exit(1);
+  }
+  reportApplied(applied);
+}
+
+/** Ordinary migration against DATABASE_URL — unchanged behaviour. */
+async function migrateNormalCli(): Promise<void> {
+  const conn = process.env.DATABASE_URL;
   if (!conn) {
     console.error("No connection string (DATABASE_URL).");
     process.exit(1);
   }
-  runMigrations(conn)
-    .then((applied) => {
-      if (applied.length === 0) {
-        console.log("No pending migrations. Database is up to date.");
-      } else {
-        console.log(`Applied ${applied.length} migration(s):`);
-        for (const f of applied) console.log(`  + ${f}`);
-      }
-    })
-    .catch((err) => {
-      console.error(err.message ?? err);
-      process.exit(1);
-    });
+  reportApplied(await runMigrations(conn));
+}
+
+// Run directly: `npm run db:migrate` (optionally `-- --test`)
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("migrate.mts")) {
+  loadEnv();
+  const useTest = process.argv.includes("--test");
+  (useTest ? migrateTestCli() : migrateNormalCli()).catch((err) => {
+    console.error(err?.message ?? err);
+    process.exit(1);
+  });
 }
