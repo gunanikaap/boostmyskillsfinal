@@ -154,7 +154,7 @@ describe("APP_ENV gate around the whole adapter", () => {
           firstName: null,
           lastName: null,
         }),
-      ).toThrow(/APP_ENV=test/);
+      ).toThrow(/APP_ENV is exactly 'test'/);
     }
   });
 });

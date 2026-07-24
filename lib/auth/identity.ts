@@ -1,4 +1,4 @@
-import { testAuthEnabled, isTestEnv } from "@/lib/env";
+import { testAuthEnabled, isExactTestEnvironment } from "@/lib/env";
 
 /** A resolved external identity (from Clerk in real deployments). */
 export interface ExternalIdentity {
@@ -21,8 +21,10 @@ export interface ExternalIdentity {
 let testActor: ExternalIdentity | null = null;
 
 export function setTestActor(identity: ExternalIdentity | null): void {
-  if (!isTestEnv()) {
-    throw new Error("setTestActor() may only be called under APP_ENV=test");
+  // Independent fail-closed gate on the RAW env value (FCX-P0-001): "TEST",
+  // " test", "testing" etc. must never permit identity injection.
+  if (!isExactTestEnvironment()) {
+    throw new Error("setTestActor() may only be called when APP_ENV is exactly 'test'");
   }
   testActor = identity;
 }
@@ -52,6 +54,10 @@ export function parseTestActorHeader(
   actorHeader: string | null,
   expectedSecret: string | undefined,
 ): ExternalIdentity | null {
+  // Independent fail-closed environment gate (FCX-P0-001). This parser must not
+  // authenticate anyone unless the RAW APP_ENV is exactly "test", even if a
+  // caller reaches it directly rather than through resolveExternalIdentity().
+  if (!isExactTestEnvironment()) return null;
   if (!expectedSecret) return null; // no server secret configured → adapter inert
   if (secretHeader !== expectedSecret) return null; // wrong/absent secret
   if (!actorHeader) return null;
@@ -83,6 +89,9 @@ export function parseTestActorHeader(
  * in-process Vitest suite with no injected actor) it safely resolves to null.
  */
 async function resolveTestHeaderIdentity(): Promise<ExternalIdentity | null> {
+  // Independent fail-closed environment gate (FCX-P0-001), in addition to the
+  // testAuthEnabled() check made by the caller.
+  if (!isExactTestEnvironment()) return null;
   const expectedSecret = process.env.TEST_AUTH_SECRET;
   if (!expectedSecret) return null;
   try {
@@ -102,7 +111,9 @@ async function resolveTestHeaderIdentity(): Promise<ExternalIdentity | null> {
  *   Clerk keys do not fail)
  */
 export async function resolveExternalIdentity(): Promise<ExternalIdentity | null> {
-  if (testAuthEnabled()) {
+  // Both conditions are exact-value checks on raw env (FCX-P0-001); either one
+  // failing routes the request to real Clerk authentication.
+  if (isExactTestEnvironment() && testAuthEnabled()) {
     if (testActor) return testActor;
     return resolveTestHeaderIdentity();
   }
