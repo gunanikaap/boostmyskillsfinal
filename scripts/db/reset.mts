@@ -2,6 +2,7 @@ import { Client } from "pg";
 import { loadEnv } from "../_loadEnv.mts";
 import { runMigrations } from "./migrate.mts";
 import { clientConfig } from "../../lib/db/config.ts";
+import { requireTestDatabaseUrl } from "../../lib/db/testGuard.ts";
 
 /**
  * DEV/TEST ONLY: drop the public schema, re-create it, and re-run migrations.
@@ -30,9 +31,19 @@ async function reset(connectionString: string): Promise<void> {
 
 loadEnv();
 const useTest = process.argv.includes("--test");
-const conn = useTest
-  ? (process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL)
-  : process.env.DATABASE_URL;
+// FDX-P1-001: `--test` must NEVER fall back to DATABASE_URL. This script drops
+// the public schema, so a fallback would destroy the developer's database.
+let conn: string | undefined;
+if (useTest) {
+  try {
+    conn = requireTestDatabaseUrl();
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(1);
+  }
+} else {
+  conn = process.env.DATABASE_URL;
+}
 if (!conn) {
   console.error("No connection string.");
   process.exit(1);

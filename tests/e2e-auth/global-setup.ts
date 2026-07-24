@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { requireTestDatabaseUrl, assertSafeTestDatabaseTarget } from "@/lib/db/testGuard";
 
 /**
  * Seed the rows the authenticated verticals cannot auto-provision: admin
@@ -6,8 +7,10 @@ import { Pool } from "pg";
  * need no seed (a learner is lazily synced on first request; anonymous sends no
  * headers). Idempotent so re-runs are safe.
  *
- * Runs in the Playwright process, which run-auth-e2e.mts has already pointed at
- * the test database (DATABASE_URL := TEST_DATABASE_URL).
+ * Runs in the Playwright process. run-auth-e2e.mts has already verified and
+ * repointed the database, but this writes to app_users, so it re-asserts
+ * isolation itself and connects to TEST_DATABASE_URL explicitly rather than
+ * trusting an inherited DATABASE_URL (FDX-P1-001).
  */
 
 // Fixed actor for the authorization vertical (authz-vertical.spec.ts).
@@ -37,8 +40,9 @@ export function productAdminActor() {
 }
 
 export default async function globalSetup(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL not set for e2e-auth global setup");
+  // Writes to app_users → prove isolation before connecting.
+  await assertSafeTestDatabaseTarget();
+  const connectionString = requireTestDatabaseUrl();
   const pool = new Pool({ connectionString });
   try {
     for (const a of [ADMIN_ACTOR, productAdminActor()]) {

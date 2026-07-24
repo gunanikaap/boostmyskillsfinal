@@ -13,6 +13,12 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { loadEnv } from "./../_loadEnv.mts";
+import {
+  snapshotApplicationDatabaseUrl,
+  requireTestDatabaseUrl,
+  assertSafeTestDatabaseTarget,
+  TestDatabaseSafetyError,
+} from "../../lib/db/testGuard.ts";
 
 loadEnv();
 
@@ -27,9 +33,28 @@ process.env.E2E_RUN_ID = `r${randomBytes(5).toString("hex")}`;
 // Isolate uploaded object data under an ignored test-only storage root.
 process.env.STORAGE_DRIVER = "local";
 process.env.LOCAL_STORAGE_ROOT = ".data/e2e-storage";
-// The application pool must talk to the test database, never dev/prod.
-if (process.env.TEST_DATABASE_URL) {
-  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+// --- Test-database isolation preflight (FDX-P1-001) --------------------------
+//
+// This ran as a CONDITIONAL repoint, so with TEST_DATABASE_URL unset the whole
+// authenticated run (which seeds actors and truncates rows) executed against the
+// developer's database. The repoint is now unconditional, and every check below
+// happens BEFORE the Next build, before any server starts, before migrations and
+// before any seeding — so a misconfigured run modifies nothing at all.
+//
+// Order: exact APP_ENV -> TEST_DATABASE_URL present -> valid syntax -> distinct
+// from DATABASE_URL -> preflight connection -> current_database() verified.
+snapshotApplicationDatabaseUrl();
+try {
+  const testDatabaseUrl = requireTestDatabaseUrl();
+  await assertSafeTestDatabaseTarget();
+  process.env.DATABASE_URL = testDatabaseUrl;
+  console.log("Test-database isolation verified.");
+} catch (err) {
+  // Safe reason only — never the URL, host, user or password.
+  const reason =
+    err instanceof TestDatabaseSafetyError ? err.message : "Test-database validation failed.";
+  console.error(`Refusing to run the authenticated E2E suite: ${reason}`);
+  process.exit(1);
 }
 // Blank (do NOT delete) any Clerk key so clerkConfigured() is false → middleware
 // pass-through and no ClerkProvider (auth is proven here via the test-auth adapter

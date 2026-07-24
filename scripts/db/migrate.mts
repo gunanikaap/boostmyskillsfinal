@@ -62,11 +62,23 @@ export async function runMigrations(connectionString: string): Promise<string[]>
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("migrate.mts")) {
   loadEnv();
   const useTest = process.argv.includes("--test");
-  const conn = useTest
-    ? (process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL)
-    : process.env.DATABASE_URL;
+  // FDX-P1-001: `--test` never falls back to DATABASE_URL, so a missing
+  // TEST_DATABASE_URL cannot silently migrate the developer's database.
+  let conn: string | undefined;
+  if (useTest) {
+    conn = process.env.TEST_DATABASE_URL;
+    if (conn === undefined || conn.trim() === "") {
+      console.error(
+        "TEST_DATABASE_URL is required with --test. It must point at an isolated " +
+          "test database and is never inferred from DATABASE_URL.",
+      );
+      process.exit(1);
+    }
+  } else {
+    conn = process.env.DATABASE_URL;
+  }
   if (!conn) {
-    console.error("No connection string (DATABASE_URL / TEST_DATABASE_URL).");
+    console.error("No connection string (DATABASE_URL).");
     process.exit(1);
   }
   runMigrations(conn)

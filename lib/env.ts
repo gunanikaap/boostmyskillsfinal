@@ -66,11 +66,24 @@ export function databaseUrl(): string {
   return url;
 }
 
-/** Connection string used ONLY by the automated test suite. */
+/**
+ * Connection string used ONLY by the automated test suite.
+ *
+ * FDX-P1-001: this MUST NOT fall back to DATABASE_URL. Falling back meant that
+ * running the suite without TEST_DATABASE_URL pointed the destructive test
+ * helpers (TRUNCATE / schema reset) at the developer's local database. The
+ * variable is mandatory and is never inferred.
+ *
+ * The full isolation guard lives in lib/db/testGuard.ts; this accessor only
+ * enforces presence + syntax so that non-destructive callers still fail closed.
+ */
 export function testDatabaseUrl(): string {
-  const url = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error("TEST_DATABASE_URL (or DATABASE_URL) must be set to run database tests.");
+  const url = process.env.TEST_DATABASE_URL;
+  if (url === undefined || url.trim() === "") {
+    throw new Error(
+      "TEST_DATABASE_URL is required for database-backed tests. " +
+        "It must point at an isolated test database and is never inferred from DATABASE_URL.",
+    );
   }
   return url;
 }
