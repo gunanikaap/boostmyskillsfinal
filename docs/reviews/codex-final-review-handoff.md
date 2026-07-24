@@ -122,3 +122,50 @@ starts its own dev server sharing `.next` and the contention causes `ChunkLoadEr
 
 Cloud-UAT readiness · Production readiness · a clean raw dependency audit ·
 completed historical migration · final approval.
+
+---
+
+## SUPERSEDED — delta review target (2026-07-24)
+
+The review of `review/final-pre-codex-hardening` returned **GO WITH MANDATORY
+FIXES**. Those fixes are on a new branch, which is now the review target:
+
+| | |
+|---|---|
+| **Delta review target** | `origin/fix/final-codex-mandatory-fixes` |
+| **Obtain the exact SHA** | `git rev-parse origin/fix/final-codex-mandatory-fixes` |
+| **Compare against** | `review/final-pre-codex-hardening` (`0f12bdd`) |
+| **Evidence** | [final-codex-mandatory-fixes-report.md](final-codex-mandatory-fixes-report.md) |
+
+```bash
+git fetch origin
+git diff review/final-pre-codex-hardening...origin/fix/final-codex-mandatory-fixes
+```
+
+This is a **narrow** delta review covering only:
+
+- **FCX-P0-001** — test-auth now requires the RAW `APP_ENV` to be exactly `test`.
+  Probe: any variant (`TEST`, ` test`, `test\n`, `testing`, missing) enabling the
+  adapter, or any entry point that does not independently fail closed.
+- **FCX-P1-002** — the MCQ answer key no longer reaches learners. Probe: any
+  learner query, DTO, RSC payload, prop, class, attribute or response that
+  identifies a correct option; confirm `grading_snapshot` is still stored and
+  still drives grading/certificate eligibility server-side.
+- **FCX-P1-003** — the dependency exception gate. Probe: any audit payload that
+  is wrongly suppressed — especially a bare transitive `via` string, a new GHSA
+  on an excepted package, version/path drift, a critical, an expired exception,
+  or a non-local/cloud environment.
+- **FCX-P3-004** — contact email normalisation.
+
+The architecture invariants, acceptance source of truth and BLOCKED/PARTIAL items
+above are unchanged.
+
+**Dependency status is unchanged in substance:** `sharp@0.34.5`
+(GHSA-f88m-g3jw-g9cj) remains accepted under exception
+`EX-SHARP-LIBVIPS-2026-07`, expiring **2026-08-21T00:00:00.000Z**.
+`npm run security:audit:raw` still exits **non-zero**, and the local gate is not
+a clean production audit. Cloud UAT and Production remain blocked — now
+**machine-enforced** by the gate (raw `APP_ENV` must be exactly `local`/`test`
+and no deployment marker may be present).
+
+Neither branch has been merged. Codex was not invoked by the implementer.

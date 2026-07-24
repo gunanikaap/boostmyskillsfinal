@@ -42,13 +42,30 @@ None of the blocked items above are reported as deployed, integrated, or migrate
 ## Dependency advisory — risk-accepted, time-boxed (not a blocker)
 
 - **`sharp < 0.35` libvips advisory** (GHSA-f88m-g3jw-g9cj, HIGH; CVE-2026-33327/
-  33328/35590/35591) is pulled in **transitively by `next@15.5.20`**. npm's only
-  offered remediation is a **downgrade** to `next@14.2.35` (breaking + older), and
-  no forward stable Next on the 15.x line yet declares `sharp>=0.35`. `sharp` is
-  used only by Next's optional build-time image optimiser; BMS serves all images
-  through the controlled `/media` route and never transcodes untrusted image bytes
-  at runtime. Risk-accepted via a machine-readable **expiring** exception
-  (`security/audit-exceptions.json`, expires **2026-08-21** or first cloud UAT,
-  whichever is sooner). Re-pin Next as soon as a release bumps `sharp>=0.35`.
-  Gates: `npm run security:audit` (exception-aware — fails on any unexpected OR
-  expired high/critical); `npm run security:audit:raw` (unfiltered `npm audit`).
+  33328/35590/35591) is pulled in **transitively by `next@15.5.21`** (the current
+  pin — the latest *stable* 15.5.x, which patched eight earlier Next advisories
+  but still declares `optionalDependencies.sharp ^0.34.3`). Resolved installed
+  version: **`sharp@0.34.5`** at `node_modules/sharp`. npm's only offered
+  remediation is a **downgrade** to `next@14.2.35` (breaking + older).
+
+  **Not reachable in this build:** no application module imports `sharp`, and
+  `components/CatalogueCards.tsx` sets `unoptimized={img.startsWith("/media/")}`,
+  so untrusted user media bypasses Next's image optimizer entirely — only
+  repo-committed brand assets are optimized.
+
+  Risk-accepted via the machine-enforced, **expiring** exception
+  `EX-SHARP-LIBVIPS-2026-07` in `security/audit-exceptions.json`, bound to the
+  exact advisory, package, installed version, vulnerable range, severity and
+  dependency path. **Expires 2026-08-21T00:00:00.000Z** (UTC) or first cloud UAT,
+  whichever is sooner. Re-pin Next as soon as a release declares `sharp>=0.35`.
+
+  **Cloud UAT and Production are machine-blocked** by the gate: the exception
+  applies only when raw `APP_ENV` is exactly `local` or `test` and no deployment
+  marker (`AWS_BRANCH`, `AWS_APP_ID`, `AMPLIFY_APP_ID`, `AMPLIFY_ENV`,
+  `AWS_EXECUTION_ENV`, `CODEBUILD_BUILD_ID`) is present.
+
+  Gates: `npm run security:audit` / `npm run security:audit:local` (local,
+  exception-aware — fails on any new, critical, expired, version-drifted,
+  path-drifted or non-local finding) and `npm run security:audit:raw` (unfiltered
+  `npm audit`). **The raw audit remains NON-ZERO while this exception is in
+  effect; the local gate passing is NOT a clean production audit.**

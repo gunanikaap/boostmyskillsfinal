@@ -158,3 +158,75 @@ MANDATORY FIXES". All accepted items were implemented on
   release gate `npm run security:audit` is now exception-aware (fails on any
   unexpected OR expired high/critical); `npm run security:audit:raw` shows the
   unfiltered report. See [known-blockers.md](../uat/known-blockers.md).
+
+---
+
+## Final Codex mandatory remediation (2026-07-24)
+
+An independent Codex review of `review/final-pre-codex-hardening` (`0f12bdd`)
+returned "GO WITH MANDATORY FIXES". All three blockers, and the optional low-risk
+finding, were fixed on `fix/final-codex-mandatory-fixes`. Full evidence:
+[final-codex-mandatory-fixes-report.md](../reviews/final-codex-mandatory-fixes-report.md).
+
+- **FCX-P0-001 — exact test environment.** `lib/env.ts` lower-cased `APP_ENV`, so
+  `APP_ENV=TEST` resolved to `"test"` and could enable the test-authentication
+  adapter. A new `isExactTestEnvironment()` compares the RAW value
+  (`process.env.APP_ENV === "test"`) with no case folding, trim, prefix match,
+  `NODE_ENV` substitute or default. Every test-auth entry point now gates on it
+  independently and fails closed: `testAuthEnabled()` (which also now requires
+  `TEST_AUTH_ENABLED === "true"` exactly), `setTestActor()`,
+  `parseTestActorHeader()`, `resolveTestHeaderIdentity()` and
+  `resolveExternalIdentity()`. Tests: `test-auth-env-matrix.test.ts` (28) proves
+  20 rejected variants cannot enable the adapter, authenticate a forged
+  correct-secret header (including one claiming `role=admin`), or inject an actor.
+- **FCX-P1-002 — learner answer-key exposure.** `lib/learner/queries.ts` read
+  `assessment_attempts.grading_snapshot`, derived a `correctByQuestion` map and
+  returned it to learner-facing code, which rendered correctness client-side. The
+  query no longer selects `grading_snapshot` at all, and `McqReview` is an
+  explicit allowlist (attempt number, percentage, score, maximum score, passed,
+  submitted timestamp, and the learner's OWN choices). The submitted view shows
+  score, pass mark, pass/fail and "Your answer" only — the correctness CSS
+  (`mcq__option--correct/--wrong`, `mcq__tag--correct`) is replaced by a neutral
+  `mcq__option--chosen`, so no class, mark, tag or attribute reveals the key.
+  `grading_snapshot` remains stored server-side as the immutable grading record
+  and is still used for grading and certificate eligibility. Tests:
+  `assessment-answer-key-privacy.test.ts` (9) plus a post-submission assertion in
+  the authenticated Playwright vertical against the real served HTML/RSC payload.
+- **FCX-P1-003 — dependency exception gate.** Rebuilt so an exception allows ONE
+  advisory (exact GHSA) on ONE package, at ONE exact installed version, over an
+  EXACT dependency-path set, at an EXACT severity, until an EXACT UTC instant,
+  and only when raw `APP_ENV` is exactly `local` or `test` with no cloud marker
+  (`AWS_BRANCH`, `AWS_APP_ID`, `AMPLIFY_APP_ID`, `AMPLIFY_ENV`,
+  `AWS_EXECUTION_ENV`, `CODEBUILD_BUILD_ID`) present. Bare transitive `via`
+  strings are never accepted alone — they are resolved to the underlying advisory
+  and the affected package must be a declared transitive parent. Criticals are
+  rejected before exception processing and can never be excepted. Everything
+  unparseable, duplicated, expired or drifted fails closed. Tests:
+  `audit-policy.test.ts` (52).
+- **FCX-P3-004 — contact email normalisation.** The public contact endpoint now
+  normalises (trim + lowercase) via the central `normalizeEmail()` BEFORE
+  validation, so only a normalised, length-capped address is persisted. Tests:
+  `contact-route.test.ts` (9).
+
+### Dependency status after this phase
+
+`next` was patched 15.5.20 → **15.5.21** (latest stable 15.5.x) in the previous
+phase, clearing eight Next advisories. The remaining accepted finding is:
+
+- **GHSA-f88m-g3jw-g9cj**, `sharp@0.34.5` (`<0.35.0`, high), reached only
+  transitively through `next@15.5.21` (`node_modules/sharp`). No forward stable
+  Next release resolves it (15.5.21 still declares `optionalDependencies.sharp
+  ^0.34.3`); npm's only offered remediation is a downgrade to `next@14.2.35`.
+  Not reachable: no application module imports `sharp`, and
+  `components/CatalogueCards.tsx` sets `unoptimized={img.startsWith("/media/")}`
+  so untrusted user media bypasses Next's image optimizer.
+  Exception `EX-SHARP-LIBVIPS-2026-07`, **expires 2026-08-21T00:00:00.000Z**
+  (or first cloud UAT, whichever is sooner).
+
+**`npm run security:audit:raw` remains NON-ZERO and is reported as non-zero.**
+The local exception-aware gate (`npm run security:audit` /
+`npm run security:audit:local`) prints "RAW AUDIT IS NOT CLEAN — findings below
+are ACCEPTED, not fixed" together with the exception id, advisory,
+package@version, dependency path, allowed environments, UTC expiry, and
+CLOUD UAT / PRODUCTION **BLOCKED**. It is not a clean production audit, and
+cloud UAT remains blocked.

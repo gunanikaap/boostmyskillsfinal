@@ -214,3 +214,30 @@ exception is in effect.
 
 **Files removed:** none (no dead code met the §7 proof-of-non-use bar).
 **Dependencies changed:** `next` 15.5.20 → 15.5.21; `eslint-config-next` 15.5.20 → 15.5.21.
+
+---
+
+## Addendum — independent Codex verdict on this branch (2026-07-24)
+
+`review/final-pre-codex-hardening` (`0f12bdd`) was reviewed independently and
+returned **GO WITH MANDATORY FIXES**. This report remains the record of *that*
+branch; it is **superseded** for merge purposes by the remediation branch below.
+
+| Finding | Severity | Status |
+|---|---|---|
+| FCX-P0-001 — test-auth could activate when `APP_ENV` was not exactly lowercase `test` | P0 | **Fixed** |
+| FCX-P1-002 — learner assessment payloads exposed derived correct-answer maps | P1 | **Fixed** |
+| FCX-P1-003 — Sharp/Next audit exception not sufficiently narrow or machine-enforced | P1 | **Fixed** |
+| FCX-P3-004 — contact email validated but not normalised | P3 | **Fixed** |
+
+Remediation branch: `fix/final-codex-mandatory-fixes`.
+Evidence: [final-codex-mandatory-fixes-report.md](final-codex-mandatory-fixes-report.md).
+
+Two corrections to claims made above, arising from that review:
+
+1. The test-auth boundary described above as "double-gated on `APP_ENV==='test'`"
+   was gated through a **normalising** helper, so `APP_ENV=TEST` would have
+   satisfied it. It now compares the raw value exactly.
+2. The exception gate described above as "advisory-exact" still accepted a bare
+   transitive `via` string and did not verify installed version, dependency path,
+   environment or a UTC expiry instant. It has been rebuilt.
